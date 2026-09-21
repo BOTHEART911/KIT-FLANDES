@@ -1573,12 +1573,14 @@ ${js}
   /* ═══════════ INSTALAR ═══════════ */
   grupo('instalar');
   {
-    const { page, ctx } = await pagina(browser, ['instalar'], '<div id="donde"></div>');
+    const { page, ctx } = await pagina(browser, ['instalar', 'bienvenida'], '<div id="donde"></div>');
 
-    await prueba('en Chromium de escritorio, sin aviso previo, no se puede', async () => {
+    await prueba('en Chromium de escritorio, sin aviso previo, es el caso escritorio', async () => {
       await page.evaluate(() => KIT.piezas.instalar.vigilar());
-      igual(await page.evaluate(() => KIT.piezas.instalar.caso()), 'no');
-      falso(await page.evaluate(() => KIT.piezas.instalar.sePuede()), 'sin el aviso no se puede');
+      igual(await page.evaluate(() => KIT.piezas.instalar.caso()), 'escritorio');
+      cierto(await page.evaluate(() => KIT.piezas.instalar.sePuede()),
+             'sin aviso del navegador TAMBIEN se ofrece: hay camino que ensenar');
+      igual(await page.evaluate(() => KIT.piezas.instalar.etiqueta()), 'Como instalarla'.replace('Como','Cómo'));
     });
 
     await prueba('cuando llega el aviso del navegador, ya se puede', async () => {
@@ -1603,7 +1605,7 @@ ${js}
     });
 
     await prueba('el aviso del navegador solo sirve una vez', async () => {
-      igual(await page.evaluate(() => KIT.piezas.instalar.caso()), 'no');
+      igual(await page.evaluate(() => KIT.piezas.instalar.caso()), 'escritorio');
     });
 
     await prueba('si ya está instalada, no se ofrece nada', async () => {
@@ -1617,18 +1619,91 @@ ${js}
       igual(c, 'instalada');
     });
 
-    await prueba('en un navegador que no lo permite, se explica con franqueza', async () => {
+    await prueba('en el computador se dice donde esta el icono de instalar', async () => {
       /* sin await: abrir() no resuelve hasta que el usuario cierra la hoja */
       await page.evaluate(() => { KIT.piezas.instalar.abrir(); });
       await page.waitForTimeout(150);
       const t = await page.locator('.kit-inst__cuerpo').innerText();
-      cierto(/no ofrece instalar/i.test(t), 'debía decirlo claro');
-      cierto(/WhatsApp|Facebook/.test(t), 'debía avisar del navegador interno');
+      cierto(/barra de direcciones/i.test(t), 'debía decir dónde mirar');
+      cierto(/Chrome|Edge/.test(t), 'debía nombrar los navegadores que sí pueden');
+    });
+
+    await prueba('cada plataforma tiene su propio camino, sin cajon de sastre', async () => {
+      const casos = ['ios-safari', 'ios-otro', 'mac-safari', 'embebido', 'firefox', 'escritorio'];
+      const vistos = {};
+      for (const c of casos) {
+        const t = await page.evaluate((cc) => {
+          const h = document.createElement('div');
+          h.innerHTML = KIT.piezas.instalar.__pasos(cc);
+          return h.innerText || h.textContent;
+        }, c);
+        cierto(t && t.length > 80, 'el caso ' + c + ' debía traer pasos');
+        cierto(!vistos[t], 'el caso ' + c + ' no debía repetir el texto de otro');
+        vistos[t] = true;
+      }
+      const ios = await page.evaluate(() => {
+        const h = document.createElement('div');
+        h.innerHTML = KIT.piezas.instalar.__pasos('ios-safari');
+        return h.innerText || h.textContent;
+      });
+      cierto(/Compartir/.test(ios), 'iOS debía hablar de Compartir');
+      const mac = await page.evaluate(() => {
+        const h = document.createElement('div');
+        h.innerHTML = KIT.piezas.instalar.__pasos('mac-safari');
+        return h.innerText || h.textContent;
+      });
+      cierto(/Dock/.test(mac), 'Mac debía hablar del Dock');
+      const emb = await page.evaluate(() => {
+        const h = document.createElement('div');
+        h.innerHTML = KIT.piezas.instalar.__pasos('embebido');
+        return h.innerText || h.textContent;
+      });
+      cierto(/WhatsApp|Instagram/.test(emb), 'el navegador interno debía avisarse');
     });
 
     await prueba('ofrece copiar el enlace como salida', async () => {
       cierto(await page.locator('.kit-inst__copiar').isVisible(), 'debía ofrecer copiar');
       await page.locator('.kit-capa__x').click();
+    });
+
+    await prueba('LA PUERTA NO SE ESCONDE: sale la segunda vez y la tercera', async () => {
+      for (let i = 1; i <= 3; i++) {
+        await page.evaluate(() => { KIT.piezas.bienvenida.abrir({ titulo: 'X', sub: 'Y' }); });
+        await page.waitForTimeout(120);
+        cierto(await page.locator('.kit-bien').isVisible(), 'debía salir en la vuelta ' + i);
+        await page.locator('.kit-bien__seguir').click();
+        await page.waitForTimeout(320);
+      }
+    });
+
+    await prueba('la puerta NO sale si la app ya corre instalada', async () => {
+      const salida = await page.evaluate(async () => {
+        const real = window.matchMedia;
+        window.matchMedia = (q) => q.indexOf('standalone') >= 0 ? { matches: true } : real(q);
+        const r = await KIT.piezas.bienvenida.abrir({ titulo: 'X' });
+        window.matchMedia = real;
+        return r;
+      });
+      igual(salida, 'saltada');
+    });
+
+    await prueba('la puerta NO sale si se llega con destino en la direccion', async () => {
+      const salida = await page.evaluate(async () => {
+        location.hash = '#/cuentas';
+        const r = await KIT.piezas.bienvenida.abrir({ titulo: 'X' });
+        location.hash = '';
+        return r;
+      });
+      igual(salida, 'saltada');
+    });
+
+    await prueba('el rotulo del boton lo dicta la plataforma', async () => {
+      await page.evaluate(() => { KIT.piezas.bienvenida.abrir({ titulo: 'X' }); });
+      await page.waitForTimeout(120);
+      const r = await page.locator('.kit-bien__rot').innerText();
+      igual(r, await page.evaluate(() => KIT.piezas.instalar.etiqueta()));
+      await page.locator('.kit-bien__seguir').click();
+      await page.waitForTimeout(320);
     });
 
     /* iPhone: se cambia el userAgent en un contexto nuevo */
@@ -1640,7 +1715,7 @@ ${js}
       const p2 = await ctx2.newPage();
       await p2.goto('file://' + path.join(RAIZ, '__banco.html'));
       await p2.waitForFunction('!!window.KIT');
-      igual(await p2.evaluate(() => KIT.piezas.instalar.caso()), 'ios');
+      igual(await p2.evaluate(() => KIT.piezas.instalar.caso()), 'ios-safari');
       cierto(await p2.evaluate(() => KIT.piezas.instalar.sePuede()), 'en iPhone sí se puede, a mano');
       await p2.evaluate(() => { KIT.piezas.instalar.abrir(); });
       await p2.waitForTimeout(150);
@@ -1662,7 +1737,7 @@ ${js}
       await p4.goto('file://' + path.join(RAIZ, '__banco.html'));
       await p4.waitForFunction('!!window.KIT');
       await p4.evaluate(() => { Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5, configurable: true }); });
-      igual(await p4.evaluate(() => KIT.piezas.instalar.caso()), 'ios');
+      igual(await p4.evaluate(() => KIT.piezas.instalar.caso()), 'ios-safari');
       await ctx4.close();
     });
 
@@ -1674,9 +1749,12 @@ ${js}
       const p3 = await ctx3.newPage();
       await p3.goto('file://' + path.join(RAIZ, '__banco.html'));
       await p3.waitForFunction('!!window.KIT');
+      igual(await p3.evaluate(() => KIT.piezas.instalar.caso()), 'ios-otro');
       await p3.evaluate(() => { KIT.piezas.instalar.abrir(); });
       await p3.waitForTimeout(150);
-      cierto(/solo funciona en/i.test(await p3.locator('.kit-inst__cuerpo').innerText()), 'debía avisar que hace falta Safari');
+      const t3 = await p3.locator('.kit-inst__cuerpo').innerText();
+      cierto(/solo Safari/i.test(t3), 'debía avisar que hace falta Safari');
+      cierto(/no llegan los avisos/i.test(t3), 'debía decir que sin instalar no hay avisos');
       await ctx3.close();
     });
 

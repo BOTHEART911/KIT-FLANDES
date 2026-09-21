@@ -15,10 +15,17 @@
      tampoco hay avisos.
 
    Cuándo NO sale
-     · Si la app ya está instalada (no tiene nada que ofrecer).
-     · Si la persona ya eligió una vez (se recuerda en este aparato).
+     · Si la app ya está corriendo INSTALADA (no tiene nada que ofrecer).
      · Si la app se abrió desde un aviso o con un destino concreto en la
        dirección: ahí la persona va a algo, no a mirar una portada.
+
+   Por qué NO se recuerda que "ya eligió" (corregido en la 4.1.3)
+     La primera versión guardaba en el aparato que la persona ya había
+     visto la puerta y no volvía a salir nunca más. Es exactamente el
+     fallo que JHONNY-PERDOMO ya había cazado y quitado a propósito de su
+     código: quien entró una vez por el navegador se quedaba sin la vista
+     de instalar para siempre. Ahora sale SIEMPRE que se entra desde el
+     navegador, y lo único que la salta es que la app ya venga instalada.
 
    Cómo se usa
 
@@ -43,8 +50,10 @@
 
   var VISTA_K = 'bienvenida.vista';
 
-  function yaEligio() { return K.guardar.leer(VISTA_K, false) === true; }
-  function recordar() { K.guardar.escribir(VISTA_K, true); }
+  /* La marca de la 4.1.1 se borra al arrancar: los aparatos que ya la
+     tienen guardada volverían a quedarse sin puerta para siempre. */
+  try { K.guardar.borrar(VISTA_K); } catch (e) {}
+
   function olvidar() { K.guardar.borrar(VISTA_K); }
 
   function instalada() {
@@ -56,7 +65,6 @@
     var o = opciones || {};
     if (o.forzar) return true;
     if (instalada()) return false;
-    if (yaEligio()) return false;
     /* Venir con destino en la dirección es ir a algo concreto (un aviso
        tocado, un enlace compartido): no se le cruza una portada. */
     if (String(location.hash || '').replace(/^#\/?/, '')) return false;
@@ -68,7 +76,14 @@
     if (!procede(o)) return Promise.resolve('saltada');
 
     return new Promise(function (resolver) {
-      var esIOS = !!(K.piezas.avisos && K.piezas.avisos.esIOS && K.piezas.avisos.esIOS());
+      /* El rótulo lo dicta la pieza de instalar, que es la que sabe en qué
+         aparato estamos. Chrome puede tardar en mandar su aviso, así que
+         el botón se vuelve a rotular si llega tarde. */
+      function rotulo() {
+        return (K.piezas.instalar && K.piezas.instalar.etiqueta)
+          ? K.piezas.instalar.etiqueta()
+          : 'Instalar la aplicación';
+      }
 
       var capa = K.nodo(
         '<div class="kit-bien" role="dialog" aria-modal="true" aria-label="Bienvenida">' +
@@ -88,7 +103,7 @@
         '        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">' +
         '          <path d="M12 3v11m0 0l-4-4m4 4l4-4M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
         '        </svg>' +
-        '        <span>' + (esIOS ? 'Añadir a mi pantalla' : 'Instalar la aplicación') + '</span>' +
+        '        <span class="kit-bien__rot">' + K.esc(rotulo()) + '</span>' +
         '      </button>' +
         '      <button type="button" class="kit-btn kit-btn--plano kit-bien__seguir">Continuar en el navegador</button>' +
         '    </div>' +
@@ -102,7 +117,6 @@
       requestAnimationFrame(function () { capa.classList.add('kit-bien--on'); });
 
       function cerrar(salida) {
-        recordar();
         capa.classList.remove('kit-bien--on');
         document.documentElement.classList.remove('kit-bien-abierta');
         setTimeout(function () { if (capa.parentNode) capa.remove(); }, 260);
@@ -128,6 +142,6 @@
   }
 
   K.piezas.bienvenida = {
-    abrir: abrir, procede: procede, olvidar: olvidar, yaEligio: yaEligio
+    abrir: abrir, procede: procede, olvidar: olvidar
   };
 }());
