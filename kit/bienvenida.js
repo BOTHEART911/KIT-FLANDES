@@ -82,7 +82,6 @@
         '    <div class="kit-bien__ventajas">' +
         '      <span class="kit-bien__v">Entra de un toque</span>' +
         '      <span class="kit-bien__v">Recibe avisos</span>' +
-        '      <span class="kit-bien__v">Funciona sin señal</span>' +
         '    </div>' +
         '    <div class="kit-bien__botones">' +
         '      <button type="button" class="kit-btn kit-btn--marca kit-bien__instalar">' +

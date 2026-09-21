@@ -251,7 +251,7 @@
               icono: '📲',
               titulo: 'Te la mandamos por WhatsApp',
               texto: (d && d.telefono)
-                ? 'La enviamos al ' + K.esc(String(d.telefono)) + '.'
+                ? 'La enviamos al número que termina en ' + K.esc(String(d.telefono).slice(-4)) + '.'
                 : 'La enviamos al número que tienes registrado.',
               atajos: []
             })
