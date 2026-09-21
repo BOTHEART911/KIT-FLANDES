@@ -1,0 +1,42 @@
+/* ============================================================
+   KIT-FLANDES · CAPA 12 · ANTI DOBLE CLIC — estilos
+   Pareja de kit/antidoble.js.
+   ============================================================ */
+
+/* El escudo NO se ve: solo intercepta toques. Si se viera, parecería que
+   la app se congeló; lo que debe verse es el aviso de guardado (pieza 4). */
+.kit-escudo {
+  position: fixed;
+  inset: 0;
+  z-index: 9790;
+  display: none;
+  background: transparent;
+  cursor: progress;
+}
+.kit-escudo--on { display: block; }
+
+/* El control que está trabajando sí se marca, para que se note que el
+   toque SÍ llegó: esa es la razón por la que la gente toca dos veces. */
+.kit-ocupado {
+  position: relative;
+  opacity: .72;
+  cursor: progress !important;
+  pointer-events: none;
+}
+.kit-ocupado::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 14px; height: 14px;
+  margin-top: -7px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: kit-ocupado-gira .7s linear infinite;
+}
+@keyframes kit-ocupado-gira { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-ocupado::after { animation-duration: 2s; }
+}

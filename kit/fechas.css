@@ -1,0 +1,162 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 5 · RUEDA DE FECHAS — estilos
+   Pareja de kit/fechas.js.
+   El alto de fila (--k-rueda-fila) TIENE que coincidir con la
+   constante ALTO del JS: la rueda se posiciona con scrollTop.
+   ============================================================ */
+
+.kit-campo-fecha {
+  cursor: pointer;
+  background-image: linear-gradient(transparent, transparent);
+}
+.kit-campo-fecha::-webkit-calendar-picker-indicator { display: none; }
+
+.kit-rueda {
+  position: fixed;
+  inset: 0;
+  z-index: 9850;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+@media (min-width: 720px) { .kit-rueda { align-items: center; } }
+
+.kit-rueda__velo {
+  position: absolute;
+  inset: 0;
+  background: var(--k-velo);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.kit-rueda--on .kit-rueda__velo { opacity: 1; }
+
+.kit-rueda__hoja {
+  position: relative;
+  width: min(420px, 100%);
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  border-radius: var(--k-r-lg) var(--k-r-lg) 0 0;
+  box-shadow: var(--k-sombra-2);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  transform: translateY(100%);
+  transition: transform .26s cubic-bezier(.2, .9, .3, 1);
+}
+@media (min-width: 720px) {
+  .kit-rueda__hoja { border-radius: var(--k-r-lg); transform: translateY(16px) scale(.98); opacity: 0; transition: transform .22s ease, opacity .22s ease; }
+  .kit-rueda--on .kit-rueda__hoja { transform: none; opacity: 1; }
+}
+.kit-rueda--on .kit-rueda__hoja { transform: translateY(0); }
+
+.kit-rueda__h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 18px 10px;
+  border-bottom: 1px solid var(--k-linea);
+}
+.kit-rueda__t { font: 700 15px/1.25 var(--k-fuente-titulo); flex: 1 1 auto; }
+.kit-rueda__anio {
+  font: 700 12px/1 var(--k-fuente);
+  background: rgba(var(--k-marca-rgb), .12);
+  color: var(--k-marca);
+  padding: 5px 11px;
+  border-radius: var(--k-r-pill);
+}
+
+/* ── las ruedas ── */
+
+.kit-rueda__ruedas {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 10px 14px 6px;
+}
+
+/* la banda que marca la fila elegida */
+.kit-rueda__marca {
+  position: absolute;
+  left: 14px; right: 14px;
+  top: 50%;
+  height: var(--k-rueda-fila);
+  transform: translateY(-50%);
+  border-radius: var(--k-r-sm);
+  background: rgba(var(--k-marca-rgb), .10);
+  border-top: 1px solid rgba(var(--k-marca-rgb), .22);
+  border-bottom: 1px solid rgba(var(--k-marca-rgb), .22);
+  pointer-events: none;
+}
+
+.kit-rueda__colcaja {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.kit-rueda__fl {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--k-apagado);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: var(--k-r-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-rueda__fl:hover { background: var(--k-papel-2); color: var(--k-marca); }
+.kit-rueda__fl:active { transform: scale(.88); }
+
+/* Sin scroll-snap a propósito: el JS coloca la rueda con scrollTop = i·fila
+   y lee el elegido con round(scrollTop/fila). Con `scroll-snap-align:start`
+   el navegador reajusta al borde del primer item, que está 2 filas más
+   abajo por los huecos, y toda la rueda se lee corrida dos posiciones
+   (elegías 1 de enero y guardaba 3 de marzo). El ajuste fino ya lo hace
+   el propio JS al soltar. */
+.kit-rueda__col {
+  height: calc(var(--k-rueda-fila) * 5);
+  width: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  text-align: center;
+}
+.kit-rueda__col::-webkit-scrollbar { display: none; }
+
+.kit-rueda__hueco { height: calc(var(--k-rueda-fila) * 2); }
+
+.kit-rueda__item {
+  height: var(--k-rueda-fila);
+  line-height: var(--k-rueda-fila);
+  font: 500 16px/var(--k-rueda-fila) var(--k-fuente);
+  color: var(--k-apagado);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+  transition: color .14s ease, font-weight .14s ease, transform .14s ease;
+}
+.kit-rueda__item.sel {
+  color: var(--k-tinta);
+  font-weight: 700;
+  transform: scale(1.06);
+}
+
+.kit-rueda__pie {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--k-linea);
+}
+.kit-rueda__pie .kit-btn { flex: 1 1 0; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-rueda__hoja, .kit-rueda__velo, .kit-rueda__item { transition: none !important; }
+}

@@ -1,0 +1,179 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 7 · VISOR DE DOCUMENTOS — estilos
+   Pareja de kit/visor.js.
+   ============================================================ */
+
+.kit-visor {
+  position: fixed;
+  inset: 0;
+  z-index: 9750;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.kit-visor--on { display: flex; }
+
+.kit-visor__velo {
+  position: absolute;
+  inset: 0;
+  background: var(--k-velo);
+  backdrop-filter: blur(3px);
+}
+
+.kit-visor__caja {
+  position: relative;
+  width: min(940px, 100%);
+  height: min(86vh, 900px);
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  border-radius: var(--k-r-lg);
+  box-shadow: var(--k-sombra-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: kit-visor-entra .22s cubic-bezier(.2, .9, .3, 1) both;
+}
+@keyframes kit-visor-entra {
+  from { opacity: 0; transform: translateY(16px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+/* una vez movida por el usuario, la animación no debe pisarle el transform */
+.kit-visor__caja--movida { animation: none; }
+
+/* ── minimizado: se va a una esquina y deja ver la tarjeta de debajo ── */
+
+.kit-visor--chico { pointer-events: none; }
+.kit-visor--chico .kit-visor__velo { display: none; }
+.kit-visor--chico .kit-visor__caja {
+  pointer-events: auto;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: min(380px, calc(100vw - 32px));
+  height: 300px;
+}
+.kit-visor--chico .kit-visor__pie { display: none; }
+
+/* ── barra ── */
+
+.kit-visor__barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--k-marca);
+  color: #fff;
+  cursor: grab;
+  flex: 0 0 auto;
+  touch-action: none;
+  user-select: none;
+}
+.kit-visor__barra:active { cursor: grabbing; }
+
+.kit-visor__agarre { opacity: .7; font-size: 14px; letter-spacing: -2px; }
+
+.kit-visor__t {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 14px/1.3 var(--k-fuente);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kit-visor__cuenta {
+  font: 600 11px/1 var(--k-fuente);
+  background: rgba(255, 255, 255, .2);
+  padding: 4px 9px;
+  border-radius: var(--k-r-pill);
+  flex: 0 0 auto;
+}
+
+.kit-visor__acciones { display: flex; gap: 2px; flex: 0 0 auto; }
+
+.kit-visor__b {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  width: 32px; height: 32px;
+  border-radius: var(--k-r-sm);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-visor__b:hover { background: rgba(255, 255, 255, .2); }
+.kit-visor__b:active { transform: scale(.9); }
+.kit-visor__b--x:hover { background: var(--k-malo); }
+
+/* ── lienzo ── */
+
+.kit-visor__lienzo {
+  flex: 1 1 auto;
+  position: relative;
+  background: var(--k-papel-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  min-height: 0;
+}
+.kit-visor__marco { width: 100%; height: 100%; border: 0; display: block; }
+.kit-visor__img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+.kit-visor__cargando,
+.kit-visor__malo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font: 500 14px/1.4 var(--k-fuente);
+  color: var(--k-apagado);
+  text-align: center;
+  padding: 20px;
+  background: var(--k-papel-2);
+}
+.kit-visor__malo { color: var(--k-malo); }
+
+/* ── pie ── */
+
+.kit-visor__pie {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--k-linea);
+  flex: 0 0 auto;
+}
+.kit-visor__pie .kit-btn { min-height: 38px; padding: 8px 14px; font-size: 13px; }
+
+.kit-visor__puntos { flex: 1 1 auto; display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+
+.kit-visor__punto {
+  appearance: none;
+  border: 0;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--k-linea);
+  cursor: pointer;
+  padding: 0;
+  transition: transform .14s ease, background .14s ease;
+}
+.kit-visor__punto.sel { background: var(--k-marca); transform: scale(1.35); }
+
+@media (max-width: 560px) {
+  .kit-visor { padding: 0; }
+  .kit-visor__caja { width: 100%; height: 100%; border-radius: 0; }
+  .kit-visor__b[data-a="encoger"] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-visor__caja { animation: none; }
+}

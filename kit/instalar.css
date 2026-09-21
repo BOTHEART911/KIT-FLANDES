@@ -1,0 +1,50 @@
+/* ============================================================
+   KIT-FLANDES · VISTA INSTALAR — estilos
+   Pareja de kit/instalar.js.
+   ============================================================ */
+
+.kit-inst__hoja { width: min(440px, 100%); }
+.kit-inst__cuerpo { display: flex; flex-direction: column; gap: 14px; }
+
+.kit-inst__p { margin: 0; font: 400 14px/1.55 var(--k-fuente); color: var(--k-tinta-2); }
+.kit-inst__p b { color: var(--k-tinta); font-weight: 600; }
+
+.kit-inst__pasos {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  font: 400 14px/1.5 var(--k-fuente);
+  color: var(--k-tinta-2);
+}
+.kit-inst__pasos li::marker { color: var(--k-marca); font-weight: 700; }
+.kit-inst__pasos b { color: var(--k-tinta); font-weight: 600; }
+
+.kit-inst__ico {
+  display: inline-block;
+  padding: 1px 6px;
+  background: rgba(var(--k-marca-rgb), .12);
+  border-radius: var(--k-r-sm);
+}
+
+.kit-inst__ojo {
+  margin: 0;
+  font: 400 13px/1.5 var(--k-fuente);
+  color: var(--k-aviso);
+  background: var(--k-aviso-fondo);
+  border-radius: var(--k-r-md);
+  padding: 11px 13px;
+}
+.kit-inst__ojo b { font-weight: 700; }
+
+.kit-inst__video {
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  border-radius: var(--k-r-md);
+  background: var(--k-papel-2);
+  display: block;
+}
+
+.kit-inst__copiar { justify-content: center; }

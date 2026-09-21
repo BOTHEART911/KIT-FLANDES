@@ -1,0 +1,93 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 12 · EXPORTADOR — estilos
+   Pareja de kit/exportar.js.
+   ============================================================ */
+
+.kit-exp__hoja { width: min(480px, 100%); }
+.kit-exp__cuerpo { display: flex; flex-direction: column; gap: 18px; }
+
+.kit-exp__et {
+  font: 600 12px/1 var(--k-fuente);
+  color: var(--k-tinta-2);
+  letter-spacing: .3px;
+}
+
+/* ── rango de fechas ── */
+
+.kit-exp__rango { display: flex; flex-direction: column; gap: 8px; }
+.kit-exp__fechas { display: flex; align-items: center; gap: 10px; }
+.kit-exp__fechas span { font: 500 13px/1 var(--k-fuente); color: var(--k-apagado); flex: 0 0 auto; }
+.kit-exp__fechas input {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel-2);
+  color: var(--k-tinta);
+  font: 500 14px/1.2 var(--k-fuente);
+  padding: 11px 12px;
+  border-radius: var(--k-r-md);
+}
+.kit-exp__fechas input:focus {
+  outline: none;
+  border-color: var(--k-marca);
+  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb), .16);
+}
+
+/* ── columnas ── */
+
+.kit-exp__cols { display: flex; flex-direction: column; gap: 9px; }
+.kit-exp__colscab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.kit-exp__todas {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--k-marca);
+  font: 600 12px/1 var(--k-fuente);
+  cursor: pointer;
+  padding: 5px 7px;
+  border-radius: var(--k-r-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-exp__todas:hover { background: rgba(var(--k-marca-rgb), .09); }
+:root[data-tema="oscuro"] .kit-exp__todas { color: var(--k-marca-clara); }
+
+.kit-exp__lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 7px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 3px;
+}
+
+.kit-exp__col {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  background: var(--k-papel-2);
+  cursor: pointer;
+  font: 500 13px/1.25 var(--k-fuente);
+  color: var(--k-tinta);
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-exp__col:hover { border-color: var(--k-marca); }
+.kit-exp__col input { accent-color: var(--k-marca); width: 16px; height: 16px; flex: 0 0 auto; }
+.kit-exp__col span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* las fijas no se pueden desmarcar: sin ellas la fila no se identifica */
+.kit-exp__col--fijo { opacity: .72; cursor: default; }
+.kit-exp__col--fijo:hover { border-color: var(--k-linea); }
+
+.kit-exp__cuenta {
+  margin: 0;
+  font: 500 12px/1.4 var(--k-fuente);
+  color: var(--k-apagado);
+  text-align: center;
+  padding-top: 4px;
+  border-top: 1px dashed var(--k-linea);
+}

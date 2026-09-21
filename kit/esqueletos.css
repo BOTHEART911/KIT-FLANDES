@@ -1,0 +1,96 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 3 · ESQUELETOS — estilos
+   Pareja de kit/esqueletos.js.
+   ============================================================ */
+
+.kit-esq {
+  display: grid;
+  gap: 14px;
+  opacity: 1;
+  transition: opacity .18s ease;
+}
+.kit-esq--fuera { opacity: 0; }
+
+.kit-esq--tarjetas { grid-template-columns: 1fr; }
+@media (min-width: 680px)  { .kit-esq--tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1080px) { .kit-esq--tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.kit-esq--filas, .kit-esq--tabla, .kit-esq--texto, .kit-esq--ficha { grid-template-columns: 1fr; gap: 10px; }
+
+/* ── el brillo que recorre ── */
+
+.kit-esq__bloque {
+  --k-esq-a: var(--k-papel-2);
+  --k-esq-b: rgba(var(--k-marca-rgb), .10);
+  height: 12px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--k-esq-a) 25%, var(--k-esq-b) 37%, var(--k-esq-a) 63%);
+  background-size: 400% 100%;
+  animation: kit-esq-brillo 1.35s ease-in-out infinite;
+}
+:root[data-tema="oscuro"] .kit-esq__bloque {
+  --k-esq-a: #1b2a23;
+  --k-esq-b: #24362d;
+}
+
+@keyframes kit-esq-brillo {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.kit-esq__bloque--foto     { width: 52px; height: 52px; border-radius: var(--k-r-pill); flex: 0 0 auto; }
+.kit-esq__bloque--punto    { width: 14px; height: 14px; border-radius: var(--k-r-pill); flex: 0 0 auto; }
+.kit-esq__bloque--pastilla { width: 84px; height: 22px; border-radius: var(--k-r-pill); }
+.kit-esq__bloque--corto    { width: 64px; margin-left: auto; }
+.kit-esq__bloque--cabecera { height: 26px; width: 58%; }
+
+/* ── las formas ── */
+
+.kit-esq__tarjeta {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-lg);
+  padding: 16px;
+  box-shadow: var(--k-sombra-1);
+}
+.kit-esq__lineas { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; }
+
+.kit-esq__fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  padding: 14px 16px;
+}
+.kit-esq__fila .kit-esq__bloque:nth-child(2) { flex: 1 1 auto; }
+
+.kit-esq__tr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--k-linea);
+}
+
+.kit-esq__parrafo { display: flex; flex-direction: column; gap: 9px; padding: 4px 0; }
+
+.kit-esq__ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-lg);
+  padding: 20px;
+  box-shadow: var(--k-sombra-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-esq__bloque { animation: none; background: var(--k-papel-2); }
+  :root[data-tema="oscuro"] .kit-esq__bloque { background: #1b2a23; }
+}

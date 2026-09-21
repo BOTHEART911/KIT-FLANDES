@@ -1,0 +1,130 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 11 · INSIGHTS — estilos
+   Pareja de kit/insights.js.
+   ============================================================ */
+
+.kit-ins__fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0));
+  z-index: 9350;
+  appearance: none;
+  border: 0;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--k-marca);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: grab;
+  box-shadow: var(--k-sombra-marca);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  transition: transform .14s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-ins__fab:hover { transform: scale(1.06); }
+.kit-ins__fab:active { cursor: grabbing; transform: scale(.94); }
+
+/* ── panel ── */
+
+.kit-ins__hoja { width: min(520px, 100%); }
+.kit-ins__robot { font-size: 19px; }
+.kit-ins__t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.kit-ins__cuerpo { display: flex; flex-direction: column; gap: 16px; }
+
+.kit-ins__arranque { text-align: center; padding: 18px 8px; }
+.kit-ins__arranque p { margin: 0 0 16px; font: 400 14px/1.5 var(--k-fuente); color: var(--k-tinta-2); }
+.kit-ins__arranque b { color: var(--k-tinta); font-weight: 600; }
+.kit-ins__iniciar { justify-content: center; min-width: 140px; }
+
+.kit-ins__salida { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── medidas ── */
+
+.kit-ins__medidas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.kit-ins__medida {
+  background: var(--k-papel-2);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.kit-ins__medida b { font: 800 19px/1.15 var(--k-fuente-titulo); color: var(--k-marca); word-break: break-word; }
+:root[data-tema="oscuro"] .kit-ins__medida b { color: var(--k-marca-clara); }
+.kit-ins__medida span { font: 500 11px/1.3 var(--k-fuente); color: var(--k-apagado); }
+
+/* ── reparto (barras) ── */
+
+.kit-ins__reparto {
+  grid-column: 1 / -1;
+  background: var(--k-papel-2);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  padding: 13px 14px;
+}
+.kit-ins__reparto > b { font: 600 12px/1 var(--k-fuente); color: var(--k-tinta-2); display: block; margin-bottom: 10px; }
+.kit-ins__reparto ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.kit-ins__reparto li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 44px;
+  align-items: center;
+  gap: 9px;
+  font: 500 12px/1.3 var(--k-fuente);
+}
+.kit-ins__reparto li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-tinta); }
+.kit-ins__reparto li i {
+  display: block;
+  height: 7px;
+  border-radius: var(--k-r-pill);
+  background: var(--k-marca);
+  min-width: 3px;
+}
+.kit-ins__reparto li b { text-align: right; color: var(--k-apagado); font-weight: 700; }
+
+/* ── botones de pregunta y respuesta ── */
+
+.kit-ins__botones { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.kit-ins__respuesta {
+  margin: 0;
+  background: rgba(var(--k-marca-rgb), .07);
+  border-left: 3px solid var(--k-marca);
+  border-radius: var(--k-r-sm);
+  padding: 13px 15px;
+  font: 400 14px/1.6 var(--k-fuente);
+  color: var(--k-tinta);
+  white-space: pre-wrap;
+  min-height: 24px;
+}
+
+.kit-ins__pie-nota {
+  margin: 0;
+  font: 400 11px/1.5 var(--k-fuente);
+  color: var(--k-apagado);
+  border-top: 1px dashed var(--k-linea);
+  padding-top: 11px;
+}
+.kit-ins__pie-nota b { color: var(--k-tinta-2); font-weight: 700; }
+
+.kit-ins__vacio {
+  margin: 0;
+  text-align: center;
+  padding: 26px 14px;
+  font: 400 14px/1.5 var(--k-fuente);
+  color: var(--k-apagado);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-ins__fab { transition: none; }
+}

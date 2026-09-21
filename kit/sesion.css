@@ -1,0 +1,152 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 2 · LOGIN — estilos
+   Pareja de kit/sesion.js.
+   ============================================================ */
+
+.kit-sesion {
+  position: fixed;
+  inset: 0;
+  z-index: 9300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(var(--k-marca-rgb), .22), transparent 70%),
+    var(--k-fondo);
+  overflow: auto;
+  transition: opacity .24s ease;
+}
+.kit-sesion--fuera { opacity: 0; pointer-events: none; }
+
+.kit-sesion__caja {
+  width: min(400px, 100%);
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-lg);
+  box-shadow: var(--k-sombra-2);
+  padding: 30px 26px 22px;
+  animation: kit-sesion-entra .3s cubic-bezier(.2, .9, .3, 1) both;
+}
+@keyframes kit-sesion-entra {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.kit-sesion__marca { text-align: center; margin-bottom: 22px; }
+.kit-sesion__logo {
+  width: 88px; height: 88px;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+.kit-sesion__t {
+  margin: 0 0 6px;
+  font: 800 20px/1.25 var(--k-fuente-titulo);
+  color: var(--k-marca);
+  letter-spacing: .3px;
+}
+:root[data-tema="oscuro"] .kit-sesion__t { color: var(--k-marca-clara); }
+.kit-sesion__sub { margin: 0; font: 400 13px/1.45 var(--k-fuente); color: var(--k-apagado); }
+
+/* ── formulario ── */
+
+.kit-sesion__form { display: flex; flex-direction: column; gap: 14px; }
+.kit-sesion__form--modal { gap: 14px; }
+
+.kit-sesion__campo { display: flex; flex-direction: column; gap: 6px; }
+.kit-sesion__campo > span {
+  font: 600 12px/1 var(--k-fuente);
+  color: var(--k-tinta-2);
+  letter-spacing: .3px;
+}
+.kit-sesion__campo input {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel-2);
+  color: var(--k-tinta);
+  font: 500 15px/1.2 var(--k-fuente);
+  padding: 13px 14px;
+  border-radius: var(--k-r-md);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.kit-sesion__campo input:focus {
+  outline: none;
+  border-color: var(--k-marca);
+  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb), .16);
+}
+
+.kit-sesion__clave { position: relative; }
+.kit-sesion__clave input { padding-right: 46px; }
+.kit-sesion__ojo {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--k-r-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-sesion__ojo:hover { background: var(--k-papel); }
+
+.kit-sesion__error {
+  margin: 0;
+  font: 500 13px/1.4 var(--k-fuente);
+  color: var(--k-malo);
+  background: var(--k-malo-fondo);
+  border-radius: var(--k-r-sm);
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .2s ease, padding .2s ease;
+}
+.kit-sesion__error--on { padding: 10px 12px; max-height: 140px; }
+
+.kit-sesion__entrar { justify-content: center; margin-top: 4px; }
+.kit-sesion__olvide { justify-content: center; color: var(--k-apagado); font-size: 13px; min-height: 38px; }
+
+.kit-sesion__pie {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--k-linea);
+  text-align: center;
+  font: 400 11px/1.4 var(--k-fuente);
+  color: var(--k-apagado);
+}
+
+/* ── elegir contrato ── */
+
+.kit-sesion__aclara { margin: 0 0 14px; font: 400 13px/1.5 var(--k-fuente); color: var(--k-tinta-2); }
+.kit-sesion__contratos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.kit-sesion__contrato {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel-2);
+  border-radius: var(--k-r-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color .16s ease, background .16s ease, transform .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-sesion__contrato:hover { border-color: var(--k-marca); background: rgba(var(--k-marca-rgb), .06); }
+.kit-sesion__contrato:active { transform: scale(.99); }
+.kit-sesion__contrato b { font: 700 15px/1.2 var(--k-fuente); color: var(--k-marca); }
+:root[data-tema="oscuro"] .kit-sesion__contrato b { color: var(--k-marca-clara); }
+.kit-sesion__contrato span { font: 500 13px/1.3 var(--k-fuente); color: var(--k-tinta); }
+.kit-sesion__contrato small { font: 400 11px/1.3 var(--k-fuente); color: var(--k-apagado); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-sesion, .kit-sesion__caja, .kit-sesion__error { animation: none !important; transition: none !important; }
+}

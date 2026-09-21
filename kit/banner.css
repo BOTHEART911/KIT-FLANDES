@@ -1,0 +1,167 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 1 · BANNER — estilos
+   Pareja de kit/banner.js. Se carga después de kit/base.css.
+   ============================================================ */
+
+.kit-con-banner body { padding-top: var(--k-banner-alto); }
+
+.kit-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--k-banner-alto);
+  z-index: 9400;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: var(--k-marca);
+  color: #fff;
+  box-shadow: var(--k-sombra-marca);
+  /* respeta la muesca del iPhone */
+  padding-top: env(safe-area-inset-top, 0);
+  height: calc(var(--k-banner-alto) + env(safe-area-inset-top, 0));
+}
+
+.kit-banner__atras {
+  appearance: none;
+  border: 0;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  width: 38px; height: 38px;
+  border-radius: var(--k-r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: transform .12s ease, background .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-banner__atras:hover { background: rgba(255, 255, 255, .24); }
+.kit-banner__atras:active { transform: scale(.9); }
+.kit-banner__atras[hidden] { display: none; }
+
+.kit-banner__titulo {
+  flex: 1 1 auto;
+  margin: 0;
+  font: 700 17px/1.2 var(--k-fuente-titulo);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kit-banner__dcha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.kit-banner__tema {
+  appearance: none;
+  border: 0;
+  background: rgba(255, 255, 255, .14);
+  width: 34px; height: 34px;
+  border-radius: var(--k-r-pill);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-banner__tema:active { transform: scale(.9); }
+
+.kit-banner__perfil {
+  appearance: none;
+  border: 2px solid rgba(255, 255, 255, .5);
+  background: rgba(255, 255, 255, .16);
+  width: 38px; height: 38px;
+  border-radius: var(--k-r-pill);
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .12s ease, border-color .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-banner__perfil:active { transform: scale(.92); }
+.kit-banner__perfil[aria-expanded="true"] { border-color: #fff; }
+
+.kit-banner__foto {
+  width: 100%; height: 100%;
+  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 13px/1 var(--k-fuente);
+  color: #fff;
+  letter-spacing: .5px;
+}
+.kit-banner__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── menú de la foto ── */
+
+.kit-banner__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 212px;
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  box-shadow: var(--k-sombra-2);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 9500;
+}
+.kit-banner__menu--on { display: flex; animation: kit-banner-caer .16s ease both; }
+
+@keyframes kit-banner-caer {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.kit-banner__quien {
+  padding: 9px 12px 11px;
+  border-bottom: 1px solid var(--k-linea);
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kit-banner__quien b { font: 700 13px/1.25 var(--k-fuente); }
+.kit-banner__quien span { font: 500 11px/1 var(--k-fuente); color: var(--k-apagado); letter-spacing: .4px; }
+
+.kit-banner__mi {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--k-tinta);
+  font: 500 14px/1.2 var(--k-fuente);
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: var(--k-r-sm);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-banner__mi:hover { background: var(--k-papel-2); }
+.kit-banner__mi--peligro { color: var(--k-malo); }
+
+@media (max-width: 420px) {
+  .kit-banner__titulo { font-size: 15px; }
+  .kit-banner__tema { display: none; }   /* el tema queda en el menú de perfil */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-banner__menu--on { animation: none; }
+}

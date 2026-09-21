@@ -1,0 +1,86 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 13 · SOPORTE — estilos
+   Pareja de kit/soporte.js.
+   ============================================================ */
+
+.kit-sop__hoja { width: min(480px, 100%); }
+.kit-sop__cuerpo { display: flex; flex-direction: column; gap: 16px; }
+
+.kit-sop__campo { display: flex; flex-direction: column; gap: 6px; }
+.kit-sop__campo > span,
+.kit-sop__et {
+  font: 600 12px/1 var(--k-fuente);
+  color: var(--k-tinta-2);
+  letter-spacing: .3px;
+}
+
+.kit-sop__campo textarea {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel-2);
+  color: var(--k-tinta);
+  font: 400 14px/1.5 var(--k-fuente);
+  padding: 12px 14px;
+  border-radius: var(--k-r-md);
+  resize: vertical;
+  min-height: 92px;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.kit-sop__campo textarea:focus {
+  outline: none;
+  border-color: var(--k-marca);
+  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb), .16);
+}
+
+.kit-sop__fotos { display: flex; flex-direction: column; gap: 7px; }
+
+.kit-sop__datos {
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  background: var(--k-papel-2);
+  padding: 0;
+  overflow: hidden;
+}
+.kit-sop__datos summary {
+  cursor: pointer;
+  padding: 11px 14px;
+  font: 500 12px/1.3 var(--k-fuente);
+  color: var(--k-apagado);
+  list-style: none;
+}
+.kit-sop__datos summary::-webkit-details-marker { display: none; }
+.kit-sop__datos summary::before { content: '▸ '; color: var(--k-marca); }
+.kit-sop__datos[open] summary::before { content: '▾ '; }
+
+.kit-sop__datos ul {
+  margin: 0;
+  padding: 0 14px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font: 400 11px/1.45 var(--k-fuente);
+  color: var(--k-apagado);
+  word-break: break-word;
+}
+.kit-sop__datos ul b { color: var(--k-tinta-2); font-weight: 600; }
+
+.kit-sop__error {
+  margin: 0;
+  font: 500 13px/1.4 var(--k-fuente);
+  color: var(--k-malo);
+  background: var(--k-malo-fondo);
+  border-radius: var(--k-r-sm);
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .2s ease, padding .2s ease;
+}
+.kit-sop__error--on { padding: 10px 12px; max-height: 140px; }
+
+.kit-sop__wa { justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-sop__error, .kit-sop__campo textarea { transition: none; }
+}

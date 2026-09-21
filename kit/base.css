@@ -1,0 +1,338 @@
+/* ============================================================
+   KIT-FLANDES · BASE VISUAL
+   Fase 3 · idéntico en los 7 fronts.
+
+   Qué trae
+     Los tokens de color y forma, el tema claro/oscuro completo, la rejilla
+     de 1/2/3 tarjetas (pieza 9), las pastillas de filtro (pieza 10) y los
+     avisos cortos del núcleo.
+
+   Cómo se carga (en el <head>, ANTES del styles.css de la app, para que
+   la app pueda pisar lo que necesite)
+     <link rel="stylesheet" href="kit/base.css">
+
+   Regla del tema
+     Nada de color fijo dentro de las piezas: todo sale de estas variables.
+     Así el modo oscuro es una sola redefinición y no una cacería de #fff.
+   ============================================================ */
+
+/* ══════════════ TOKENS ══════════════ */
+
+:root {
+  /* marca (la de la Alcaldía de Flandes) */
+  --k-marca:        #06402B;
+  --k-marca-2:      #04281C;
+  --k-marca-clara:  #0a6644;
+  --k-marca-rgb:    6, 64, 43;
+
+  /* superficies */
+  --k-fondo:        #eef2f0;
+  --k-papel:        #ffffff;
+  --k-papel-2:      #f6f8f7;
+  --k-linea:        rgba(6, 64, 43, .14);
+  --k-velo:         rgba(0, 0, 0, .42);
+
+  /* texto */
+  --k-tinta:        #0f1f16;
+  --k-tinta-2:      #3d5248;
+  --k-apagado:      #6b7c74;
+
+  /* estados */
+  --k-ok:           #16a34a;
+  --k-ok-fondo:     #dcfce7;
+  --k-aviso:        #b45309;
+  --k-aviso-fondo:  #ffedd5;
+  --k-malo:         #dc2626;
+  --k-malo-fondo:   #fee2e2;
+
+  /* formas */
+  --k-r-sm: 10px;
+  --k-r-md: 14px;
+  --k-r-lg: 20px;
+  --k-r-pill: 999px;
+
+  --k-sombra-1: 0 1px 2px rgba(6, 64, 43, .08), 0 2px 10px rgba(6, 64, 43, .06);
+  --k-sombra-2: 0 12px 34px rgba(6, 64, 43, .16);
+  --k-sombra-marca: 0 8px 24px rgba(6, 64, 43, .28);
+
+  /* medidas que varias piezas comparten */
+  --k-banner-alto: 58px;
+  --k-rueda-fila: 42px;
+
+  --k-fuente: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --k-fuente-titulo: 'Sora', var(--k-fuente);
+
+  color-scheme: light;
+}
+
+:root[data-tema="oscuro"] {
+  --k-fondo:        #0d1512;
+  --k-papel:        #14201b;
+  --k-papel-2:      #1b2a23;
+  --k-linea:        rgba(255, 255, 255, .12);
+  --k-velo:         rgba(0, 0, 0, .62);
+
+  --k-tinta:        #e8f0eb;
+  --k-tinta-2:      #b9ccc2;
+  --k-apagado:      #8ba298;
+
+  --k-marca:        #2f9c6e;
+  --k-marca-2:      #14201b;
+  --k-marca-clara:  #44c48c;
+  --k-marca-rgb:    47, 156, 110;
+
+  --k-ok-fondo:     #10331f;
+  --k-aviso-fondo:  #332414;
+  --k-malo-fondo:   #3a1a1a;
+
+  --k-sombra-1: 0 1px 2px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .40);
+  --k-sombra-2: 0 12px 34px rgba(0, 0, 0, .62);
+  --k-sombra-marca: 0 8px 24px rgba(0, 0, 0, .5);
+
+  color-scheme: dark;
+}
+
+/* ══════════════ SUELO ══════════════ */
+
+.kit-fondo {
+  background: var(--k-fondo);
+  color: var(--k-tinta);
+}
+
+/* Botón base: lo usan todas las piezas. La app puede tener los suyos. */
+.kit-btn {
+  appearance: none;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  font: 600 14px/1.2 var(--k-fuente);
+  padding: 10px 16px;
+  border-radius: var(--k-r-pill);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  transition: transform .12s ease, box-shadow .16s ease, background .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-btn:hover { box-shadow: var(--k-sombra-1); }
+.kit-btn:active { transform: scale(.97); }
+.kit-btn:focus-visible { outline: 2px solid var(--k-marca); outline-offset: 2px; }
+.kit-btn[disabled], .kit-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; transform: none; }
+
+.kit-btn--marca {
+  background: var(--k-marca);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--k-sombra-marca);
+}
+.kit-btn--malo { background: var(--k-malo); border-color: transparent; color: #fff; }
+.kit-btn--plano { background: transparent; border-color: transparent; box-shadow: none; }
+
+.kit-tarjeta {
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-lg);
+  box-shadow: var(--k-sombra-1);
+  padding: 16px;
+}
+
+/* ══════════════ PIEZA 9 · REJILLA 1 / 2 / 3 TARJETAS ══════════════
+
+   El ancho manda, no el dispositivo: una tablet apaisada ve 3 columnas
+   igual que un PC. `--k-tarjeta-min` deja que una vista pida tarjetas
+   más anchas sin tocar esta hoja.                                        */
+
+.kit-rejilla {
+  --k-tarjeta-min: 300px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 680px)  { .kit-rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1080px) { .kit-rejilla { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Variante automática: tantas columnas como quepan, sin cortes raros. */
+.kit-rejilla--auto {
+  grid-template-columns: repeat(auto-fill, minmax(var(--k-tarjeta-min), 1fr));
+}
+@media (min-width: 680px)  { .kit-rejilla--auto { grid-template-columns: repeat(auto-fill, minmax(var(--k-tarjeta-min), 1fr)); } }
+@media (min-width: 1080px) { .kit-rejilla--auto { grid-template-columns: repeat(auto-fill, minmax(var(--k-tarjeta-min), 1fr)); } }
+
+/* Una vista que debe ocupar todo el ancho del PC se marca con esto. */
+.kit-ancho { width: min(1280px, 100%); margin-inline: auto; }
+.kit-ancho--estrecho { width: min(760px, 100%); margin-inline: auto; }
+
+/* ══════════════ PIEZA 10 · PASTILLAS DE FILTRO ══════════════ */
+
+.kit-pastillas {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 10px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.kit-pastillas::-webkit-scrollbar { display: none; }
+.kit-pastillas--envuelve { flex-wrap: wrap; overflow: visible; }
+
+.kit-pastilla {
+  appearance: none;
+  flex: 0 0 auto;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel);
+  color: var(--k-tinta-2);
+  font: 600 13px/1 var(--k-fuente);
+  padding: 9px 14px;
+  border-radius: var(--k-r-pill);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  transition: transform .12s ease, background .16s ease, color .16s ease, border-color .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-pastilla:active { transform: scale(.95); }
+.kit-pastilla[aria-pressed="true"] {
+  background: var(--k-marca);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--k-sombra-marca);
+}
+.kit-pastilla__conteo {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(var(--k-marca-rgb), .12);
+  color: var(--k-marca);
+  padding: 2px 7px;
+  border-radius: var(--k-r-pill);
+  min-width: 20px;
+  text-align: center;
+}
+.kit-pastilla[aria-pressed="true"] .kit-pastilla__conteo {
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+}
+.kit-pastilla--ok[aria-pressed="true"]    { background: var(--k-ok); }
+.kit-pastilla--aviso[aria-pressed="true"] { background: var(--k-aviso); }
+.kit-pastilla--malo[aria-pressed="true"]  { background: var(--k-malo); }
+
+/* ══════════════ AVISOS CORTOS (núcleo) ══════════════ */
+
+.kit-avisos {
+  position: fixed;
+  top: calc(var(--k-banner-alto) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9600;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  width: min(520px, calc(100vw - 24px));
+}
+.kit-aviso {
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  border: 1px solid var(--k-linea);
+  border-left: 4px solid var(--k-marca);
+  border-radius: var(--k-r-md);
+  box-shadow: var(--k-sombra-2);
+  padding: 11px 16px;
+  font: 500 14px/1.35 var(--k-fuente);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity .22s ease, transform .22s ease;
+  max-width: 100%;
+}
+.kit-aviso--on { opacity: 1; transform: translateY(0); }
+.kit-aviso--ok    { border-left-color: var(--k-ok); }
+.kit-aviso--aviso { border-left-color: var(--k-aviso); }
+.kit-aviso--malo  { border-left-color: var(--k-malo); }
+
+/* ══════════════ CAPAS Y MODALES (base común de las piezas) ══════════════ */
+
+.kit-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.kit-capa__velo {
+  position: absolute;
+  inset: 0;
+  background: var(--k-velo);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.kit-capa--on .kit-capa__velo { opacity: 1; }
+.kit-capa__hoja {
+  position: relative;
+  background: var(--k-papel);
+  color: var(--k-tinta);
+  border-radius: var(--k-r-lg);
+  box-shadow: var(--k-sombra-2);
+  width: min(560px, 100%);
+  max-height: min(86vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(14px) scale(.98);
+  opacity: 0;
+  transition: transform .22s cubic-bezier(.2, .9, .3, 1), opacity .22s ease;
+}
+.kit-capa--on .kit-capa__hoja { transform: none; opacity: 1; }
+.kit-capa__h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--k-linea);
+  font: 700 16px/1.25 var(--k-fuente-titulo);
+  flex: 0 0 auto;
+}
+.kit-capa__cuerpo { padding: 16px; overflow: auto; flex: 1 1 auto; }
+.kit-capa__pie {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--k-linea);
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.kit-capa__x {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--k-apagado);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--k-r-sm);
+}
+.kit-capa__x:hover { background: var(--k-papel-2); color: var(--k-tinta); }
+
+/* ══════════════ ACCESIBILIDAD Y MOVIMIENTO ══════════════ */
+
+.kit-oculto { display: none !important; }
+.kit-solo-lector {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-btn, .kit-pastilla, .kit-aviso, .kit-capa__hoja, .kit-capa__velo {
+    transition: none !important;
+  }
+}
