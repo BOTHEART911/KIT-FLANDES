@@ -79,7 +79,9 @@
    */
   function comprobar(aMano) {
     if (!navigator.onLine) { mostrar(false); return Promise.resolve(false); }
-    return K.pedir('ping', {}, { ms: 8000, sinToken: true })
+    /* app 'CORE': ping es ruta del CORE. Sin esto, la comprobación de red
+       fallaba SIEMPRE y la app acusaba de caída una conexión que iba bien. */
+    return K.pedir('ping', {}, { ms: 8000, sinToken: true, app: 'CORE' })
       .then(function () { mostrar(true); return true; })
       .catch(function (e) {
         /* si el servidor contesta un error de negocio, la red SÍ está */

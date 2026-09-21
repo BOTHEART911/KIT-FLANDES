@@ -46,7 +46,10 @@
     if (cache) return Promise.resolve(cache);
     /* la config pública ya viene cacheada por el CORE: esto no cuesta un
        viaje nuevo en la práctica */
-    return K.pedir('config', {}, { sinToken: true })
+    /* app 'CORE': la configuración es una ruta del CORE, no de cada app.
+       Sin esto el CORE responde "La app CONTRATISTA no tiene la accion
+       config" y el pie se queda con los valores de respaldo para siempre. */
+    return K.pedir('config', {}, { sinToken: true, app: 'CORE' })
       .then(function (c) {
         cache = {
           autor: (c && c.MARCA_AUTOR) || POR_DEFECTO.autor,

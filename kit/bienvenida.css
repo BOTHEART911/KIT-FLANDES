@@ -1,0 +1,167 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 20 · PUERTA DE BIENVENIDA (estilos)
+
+   Es lo primero que ve la gente, así que carga el peso de la primera
+   impresión: fondo de marca con profundidad, una aurora que respira
+   detrás del escudo y una entrada escalonada.
+
+   Todo sale de los tokens de base.css. Ni un color a mano: así el modo
+   oscuro no es una cacería de #fff.
+   ============================================================ */
+
+.kit-bien-abierta, .kit-bien-abierta body { overflow: hidden; }
+
+.kit-bien {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--k-marca-clara) 0%, var(--k-marca) 42%, var(--k-marca-2) 100%);
+  opacity: 0;
+  transition: opacity .26s ease;
+}
+.kit-bien--on { opacity: 1; }
+
+/* Mientras se desvanece sigue estando en pantalla un cuarto de segundo:
+   sin esto se tragaría el primer toque que la persona diera al login. */
+.kit-bien:not(.kit-bien--on) { pointer-events: none; }
+
+/* La aurora: dos manchas de luz que respiran muy despacio. Da sensación
+   de algo vivo sin distraer de los dos botones, que es a lo que se viene. */
+.kit-bien__aurora {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(38% 28% at 22% 26%, rgba(255, 255, 255, .22), transparent 60%),
+    radial-gradient(32% 24% at 78% 68%, rgba(255, 255, 255, .14), transparent 62%);
+  filter: blur(6px);
+  animation: kit-bien-respira 11s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes kit-bien-respira {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(2%, 2%, 0) scale(1.08); }
+}
+
+.kit-bien__caja {
+  position: relative;
+  width: min(420px, 100%);
+  text-align: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Cada hijo entra un poco después que el anterior. */
+.kit-bien__caja > * {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: kit-bien-sube .5s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.kit-bien__caja > *:nth-child(1) { animation-delay: .06s; }
+.kit-bien__caja > *:nth-child(2) { animation-delay: .12s; }
+.kit-bien__caja > *:nth-child(3) { animation-delay: .18s; }
+.kit-bien__caja > *:nth-child(4) { animation-delay: .24s; }
+.kit-bien__caja > *:nth-child(5) { animation-delay: .30s; }
+.kit-bien__caja > *:nth-child(6) { animation-delay: .36s; }
+@keyframes kit-bien-sube { to { opacity: 1; transform: none; } }
+
+.kit-bien__escudo {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .28);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .34);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.kit-bien__escudo img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.kit-bien__t {
+  margin: 6px 0 0;
+  font: 700 1.62rem/1.15 var(--k-fuente-titulo);
+  letter-spacing: -.2px;
+}
+.kit-bien__sub {
+  margin: 0;
+  font-size: .95rem;
+  color: rgba(255, 255, 255, .82);
+}
+
+.kit-bien__ventajas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin: 6px 0 2px;
+}
+.kit-bien__v {
+  font-size: .78rem;
+  padding: 6px 11px;
+  border-radius: var(--k-r-pill);
+  background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .2);
+  color: #fff;
+}
+
+.kit-bien__botones {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* El botón principal va en blanco sobre el verde: sobre un fondo de marca,
+   un botón del mismo verde desaparecería. */
+.kit-bien .kit-bien__instalar {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: #fff;
+  color: var(--k-marca-2);
+  border: 0;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .26);
+}
+.kit-bien .kit-bien__instalar:active { transform: scale(.985); }
+
+.kit-bien .kit-bien__seguir {
+  width: 100%;
+  color: #fff;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .28);
+}
+
+.kit-bien__pie {
+  margin: 4px 0 0;
+  font-size: .76rem;
+  color: rgba(255, 255, 255, .7);
+}
+
+/* Quien pide menos movimiento, recibe menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .kit-bien__aurora { animation: none; }
+  .kit-bien__caja > * { animation: none; opacity: 1; transform: none; }
+}
+
+@media (max-height: 640px) {
+  .kit-bien__escudo { width: 92px; height: 92px; }
+  .kit-bien__escudo img { width: 70px; height: 70px; }
+  .kit-bien__t { font-size: 1.36rem; }
+  .kit-bien__ventajas { display: none; }
+}

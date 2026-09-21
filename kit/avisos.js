@@ -49,6 +49,7 @@
   var M = window.MARCA || {};
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
   var TOKEN_K = 'avisos.token';       /* el token ya registrado en este aparato */
+  var AHORA_NO_K = 'avisos.ahoraNo';  /* dijo que ahora no: no se le insiste en cada arranque */
   var SW_SCOPE = './firebase-cloud-messaging-push-scope';
 
   var alLlegarFns = [];
@@ -240,21 +241,96 @@
     } catch (e) {}
   }
 
-  /** Se intenta al entrar, en silencio, si este aparato aún no está registrado. */
-  function autoActivar() {
+  /**
+   * Al entrar.
+   *
+   * OJO CON EL CUADRO DE ANDROID. Antes esto llamaba derecho a
+   * Notification.requestPermission() y al usuario le caía el cuadro seco
+   * del sistema nada más entrar, sin saber qué le estaban pidiendo ni para
+   * qué. Quien dice "Bloquear" ahí no vuelve a ver la pregunta NUNCA: el
+   * navegador no la repite, y ese teléfono se queda sin avisos para
+   * siempre. Además, en iPhone el permiso solo se concede si sale de un
+   * toque directo, así que pedirlo al arrancar fallaba siempre.
+   *
+   * Ahora: si el permiso ya está dado, se renueva el token en silencio.
+   * Si no, se enseña una hoja nuestra que explica de qué va, y el cuadro
+   * del sistema sale DESPUÉS, cuando la persona toca "Activar".
+   */
+  function autoActivar(opciones) {
+    var o = opciones || {};
     try {
-      if (tokenLocal()) { activar({ silencioso: true }); return; }
-      activar({ silencioso: true });
+      if (permiso() === 'granted') { activar({ silencioso: true }); return; }
+      if (estado() === 'no-soportado' || estado() === 'bloqueado') return;
+      if (esIOS() && !instalada()) return;          /* sin instalar no hay nada que pedir */
+      if (K.guardar.leer(AHORA_NO_K, false) === true) return;
+      setTimeout(function () { proponer(o); }, o.espera || 1200);
     } catch (e) {}
+  }
+
+  /**
+   * La antesala. Explica antes de pedir, y deja salir sin gastar la única
+   * oportunidad que da el navegador.
+   */
+  function proponer(opciones) {
+    var o = opciones || {};
+    if (permiso() === 'granted') return Promise.resolve(true);
+
+    return new Promise(function (resolver) {
+      var capa = K.nodo(
+        '<div class="kit-capa kit-avpre" role="dialog" aria-modal="true">' +
+        '  <div class="kit-capa__velo"></div>' +
+        '  <section class="kit-capa__hoja kit-avpre__hoja">' +
+        '    <div class="kit-avpre__campana" aria-hidden="true">' +
+        '      <svg viewBox="0 0 24 24" width="30" height="30">' +
+        '        <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '        <path d="M10.5 21a2 2 0 003 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+        '      </svg>' +
+        '      <span class="kit-avpre__punto"></span>' +
+        '    </div>' +
+        '    <h2 class="kit-avpre__t">' + K.esc(o.titulo || 'Que no se te pase ninguna cuenta') + '</h2>' +
+        '    <p class="kit-avpre__p">' + K.esc(o.texto || 'Te avisamos en este teléfono cuando tu cuenta cambie de estado: cuando la revisen, cuando se apruebe y cuando se pague.') + '</p>' +
+        '    <ul class="kit-avpre__lista">' +
+        '      <li>Llegan aunque tengas la app cerrada</li>' +
+        '      <li>Los apagas cuando quieras desde el teléfono</li>' +
+        '    </ul>' +
+        '    <button type="button" class="kit-btn kit-btn--marca kit-avpre__si">Activar los avisos</button>' +
+        '    <button type="button" class="kit-btn kit-btn--plano kit-avpre__no">Ahora no</button>' +
+        '  </section>' +
+        '</div>'
+      );
+      document.body.appendChild(capa);
+      requestAnimationFrame(function () { capa.classList.add('kit-capa--on'); });
+
+      function fuera() {
+        capa.classList.remove('kit-capa--on');
+        setTimeout(function () { if (capa.parentNode) capa.remove(); }, 220);
+      }
+
+      capa.querySelector('.kit-avpre__si').addEventListener('click', function () {
+        K.vibrar(10);
+        fuera();
+        /* El cuadro del sistema sale AQUÍ, colgando de un toque real. */
+        activar({ silencioso: false, forzar: true }).then(resolver);
+      });
+
+      capa.querySelector('.kit-avpre__no').addEventListener('click', function () {
+        K.guardar.escribir(AHORA_NO_K, true);
+        fuera();
+        resolver(false);
+      });
+      capa.querySelector('.kit-capa__velo').addEventListener('click', function () {
+        fuera(); resolver(false);
+      });
+    });
   }
 
   function alLlegar(fn) { if (typeof fn === 'function') alLlegarFns.push(fn); }
 
   /** Olvida este aparato al cerrar sesión: el token se queda en el CORE. */
-  function olvidar() { K.guardar.borrar(TOKEN_K); }
+  function olvidar() { K.guardar.borrar(TOKEN_K); K.guardar.borrar(AHORA_NO_K); }
 
   K.piezas.avisos = {
-    activar: activar, autoActivar: autoActivar, estado: estado,
+    activar: activar, autoActivar: autoActivar, proponer: proponer, estado: estado,
     alLlegar: alLlegar, olvidar: olvidar,
     plataforma: plataforma, instalada: instalada, esIOS: esIOS
   };

@@ -144,7 +144,8 @@
 
   function datosMarca() {
     if (marca) return Promise.resolve(marca);
-    return K.pedir('config', {}, { sinToken: true })
+    /* app 'CORE': config es ruta del CORE, no de la app. */
+    return K.pedir('config', {}, { sinToken: true, app: 'CORE' })
       .then(function (c) { marca = c || {}; return marca; })
       .catch(function () { marca = {}; return marca; });
   }

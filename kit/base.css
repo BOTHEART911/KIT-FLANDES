@@ -16,6 +16,21 @@
      Así el modo oscuro es una sola redefinición y no una cacería de #fff.
    ============================================================ */
 
+/* ══════════════ CAJA ══════════════
+
+   Sin esto, cualquier campo con relleno se sale de su contenedor: el ancho
+   del 100% NO incluye el padding ni el borde. Fue exactamente lo que pasó
+   con el campo de contraseña del login (100% + 46px del ojo = 35px fuera
+   de la tarjeta, y de ahí el desplazamiento lateral de toda la pantalla en
+   el teléfono). Va aquí arriba, para las siete apps, y no en un parche.   */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Red de seguridad: si algún día algo vuelve a asomar, la pantalla no se
+   desplaza en horizontal. No sustituye a arreglar la causa. */
+html { overflow-x: hidden; }
+body { max-width: 100%; overflow-x: hidden; }
+
 /* ══════════════ TOKENS ══════════════ */
 
 :root {
@@ -59,6 +74,10 @@
   --k-banner-alto: 58px;
   --k-rueda-fila: 42px;
 
+  /* OJO: estas dos fuentes hay que CARGARLAS en el <head> de cada front
+     (fonts.googleapis.com, IBM Plex Sans 400/500/600/700 y Sora 600/700/800).
+     Aquí solo se nombran. Sin ese <link>, la app cae a la fuente del sistema
+     y se ve genérica; fue lo que pasó hasta el 21/09/2026. */
   --k-fuente: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --k-fuente-titulo: 'Sora', var(--k-fuente);
 
