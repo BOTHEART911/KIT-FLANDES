@@ -1,0 +1,56 @@
+/* ============================================================
+   KIT-FLANDES · CRÉDITOS — estilos
+   Pareja de kit/creditos.js.
+
+   El pie no compite con el contenido: el nombre pesa, la frase acompaña.
+   Los dos colores salen de los tokens, así que el modo oscuro no necesita
+   una segunda versión de nada.
+   ============================================================ */
+
+.kit-cred {
+  text-align: center;
+  padding: 26px 16px calc(22px + env(safe-area-inset-bottom, 0));
+  margin-top: auto;
+  user-select: none;
+}
+
+.kit-cred__cop {
+  margin: 0 0 3px;
+  font: 500 11px/1.2 var(--k-fuente);
+  letter-spacing: 1.6px;
+  color: var(--k-apagado);
+  text-transform: uppercase;
+}
+
+.kit-cred__autor {
+  margin: 0;
+  font: 700 19px/1.25 var(--k-fuente-titulo);
+  color: var(--k-tinta);
+  letter-spacing: .2px;
+}
+
+/* la línea fina que separa el nombre de la frase */
+.kit-cred__frase {
+  position: relative;
+  margin: 13px 0 0;
+  padding-top: 13px;
+  font: 300 13px/1.4 var(--k-fuente);
+  color: var(--k-apagado);
+  letter-spacing: .3px;
+}
+.kit-cred__frase::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 1px;
+  background: var(--k-linea);
+}
+
+/* dentro de un modal el pie va más apretado */
+.kit-capa__cuerpo .kit-cred,
+.swal2-html-container .kit-cred {
+  padding: 18px 0 2px;
+}
