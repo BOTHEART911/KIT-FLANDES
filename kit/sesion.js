@@ -28,6 +28,14 @@
      · "Olvidé mi contraseña" manda la clave al WhatsApp registrado. Aquí
        NO se muestra la clave ni se pide el correo.
 
+   Por qué estas llamadas dicen app 'CORE' (21/09/2026, entrega 4.1)
+     Entrar, elegir contrato, recuperar y cambiar la clave son rutas del
+     CORE, no de cada app: en el Router viven como CORE.login, CORE.yo…
+     Este archivo las pedía como CONTRATISTA.login y el CORE respondía
+     "La app CONTRATISTA no tiene la accion login": la puerta no abría en
+     NINGUNA de las siete. Por eso van con { app: 'CORE' } y llevan
+     appDestino, que es lo que le dice al CORE a qué app se entra.
+
    Pareja: kit/sesion.css
    ============================================================ */
 (function () {
@@ -132,7 +140,7 @@
     error('');
     ocupado(true);
 
-    K.pedir('login', { documento: doc, clave: clave }, { sinToken: true })
+    K.pedir('login', { documento: doc, clave: clave, appDestino: K.app }, { sinToken: true, app: 'CORE' })
       .then(function (d) {
         K.guardar.escribir('sesion.ultimoDocumento', doc);
 
@@ -187,7 +195,7 @@
         var b = li.querySelector('button');
         b.disabled = true;
         b.classList.add('kit-ocupado');
-        K.pedir('elegirContrato', { token: d.token, idContrato: c.idContrato }, { sinToken: true })
+        K.pedir('elegirContrato', { token: d.token, idContrato: c.idContrato }, { sinToken: true, app: 'CORE' })
           .then(function (dd) {
             hoja.remove();
             terminar(dd);
@@ -232,7 +240,7 @@
     b.textContent = 'Enviando…';
     error('');
 
-    K.pedir('recuperarClave', { documento: doc }, { sinToken: true })
+    K.pedir('recuperarClave', { documento: doc, appDestino: K.app }, { sinToken: true, app: 'CORE' })
       .then(function (d) {
         b.disabled = false;
         b.textContent = 'Olvidé mi contraseña';
@@ -303,7 +311,7 @@
       marcar('');
       b.disabled = true;
       b.classList.add('kit-ocupado');
-      K.pedir('cambiarClave', { actual: form.actual.value, nueva: form.nueva.value })
+      K.pedir('cambiarClave', { actual: form.actual.value, nueva: form.nueva.value }, { app: 'CORE' })
         .then(function () {
           fuera();
           K.aviso('Tu contraseña quedó cambiada.', 'ok', 4000);
@@ -325,7 +333,7 @@
        dejar pasar: un token viejo no sirve y el usuario se enteraría
        tarde, a mitad de un guardado */
     if (K.token()) {
-      return K.pedir('yo')
+      return K.pedir('yo', {}, { app: 'CORE' })
         .then(function (d) {
           guardarYo(d && (d.usuario || d) || null);
           K.disparar('kit:sesion', { entro: true, yo: yo() });
