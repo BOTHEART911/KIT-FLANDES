@@ -60,11 +60,23 @@
       .catch(function () { return POR_DEFECTO; });
   }
 
+  /**
+   * El número de versión va aquí y no en un rincón suelto: es el sitio
+   * donde ya mira quien llama a soporte ("¿qué versión tienes?"), y así
+   * la respuesta está en todas las vistas sin ocupar sitio en ninguna.
+   * Si la app no trae version.js, la línea sencillamente no sale.
+   */
+  function lineaVersion() {
+    var v = (K.piezas.version && K.piezas.version.numero()) || '';
+    return v ? '<p class="kit-cred__version">Versión ' + K.esc(v) + '</p>' : '';
+  }
+
   function html(t) {
     t = t || POR_DEFECTO;
     return '<p class="kit-cred__cop">Copyright ©</p>' +
            '<p class="kit-cred__autor">' + K.esc(t.autor) + '</p>' +
-           '<p class="kit-cred__frase">' + K.esc(t.frase) + '</p>';
+           '<p class="kit-cred__frase">' + K.esc(t.frase) + '</p>' +
+           lineaVersion();
   }
 
   /**

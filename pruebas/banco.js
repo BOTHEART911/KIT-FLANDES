@@ -2187,6 +2187,44 @@ ${js}
     await ctx.close();
   }
 
+  /* ═══════════ VERSIÓN (pieza 23) ═══════════ */
+  grupo('version');
+  {
+    const { page, ctx } = await pagina(browser, ['version']);
+
+    await prueba('sin version.js la pieza se queda quieta y no recarga', async () => {
+      const r = await page.evaluate(() => KIT.piezas.version.numero());
+      igual(r, '', 'sin APP_VERSION el número tiene que venir vacío');
+      const hubo = await page.evaluate(() => KIT.piezas.version.comprobar());
+      falso(hubo, 'sin número no puede decidir que hay una versión nueva');
+    });
+
+    await prueba('el prefijo de caché sale del nombre de la app', async () => {
+      const p = await page.evaluate(() => KIT.piezas.version.prefijo());
+      igual(p, 'contratista-', 'prefijo');
+    });
+
+    await prueba('limpiarCaches solo se lleva las de esta app', async () => {
+      const quedan = await page.evaluate(async () => {
+        await caches.open('contratista-v2026.09.21.1');
+        await caches.open('contratista-v4.2.0');
+        await caches.open('tesoreria-v1');
+        await caches.open('sep-group-v3');
+        await KIT.piezas.version.limpiarCaches();
+        return (await caches.keys()).sort();
+      });
+      igual(quedan, ['sep-group-v3', 'tesoreria-v1'],
+        'las cachés de las otras apps NO se tocan: las siete viven en el mismo origen');
+    });
+
+    await prueba('el número cargado se puede fingir para probar', async () => {
+      const n = await page.evaluate(() => { KIT.piezas.version._fijar('2026.01.01.1'); return KIT.piezas.version.numero(); });
+      igual(n, '2026.01.01.1', 'número fijado');
+    });
+
+    await ctx.close();
+  }
+
   await browser.close();
   try { fs.unlinkSync(path.join(RAIZ, '__banco.html')); } catch (e) {}
 

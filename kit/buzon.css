@@ -1,0 +1,135 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 22 · BUZÓN DE AVISOS
+   Pareja de kit/buzon.js.
+
+   Lo nuevo se marca con BORDE y PASTILLA, nunca con un fondo distinto:
+   un fondo levemente coloreado funciona en modo claro y desaparece en
+   oscuro, y entonces nadie distingue lo leído de lo que no.
+   ============================================================ */
+
+.kit-buz { display: block; }
+
+.kit-buz-filtro {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+  flex-wrap: wrap;
+}
+
+.kit-buz-lista {
+  display: grid;
+  gap: 12px;
+}
+
+/* En computador las tarjetas se reparten; en teléfono va una por fila. */
+@media (min-width: 760px) {
+  .kit-buz-lista { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+}
+
+.kit-buz-tar {
+  position: relative;
+  background: var(--k-papel);
+  border: 1px solid var(--k-linea);
+  border-radius: var(--k-r-md);
+  box-shadow: var(--k-sombra-1);
+  padding: 14px 16px;
+  /* Hueco a la derecha para que la pastilla "Nuevo" no pise el título. */
+  padding-right: 84px;
+}
+
+.kit-buz-tar--nuevo {
+  border-left: 4px solid var(--k-marca);
+  padding-left: 13px;
+}
+
+.kit-buz-flag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--k-marca);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  padding: 3px 9px;
+  border-radius: var(--k-r-pill);
+}
+
+.kit-buz-t {
+  margin: 0 0 4px;
+  font-family: Sora, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--k-tinta);
+  line-height: 1.3;
+}
+
+.kit-buz-f {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--k-apagado);
+}
+
+.kit-buz-rel { color: var(--k-marca-clara); font-weight: 600; }
+
+.kit-buz-c {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--k-tinta-2);
+  white-space: pre-line;   /* los avisos traen saltos de línea a propósito */
+}
+
+.kit-buz-ref {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--k-apagado);
+}
+
+.kit-buz-vacio {
+  text-align: center;
+  padding: 34px 18px;
+  border: 1px dashed var(--k-linea);
+  border-radius: var(--k-r-md);
+}
+
+.kit-buz-vacio__t {
+  margin: 0 0 6px;
+  font-family: Sora, system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--k-tinta);
+}
+
+.kit-buz-vacio__p {
+  margin: 0 auto;
+  max-width: 34ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--k-apagado);
+}
+
+/* Entrada escalonada, cortada en la novena: a partir de ahí las tarjetas
+   entran ya visibles, porque si no una lista larga tarda en asentarse. */
+@keyframes kit-buz-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.kit-buz-tar {
+  animation: kit-buz-in .34s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.kit-buz-tar:nth-child(1) { animation-delay: 0ms; }
+.kit-buz-tar:nth-child(2) { animation-delay: 40ms; }
+.kit-buz-tar:nth-child(3) { animation-delay: 80ms; }
+.kit-buz-tar:nth-child(4) { animation-delay: 120ms; }
+.kit-buz-tar:nth-child(5) { animation-delay: 160ms; }
+.kit-buz-tar:nth-child(6) { animation-delay: 200ms; }
+.kit-buz-tar:nth-child(7) { animation-delay: 240ms; }
+.kit-buz-tar:nth-child(8) { animation-delay: 280ms; }
+.kit-buz-tar:nth-child(n + 9) { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-buz-tar { animation: none; }
+}

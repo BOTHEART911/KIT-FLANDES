@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#06402B">
-<title>KIT-FLANDES · las 18 piezas</title>
+<title>KIT-FLANDES · las 19 piezas</title>
 
 <!-- Las fuentes del kit. base.css las NOMBRA (IBM Plex Sans y Sora) pero no
      las trae nadie: sin estas dos líneas, las siete apps caen a la fuente
@@ -52,7 +52,7 @@
 
 <div class="env">
   <p class="int">
-    Las 18 piezas del kit, funcionando. Esta página no es parte de ninguna app: es el
+    Las 19 piezas del kit, funcionando. Esta página no es parte de ninguna app: es el
     banco de pruebas a mano, para ver y tocar cada pieza antes de montarla.
     El botón de la esquina cambia el tema; todo lo de aquí abajo lo sigue.
   </p>
@@ -177,6 +177,17 @@
   </div>
 
   <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Versión</h2>
+    <p>El número de esta página sale de <code>version.js</code>. Cuando se publica algo nuevo,
+       la pieza lo nota al volver a la app, borra <b>solo</b> las cachés de esa app y recarga.
+       Es lo que hacía falta para que lo publicado no se viera a la segunda apertura.</p>
+    <div class="fila" id="version-zona">
+      <button class="kit-btn" id="b-version">¿Hay una versión nueva?</button>
+      <span id="version-num" class="kit-pastilla"></span>
+    </div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
     <h2><i>+</i> Instalar</h2>
     <p>Lo que se vea aquí depende de tu navegador: ese es justo el problema que resuelve la pieza.</p>
     <div class="fila" id="instalar-zona">
@@ -194,7 +205,9 @@ window.MARCA = {
   SOPORTE_WHATSAPP: ''
 };
 </script>
+<script src="version.js"></script>
 <script src="kit/kit.js"></script>
+<script src="kit/version.js"></script>
 <script src="kit/banner.js"></script>
 <script src="kit/sesion.js"></script>
 <script src="kit/esqueletos.js"></script>
@@ -438,6 +451,18 @@ window.MARCA = {
   K.piezas.creditos.montar(K.$('.env'), { anio: true });
 
   K.aviso('Kit cargado: ' + Object.keys(K.piezas).length + ' piezas.', 'ok', 3000);
+}());
+</script>
+<script>
+(function () {
+  var n = document.getElementById('version-num');
+  if (n) n.textContent = 'Versión ' + (KIT.piezas.version.numero() || 'sin version.js');
+  var b = document.getElementById('b-version');
+  if (b) b.addEventListener('click', function () {
+    KIT.piezas.version.comprobar().then(function (hubo) {
+      KIT.aviso(hubo ? 'Hay una nueva: recargando…' : 'Estás en la última versión publicada.', hubo ? 'aviso' : 'bueno', 4000);
+    });
+  });
 }());
 </script>
 </body>

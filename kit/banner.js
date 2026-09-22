@@ -141,10 +141,19 @@
       document.addEventListener('click', cerrarMenu);
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarMenu(); });
 
-      /* El botón atrás del teléfono hace lo mismo que el de la barra. */
-      window.addEventListener('popstate', function () {
-        if (typeof alAtras === 'function') alAtras();
-      });
+      /* AQUÍ HABÍA UN FALLO, quitado el 21/09/2026.
+         El banner escuchaba `popstate` y ejecutaba el "atrás" de la vista,
+         con la idea de que el botón físico del teléfono hiciera lo mismo
+         que el de la barra. Pero las siete apps navegan por hash, y en
+         Chromium asignar `location.hash` dispara también `popstate`: cada
+         vez que la app entraba a una vista, el banner la devolvía a la
+         anterior en el mismo instante. Desde fuera se veía como que las
+         vistas "no abren".
+         No hace falta reemplazarlo: el botón físico de atrás retrocede en
+         el historial, eso cambia el hash, y la app ya enruta con
+         `hashchange`. Si algún día se quiere volver a enganchar el
+         historial, hay que hacerlo con pushState y una pila propia, no
+         atando popstate a una acción de pantalla. */
     }
 
     vista(cfg.titulo || '');
