@@ -74,7 +74,7 @@
       '        <span>Contraseña</span>' +
       '        <div class="kit-sesion__clave">' +
       '          <input name="clave" type="password" autocomplete="current-password" required>' +
-      '          <button type="button" class="kit-sesion__ojo" aria-label="Mostrar la contraseña">👁</button>' +
+      '          <button type="button" class="kit-sesion__ojo" aria-label="Mostrar la contraseña">' + K.icono('ojo', 18) + '</button>' +
       '        </div>' +
       '      </label>' +
       '      <p class="kit-sesion__error" role="alert"></p>' +
@@ -97,7 +97,7 @@
     ojo.addEventListener('click', function () {
       var ver = campoClave.type === 'password';
       campoClave.type = ver ? 'text' : 'password';
-      ojo.textContent = ver ? '🙈' : '👁';
+      ojo.innerHTML = K.icono(ver ? 'ojo-tapado' : 'ojo', 18);
       ojo.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
     });
 
@@ -248,7 +248,7 @@
            no se muestra ni se dice cuál es el número completo. */
         K.piezas.conexion
           ? K.piezas.conexion.rescate({
-              icono: '📲',
+              icono: K.icono('telefono', 34),
               titulo: 'Te la mandamos por WhatsApp',
               texto: (d && d.telefono)
                 ? 'La enviamos al número que termina en ' + K.esc(String(d.telefono).slice(-4)) + '.'
@@ -271,7 +271,7 @@
       '<div class="kit-capa kit-capa--on" role="dialog" aria-modal="true">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja">' +
-      '    <header class="kit-capa__h">Cambiar mi contraseña<button type="button" class="kit-capa__x">✕</button></header>' +
+      '    <header class="kit-capa__h">Cambiar mi contraseña<button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <form class="kit-capa__cuerpo kit-sesion__form kit-sesion__form--modal">' +
       '      <label class="kit-sesion__campo"><span>Contraseña actual</span>' +
       '        <input name="actual" type="password" autocomplete="current-password" required></label>' +

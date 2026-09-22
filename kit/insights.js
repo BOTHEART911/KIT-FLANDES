@@ -51,7 +51,7 @@
     cfg = opciones || {};
 
     if (!fab) {
-      fab = K.nodo('<button type="button" class="kit-ins__fab" aria-label="Análisis de esta vista">🤖</button>');
+      fab = K.nodo('<button type="button" class="kit-ins__fab" aria-label="Análisis de esta vista">' + K.icono('robot', 26) + '</button>');
       document.body.appendChild(fab);
       colocar();
       arrastrable();
@@ -117,9 +117,9 @@
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-ins__hoja">' +
       '    <header class="kit-capa__h">' +
-      '      <span class="kit-ins__robot">🤖</span>' +
+      '      <span class="kit-ins__robot">' + K.icono('robot', 22) + '</span>' +
       '      <span class="kit-ins__t">' + K.esc(cfg.vista || 'Esta vista') + '</span>' +
-      '      <button type="button" class="kit-capa__x">✕</button>' +
+      '      <button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button>' +
       '    </header>' +
       '    <div class="kit-capa__cuerpo kit-ins__cuerpo">' +
       '      <div class="kit-ins__arranque">' +
@@ -129,8 +129,10 @@
       '      <div class="kit-ins__salida kit-oculto"></div>' +
       '    </div>' +
       '    <footer class="kit-capa__pie kit-ins__pie kit-oculto">' +
-      '      <button type="button" class="kit-btn kit-ins__copiar">Copiar</button>' +
-      '      <button type="button" class="kit-btn kit-ins__wa">WhatsApp</button>' +
+      '      <button type="button" class="kit-btn kit-ins__voz kit-oculto">' +
+             K.icono('altavoz', 16) + ' Escuchar</button>' +
+      '      <button type="button" class="kit-btn kit-ins__copiar">' + K.icono('copiar', 16) + ' Copiar</button>' +
+      '      <button type="button" class="kit-btn kit-ins__wa">' + K.icono('whatsapp', 16) + ' WhatsApp</button>' +
       '    </footer>' +
       '  </section>' +
       '</div>'
@@ -221,6 +223,20 @@
     var texto = (cfg.vista || 'Informe') + '\n' + trozos.join('\n') +
       '\n\n(' + filas.length + ' registros' + (conFiltro ? ' · ' + conFiltro : '') + ')';
 
+    /* El botón de escuchar sale solo si el CORE dice que la voz está
+       configurada: un botón que da error al tocarlo es peor que no tenerlo. */
+    var bVoz = pie.querySelector('.kit-ins__voz');
+    vozDisponible().then(function (vc) {
+      if (!vc.configurada) return;
+      bVoz.classList.remove('kit-oculto');
+      bVoz.onclick = function () {
+        if (Repro.suena()) { Repro.parar(); return; }
+        /* Se lee el informe, no la pantalla: los trozos van al proveedor y
+           por eso lo que se manda son las MEDIDAS, no las filas. */
+        Repro.hablar(texto, bVoz);
+      };
+    });
+
     pie.querySelector('.kit-ins__copiar').onclick = function () {
       if (navigator.clipboard) navigator.clipboard.writeText(texto).then(function () { K.aviso('Copiado.', 'ok'); });
     };
@@ -256,8 +272,159 @@
     }, 16);
   }
 
+  /* ══════════════ la voz ══════════════
+     4.4 · EL AUDIO NO TIENE TOPE.
+     En la Fase 11 de SEC-HACIENDA la voz existía pero cortaba: había un
+     tope de 1.200 caracteres y los informes largos se leían a medias.
+     Aquí el texto se trocea en frases de ~420 caracteres y se pide un
+     trozo tras otro, encadenados: se lee completo por largo que sea. Lo
+     que frena el gasto es la cuota por persona y por día del CORE, no la
+     longitud.
+
+     Tres cabos heredados de allá que se respetan:
+       · Safari solo deja sonar audio si hubo un gesto antes, así que el
+         <audio> se "desbloquea" con un WAV mudo dentro del propio clic.
+       · El troceo se hace SIN lookbehind: Safari viejo lanza SyntaxError
+         al cargar el archivo y eso tumbaría la pieza entera, no solo la voz.
+       · Mientras suena un trozo se va pidiendo el siguiente, para que no
+         se oiga el silencio entre uno y otro. */
+
+  /* WAV mudo: deja el <audio> activado dentro del gesto del usuario. */
+  var SILENCIO = 'data:audio/wav;base64,UklGRqQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+
+  var vozCfg = null, pidiendoVoz = null;
+
+  function vozDisponible() {
+    if (vozCfg) return Promise.resolve(vozCfg);
+    if (pidiendoVoz) return pidiendoVoz;
+    pidiendoVoz = K.pedir('vozEstado')
+      .then(function (r) { vozCfg = r || { configurada: false }; return vozCfg; })
+      ['catch'](function () { vozCfg = { configurada: false }; return vozCfg; });
+    return pidiendoVoz;
+  }
+
+  var Repro = (function () {
+    var audio = null, cola = [], i = 0, sig = null, activo = false, boton = null;
+
+    function el() {
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.setAttribute('playsinline', '');
+        audio.preload = 'auto';
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
+      }
+      return audio;
+    }
+
+    function desbloquear() {
+      var a = el();
+      try {
+        if (!a.dataset.libre) {
+          a.src = SILENCIO;
+          var p = a.play();
+          if (p && p.then) p.then(function () { a.dataset.libre = '1'; })['catch'](function () {});
+          else a.dataset.libre = '1';
+        }
+      } catch (e) {}
+    }
+
+    /* Corta por final de frase. Sin lookbehind a propósito. */
+    function frasear(t) {
+      var out = [], act = '';
+      for (var k = 0; k < t.length; k++) {
+        var c = t.charAt(k);
+        act += c;
+        if ('.!?\u2026:;\n'.indexOf(c) >= 0) {
+          while (k + 1 < t.length && /[\s"\u201d\u00bb)]/.test(t.charAt(k + 1))) { act += t.charAt(++k); }
+          out.push(act); act = '';
+        }
+      }
+      if (act.trim()) out.push(act);
+      return out.length ? out : [t];
+    }
+
+    function trocear(txt) {
+      var t = String(txt || '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/^\s*#{1,6}\s*/gm, '')
+        .replace(/^\s*[-*\u2022]\s+/gm, '')
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+      if (!t) return [];
+      var frases = frasear(t), out = [], act = '';
+      for (var k = 0; k < frases.length; k++) {
+        var f = frases[k].trim();
+        if (!f) continue;
+        /* 880 es el tope de UN trozo en el CORE; 420 es lo que suena bien. */
+        while (f.length > 880) { out.push(f.slice(0, 880)); f = f.slice(880); }
+        if ((act + ' ' + f).trim().length > 420 && act) { out.push(act.trim()); act = f; }
+        else { act = (act ? act + ' ' : '') + f; }
+      }
+      if (act.trim()) out.push(act.trim());
+      return out;
+    }
+
+    function pedirTrozo(t) {
+      return K.pedir('vozHablar', { texto: t }).then(function (r) {
+        if (!r || !r.base64) throw new Error('No se pudo generar la voz.');
+        return 'data:' + (r.mime || 'audio/mpeg') + ';base64,' + r.base64;
+      });
+    }
+
+    function siguiente() {
+      if (!activo) return;
+      if (i >= cola.length) return parar();
+      var p = sig || pedirTrozo(cola[i]);
+      sig = null;
+      p.then(function (src) {
+        if (!activo) return;
+        var a = el();
+        a.src = src;
+        var pl = a.play();
+        if (pl && pl['catch']) pl['catch'](function () { parar(); });
+        /* el siguiente se pide ya, mientras suena este */
+        if (i + 1 < cola.length) sig = pedirTrozo(cola[i + 1])['catch'](function () { return null; });
+        i++;
+      })['catch'](function (e) {
+        parar();
+        K.aviso(e && e.message ? e.message : 'No se pudo generar la voz.', 'malo', 5000);
+      });
+    }
+
+    function hablar(t, b) {
+      parar();
+      desbloquear();
+      cola = trocear(t);
+      if (!cola.length) return;
+      i = 0; sig = null; activo = true; boton = b || null;
+      var a = el();
+      a.onended = function () { if (activo) siguiente(); };
+      a.onerror = function () { parar(); };
+      pintar();
+      siguiente();
+    }
+
+    function parar() {
+      activo = false; cola = []; i = 0; sig = null;
+      try { if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); } } catch (e) {}
+      pintar();
+      boton = null;
+    }
+
+    function pintar() {
+      if (!boton) return;
+      boton.innerHTML = activo
+        ? (K.icono('parar', 16) + ' Parar')
+        : (K.icono('altavoz', 16) + ' Escuchar');
+    }
+
+    return { hablar: hablar, parar: parar, suena: function () { return activo; }, trocear: trocear };
+  }());
+
   K.piezas.insights = {
     montar: montar, abrir: abrir, repartir: repartir,
-    quitar: function () { if (fab) { fab.remove(); fab = null; } }
+    voz: Repro,
+    quitar: function () { if (fab) { fab.remove(); fab = null; } Repro.parar(); }
   };
 }());

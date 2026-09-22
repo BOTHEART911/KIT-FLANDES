@@ -120,7 +120,7 @@
       '<div class="kit-capa kit-resc" role="dialog" aria-modal="true">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-resc__hoja">' +
-      '    <div class="kit-resc__icono">' + (o.icono || '🧭') + '</div>' +
+      '    <div class="kit-resc__icono">' + (o.icono || K.icono('brujula', 34)) + '</div>' +
       '    <h2 class="kit-resc__t">' + K.esc(o.titulo || 'Parece que esta no era la opción') + '</h2>' +
       '    <p class="kit-resc__p">' + K.esc(o.texto || '') + '</p>' +
       '    <div class="kit-resc__atajos"></div>' +
@@ -155,14 +155,14 @@
   function explicar(error, atajos) {
     var c = (error && error.codigo) || 'ERROR';
     var mapa = {
-      SIN_RED:            { icono: '📶', titulo: 'No hay internet', texto: 'Revisa tus datos o el wifi y vuelve a intentarlo. Lo que escribiste no se perdió.' },
-      TIEMPO:             { icono: '🐢', titulo: 'El servidor tardó demasiado', texto: 'Suele ser la conexión. Inténtalo otra vez en un momento.' },
-      RESPUESTA_NO_JSON:  { icono: '🛠️', titulo: 'La app no pudo hablar con el servidor', texto: 'Esto es del lado de la aplicación, no tuyo. Avísale a soporte.' },
-      SESION_VENCIDA:     { icono: '🔐', titulo: 'Tu sesión venció', texto: 'Por seguridad la sesión dura 12 horas. Vuelve a entrar.' },
-      SIN_SESION:         { icono: '🔐', titulo: 'Necesitas entrar de nuevo', texto: 'Vuelve a iniciar sesión para continuar.' },
-      SIN_PERMISO:        { icono: '🚫', titulo: 'Tu usuario no tiene permiso para esto', texto: 'Si crees que sí deberías tenerlo, pídeselo al administrador.' }
+      SIN_RED:            { icono: K.icono('sin-red', 34), titulo: 'No hay internet', texto: 'Revisa tus datos o el wifi y vuelve a intentarlo. Lo que escribiste no se perdió.' },
+      TIEMPO:             { icono: K.icono('reloj', 34), titulo: 'El servidor tardó demasiado', texto: 'Suele ser la conexión. Inténtalo otra vez en un momento.' },
+      RESPUESTA_NO_JSON:  { icono: K.icono('herramienta', 34), titulo: 'La app no pudo hablar con el servidor', texto: 'Esto es del lado de la aplicación, no tuyo. Avísale a soporte.' },
+      SESION_VENCIDA:     { icono: K.icono('candado', 34), titulo: 'Tu sesión venció', texto: 'Por seguridad la sesión dura 12 horas. Vuelve a entrar.' },
+      SIN_SESION:         { icono: K.icono('candado', 34), titulo: 'Necesitas entrar de nuevo', texto: 'Vuelve a iniciar sesión para continuar.' },
+      SIN_PERMISO:        { icono: K.icono('prohibido', 34), titulo: 'Tu usuario no tiene permiso para esto', texto: 'Si crees que sí deberías tenerlo, pídeselo al administrador.' }
     };
-    var d = mapa[c] || { icono: '⚠️', titulo: 'No se pudo completar', texto: (error && error.message) || 'Inténtalo de nuevo.' };
+    var d = mapa[c] || { icono: K.icono('aviso', 34), titulo: 'No se pudo completar', texto: (error && error.message) || 'Inténtalo de nuevo.' };
     d.atajos = atajos || [];
     return rescate(d);
   }

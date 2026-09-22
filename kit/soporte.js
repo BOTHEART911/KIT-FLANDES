@@ -56,7 +56,7 @@
       '<div class="kit-capa kit-sop kit-capa--on" role="dialog" aria-modal="true">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-sop__hoja">' +
-      '    <header class="kit-capa__h">Contar un problema<button type="button" class="kit-capa__x">✕</button></header>' +
+      '    <header class="kit-capa__h">Contar un problema<button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <div class="kit-capa__cuerpo kit-sop__cuerpo">' +
       '      <label class="kit-sop__campo">' +
       '        <span>¿Qué pasó?</span>' +

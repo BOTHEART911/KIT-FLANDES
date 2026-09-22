@@ -158,9 +158,12 @@ const MUTACIONES = [
 
   ['sesion.js', 'sesion', 'el documento viaja con puntos',
     "var doc = String(documento || '').replace(/[^\\d]/g, '');", 'var doc = String(documento || \'\');'],
+  /* 4.4: este patrón llevaba tiempo sin aplicar (la 4.1 le añadió
+     appDestino y app:'CORE' a la llamada), así que la mutación se
+     contaba como "sobrevivió" sin haber tocado nada. Actualizado. */
   ['sesion.js', 'sesion', 'el login manda el token viejo',
-    "K.pedir('login', { documento: doc, clave: clave }, { sinToken: true })",
-    "K.pedir('login', { documento: doc, clave: clave })"],
+    "K.pedir('login', { documento: doc, clave: clave, appDestino: K.app }, { sinToken: true, app: 'CORE' })",
+    "K.pedir('login', { documento: doc, clave: clave, appDestino: K.app }, { app: 'CORE' })"],
   ['sesion.js', 'sesion', 'se entra sin elegir contrato',
     'if (d && d.contratos && d.contratos.length > 1) {', 'if (false) {'],
   ['sesion.js', 'sesion', 'el botón no se suelta tras el error',
@@ -179,8 +182,12 @@ const MUTACIONES = [
     "return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;", 'return false;'],
   ['instalar.js', 'instalar', 'se ofrece instalar aunque ya esté instalada',
     "if (instalada()) return 'instalada';", ''],
+  /* 4.4: igual que la de sesión, este patrón ya no existía en el
+     archivo. Ahora se muta el caso de verdad: en iPhone, decir que
+     cualquier navegador es Safari. */
   ['instalar.js', 'instalar', 'en iPhone fuera de Safari no se avisa',
-    "(esSafari() ? '' :", "(true ? '' :"],
+    "if (esIOS()) return esSafari() ? 'ios-safari' : 'ios-otro';",
+    "if (esIOS()) return 'ios-safari';"],
 
   ['soporte.js', 'soporte', 'se manda un reporte de dos letras',
     'if (msj.length < 10) return marcar', 'if (false) return marcar'],

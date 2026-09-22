@@ -49,7 +49,12 @@ async function pagina(browser, piezas = [], htmlCuerpo = '') {
   const css = ['base.css', ...piezas.map(p => `${p}.css`)]
     .filter(f => fs.existsSync(path.join(RAIZ, 'kit', f)))
     .map(f => `<link rel="stylesheet" href="kit/${f}">`).join('\n');
-  const js = ['kit.js', ...piezas.map(p => `${p}.js`)]
+  /* 4.4: iconos.js va SIEMPRE detrás de kit.js. Desde esta entrega las
+     piezas dibujan sus botones con K.icono(), así que el set es parte del
+     kit y no de una app. (kit.js deja además un K.icono de respaldo que
+     devuelve vacío, para que a una app que se olvide del <script> se le
+     queden los botones sin dibujo en vez de reventar.) */
+  const js = ['kit.js', 'iconos.js', ...piezas.map(p => `${p}.js`)]
     .filter(f => fs.existsSync(path.join(RAIZ, 'kit', f)))
     .map(f => `<script src="kit/${f}"></script>`).join('\n');
 
@@ -453,7 +458,15 @@ ${js}
       await page.evaluate(() => KIT.piezas.guardado.abrir({ titulo: 'Radicando' }));
       cierto(await page.locator('.kit-guard--on').isVisible(), 'debía verse');
       igual(await page.locator('.kit-guard__t').innerText(), 'Radicando');
-      igual(await page.locator('.kit-guard__cohete').innerText(), '🚀');
+      /* 4.4: el cohete pasó de emoji a SVG y ahora viaja por el cielo
+         en vez de balancearse en el sitio. Se comprueban las dos cosas. */
+      cierto(await page.locator('.kit-guard__cohete svg').count() === 1,
+        'el cohete tiene que ser un SVG del set, no un emoji');
+      cierto(!/[\u{1F680}]/u.test(await page.locator('.kit-guard__cielo').innerText()),
+        'no debe quedar ningún emoji de cohete');
+      const anim = await page.evaluate(() =>
+        getComputedStyle(document.querySelector('.kit-guard__nave')).animationName);
+      igual(anim, 'kit-guard-viaja');
     });
 
     await prueba('la barra avanza sola', async () => {

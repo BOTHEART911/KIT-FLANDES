@@ -355,3 +355,49 @@ body { max-width: 100%; overflow-x: hidden; }
     transition: none !important;
   }
 }
+
+
+/* ══════════════ ICONOS (pieza 24) ══════════════
+   Los SVG del set heredan el color del texto y se alinean con la linea
+   base, que es lo que un emoji nunca hacia: dentro de un boton quedaban
+   dos o tres pixeles altos y descuadraban la fila. */
+
+.kit-ico {
+  display: inline-block;
+  vertical-align: -0.18em;
+  flex-shrink: 0;
+  pointer-events: none;          /* el clic es del boton, no del dibujo */
+}
+.kit-btn .kit-ico { vertical-align: -0.22em; }
+
+/* Un boton que solo lleva icono se centra de verdad y no hereda el
+   interletrado del texto. */
+.kit-capa__x, .kit-visor__b, .kit-carr__b, .kit-adj__x, .kit-sesion__ojo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.kit-capa__x .kit-ico, .kit-visor__b .kit-ico, .kit-carr__b .kit-ico,
+.kit-adj__x .kit-ico, .kit-sesion__ojo .kit-ico { vertical-align: 0; }
+
+
+/* ══════════════ CONFIRMAR (pieza 25) ══════════════ */
+
+.kit-conf__hoja { max-width: 460px; }
+.kit-conf__lista { list-style: none; margin: 0; padding: 0; }
+.kit-conf__lista li {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--k-linea);
+}
+.kit-conf__lista li:first-child { border-top: 0; }
+.kit-conf__lista span { font-size: .84rem; color: var(--k-apagado); flex: 0 0 auto; }
+.kit-conf__lista b { text-align: right; word-break: break-word; }
+.kit-conf__texto { margin: 0; line-height: 1.5; }
+.kit-conf__nota { margin: 12px 0 0; font-size: .8rem; line-height: 1.45; color: var(--k-apagado); }
+.kit-conf__pie { display: flex; gap: 10px; }
+.kit-conf__pie .kit-btn { flex: 1 1 0; }

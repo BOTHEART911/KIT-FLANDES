@@ -13,9 +13,9 @@
        KIT.pedir('cuentaGuardar', datos),
        {
          titulo: 'Estamos radicando tu cuenta',
-         sub:    'No cierres esta ventana hasta que termine 🚀',
+         sub:    'No cierres esta ventana hasta que termine.',
          pasos:  ['Revisando los documentos…', 'Subiendo a Drive…', 'Avisando al supervisor…'],
-         listo:  { titulo: '¡Cuenta radicada!', paso: 'Radicada correctamente ✅' }
+         listo:  { titulo: 'Cuenta radicada', paso: 'Radicada correctamente' }
        }
      ).then(...)
 
@@ -57,11 +57,16 @@
       '<div class="kit-guard" role="alertdialog" aria-live="assertive" aria-modal="true">' +
       '  <div class="kit-guard__caja">' +
       '    <div class="kit-guard__cielo">' +
-      '      <span class="kit-guard__cohete">🚀</span>' +
-      '      <i class="kit-guard__estrella e1"></i>' +
-      '      <i class="kit-guard__estrella e2"></i>' +
-      '      <i class="kit-guard__estrella e3"></i>' +
-      '      <span class="kit-guard__ok">✅</span>' +
+      /* La nave lleva el VIAJE (se desplaza por el cielo) y el cohete de
+         dentro solo la inclinación: separarlos es lo que deja combinar las
+         dos cosas sin que una pise a la otra en el transform. */
+      '      <span class="kit-guard__nave">' +
+      '        <span class="kit-guard__cohete">' + K.icono('cohete', 34) + '</span>' +
+      '      </span>' +
+      '      <i class="kit-guard__estela e1"></i>' +
+      '      <i class="kit-guard__estela e2"></i>' +
+      '      <i class="kit-guard__estela e3"></i>' +
+      '      <span class="kit-guard__ok">' + K.icono('check', 46) + '</span>' +
       '    </div>' +
       '    <div class="kit-guard__t"></div>' +
       '    <div class="kit-guard__p"></div>' +
@@ -86,7 +91,7 @@
 
     q('t').textContent = op.titulo || 'Guardando';
     /* el subtítulo admite <b> porque el texto suele llevar un énfasis */
-    q('p').innerHTML = op.sub || 'No cierres esta ventana hasta que termine 🚀';
+    q('p').innerHTML = op.sub || 'No cierres esta ventana hasta que termine.';
     q('paso').textContent = pasos[0];
     q('bar').style.width = '0%';
 
@@ -133,8 +138,8 @@
       capa.classList.add('kit-guard--listo');
       q('bar').style.width = '100%';
       q('t').textContent = op.titulo || '¡Listo!';
-      q('p').innerHTML = op.sub || 'Ya quedó guardado 🎉';
-      q('paso').textContent = op.paso || 'Guardado correctamente ✅';
+      q('p').innerHTML = op.sub || 'Ya quedó guardado.';
+      q('paso').textContent = op.paso || 'Guardado correctamente';
       K.sonar('sound/pay_success.mp3');
       K.vibrar(14);
       setTimeout(function () { cerrar(); res(); }, op.espera || 1700);

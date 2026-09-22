@@ -371,6 +371,24 @@
     pesos: pesos, numero: numero, aNumero: aNumero, fecha: fecha,
     aviso: aviso,
 
+    /* ── 4.4 · RED DE SEGURIDAD DE LOS ICONOS ──
+       Desde la 4.4 las piezas dibujan sus botones con K.icono(). El set
+       vive en kit/iconos.js, que hay que cargar DESPUÉS de este archivo.
+       Si una app se lleva el kit y se olvida de ese <script>, sin esto
+       reventaría entera: banner, sesión, guardado, carrusel y adjuntos
+       llaman a K.icono() al pintar, y un "K.icono is not a function"
+       tumba la pieza completa, no solo el dibujo. Lo cazó el banco del
+       kit, que carga cada pieza suelta.
+       Con esto, lo que falta es el icono y nada más, y queda dicho en la
+       consola para que se note en vez de pasar en silencio. */
+    icono: function () {
+      if (!raiz.__kitSinIconos) {
+        raiz.__kitSinIconos = true;
+        try { console.warn('[kit] falta kit/iconos.js: los botones saldrán sin icono'); } catch (e) {}
+      }
+      return '';
+    },
+
     temaActual: temaActual, ponerTema: ponerTema, alternarTema: alternarTema,
     disparar: disparar, cuando: cuando,
 

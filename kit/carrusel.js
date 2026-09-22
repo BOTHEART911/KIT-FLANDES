@@ -52,8 +52,8 @@
       '      <span class="kit-carr__z">100%</span>' +
       '      <button type="button" class="kit-carr__b" data-a="mas" title="Acercar">+</button>' +
       '      <button type="button" class="kit-carr__b" data-a="reset" title="Tamaño original">⤢</button>' +
-      '      <button type="button" class="kit-carr__b kit-carr__b--rep kit-oculto" data-a="reemplazar" title="Reemplazar">🔄</button>' +
-      '      <button type="button" class="kit-carr__b kit-carr__b--x" data-a="cerrar" title="Cerrar">✕</button>' +
+      '      <button type="button" class="kit-carr__b kit-carr__b--rep kit-oculto" data-a="reemplazar" title="Reemplazar">' + K.icono('recargar', 18) + '</button>' +
+      '      <button type="button" class="kit-carr__b kit-carr__b--x" data-a="cerrar" title="Cerrar">' + K.icono('cerrar', 18) + '</button>' +
       '    </div>' +
       '  </header>' +
       '  <div class="kit-carr__escena">' +

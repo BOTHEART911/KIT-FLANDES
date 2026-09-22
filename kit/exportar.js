@@ -348,7 +348,7 @@
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-exp__hoja">' +
       '    <header class="kit-capa__h">Descargar ' + K.esc(op.titulo || '') +
-      '      <button type="button" class="kit-capa__x">✕</button></header>' +
+      '      <button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <div class="kit-capa__cuerpo kit-exp__cuerpo">' +
       (op.campoFecha ?
         '      <div class="kit-exp__rango">' +

@@ -44,11 +44,11 @@
   function icono(tipo, nombre) {
     var t = String(tipo || '');
     var n = String(nombre || '').toLowerCase();
-    if (t.indexOf('image/') === 0) return '🖼️';
-    if (t === 'application/pdf' || /\.pdf$/.test(n)) return '📄';
-    if (/sheet|excel|csv/.test(t) || /\.(xlsx?|csv)$/.test(n)) return '📊';
-    if (/word|document/.test(t) || /\.docx?$/.test(n)) return '📝';
-    return '📎';
+    if (t.indexOf('image/') === 0) return K.icono('imagen', 18);
+    if (t === 'application/pdf' || /\.pdf$/.test(n)) return K.icono('pdf', 18);
+    if (/sheet|excel|csv/.test(t) || /\.(xlsx?|csv)$/.test(n)) return K.icono('hoja', 18);
+    if (/word|document/.test(t) || /\.docx?$/.test(n)) return K.icono('documento', 18);
+    return K.icono('clip', 18);
   }
 
   function montar(destino, opciones) {
@@ -65,7 +65,7 @@
     zona.classList.add('kit-adj');
     zona.innerHTML =
       '<div class="kit-adj__soltar" tabindex="0" role="button" aria-label="Adjuntar archivos">' +
-      '  <div class="kit-adj__icono">📎</div>' +
+      '  <div class="kit-adj__icono">' + K.icono('clip', 26) + '</div>' +
       '  <div class="kit-adj__texto">' +
       '    <b>Toca para adjuntar</b>' +
       '    <span>arrastra el archivo aquí, o pega con Ctrl+V</span>' +
@@ -151,7 +151,7 @@
           '  <span class="kit-adj__ico">' + icono(f.type, f.name) + '</span>' +
           '  <span class="kit-adj__nom" title="' + K.esc(f.name) + '">' + K.esc(f.name) + '</span>' +
           '  <span class="kit-adj__peso">' + pesoLegible(f.size) + '</span>' +
-          '  <button type="button" class="kit-adj__x" aria-label="Quitar ' + K.esc(f.name) + '">✕</button>' +
+          '  <button type="button" class="kit-adj__x" aria-label="Quitar ' + K.esc(f.name) + '">' + K.icono('cerrar', 16) + '</button>' +
           '</li>'
         );
         li.querySelector('.kit-adj__x').addEventListener('click', function () { quitar(i); });

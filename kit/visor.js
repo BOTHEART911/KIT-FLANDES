@@ -76,11 +76,11 @@
       '      <span class="kit-visor__t"></span>' +
       '      <span class="kit-visor__cuenta"></span>' +
       '      <div class="kit-visor__acciones">' +
-      '        <button type="button" class="kit-visor__b" data-a="abrir"    title="Abrir en una pestaña">↗</button>' +
-      '        <button type="button" class="kit-visor__b" data-a="bajar"    title="Descargar">⬇</button>' +
-      '        <button type="button" class="kit-visor__b" data-a="imprimir" title="Imprimir">🖨</button>' +
+      '        <button type="button" class="kit-visor__b" data-a="abrir"    title="Abrir en una pestaña">' + K.icono('abrir-pestana', 18) + '</button>' +
+      '        <button type="button" class="kit-visor__b" data-a="bajar"    title="Descargar">' + K.icono('descargar', 18) + '</button>' +
+      '        <button type="button" class="kit-visor__b" data-a="imprimir" title="Imprimir">' + K.icono('imprimir', 18) + '</button>' +
       '        <button type="button" class="kit-visor__b" data-a="encoger"  title="Minimizar">–</button>' +
-      '        <button type="button" class="kit-visor__b kit-visor__b--x" data-a="cerrar" title="Cerrar">✕</button>' +
+      '        <button type="button" class="kit-visor__b kit-visor__b--x" data-a="cerrar" title="Cerrar">' + K.icono('cerrar', 18) + '</button>' +
       '      </div>' +
       '    </header>' +
       '    <div class="kit-visor__lienzo"></div>' +

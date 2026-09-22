@@ -144,7 +144,7 @@
       return;
     }
     K.piezas.conexion.rescate({
-      icono: '🔔',
+      icono: K.icono('campana', 34),
       titulo: titulo,
       texto: texto,
       atajos: botonTexto ? [{ texto: botonTexto, al: alBoton }] : []

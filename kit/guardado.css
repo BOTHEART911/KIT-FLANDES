@@ -32,7 +32,13 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ── el cielo por el que sube el cohete ── */
+/* ── el cielo por el que VIAJA el cohete ──
+   4.4: antes el cohete solo se balanceaba en el sitio y las estrellas
+   caían de arriba abajo, que se lee como nieve, no como vuelo. Ahora el
+   cohete ATRAVIESA el cielo en diagonal, igual que el avión del loader de
+   SEP-AGENDA, y las estelas pasan en sentido contrario para que se note la
+   velocidad. El viaje va en .kit-guard__nave y la inclinación en
+   .kit-guard__cohete: dos transform separados que no se pisan. */
 
 .kit-guard__cielo {
   position: relative;
@@ -40,38 +46,44 @@
   margin: 0 -22px 18px;
   background: linear-gradient(180deg, var(--k-marca-2) 0%, var(--k-marca) 100%);
   overflow: hidden;
+  color: #fff;                 /* los iconos son currentColor */
 }
 
-.kit-guard__cohete {
+.kit-guard__nave {
   position: absolute;
   left: 50%;
-  bottom: 18px;
-  font-size: 40px;
-  line-height: 1;
-  transform: translateX(-50%) rotate(-45deg);
-  animation: kit-guard-vuela 1.9s ease-in-out infinite;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .35));
+  bottom: 40px;
+  margin-left: -17px;
+  animation: kit-guard-viaja 3.1s cubic-bezier(.45, 0, .55, 1) infinite;
 }
-@keyframes kit-guard-vuela {
-  0%   { transform: translateX(-50%) translateY(6px)   rotate(-45deg); }
-  50%  { transform: translateX(-50%) translateY(-14px) rotate(-45deg); }
-  100% { transform: translateX(-50%) translateY(6px)   rotate(-45deg); }
+.kit-guard__cohete {
+  display: block;
+  transform: rotate(38deg);    /* apuntando a donde va */
+  filter: drop-shadow(0 5px 9px rgba(0, 0, 0, .35));
+}
+@keyframes kit-guard-viaja {
+  0%   { transform: translate(-104px, 40px);  opacity: 0; }
+  14%  { opacity: 1; }
+  78%  { opacity: 1; }
+  100% { transform: translate(104px, -52px);  opacity: 0; }
 }
 
-.kit-guard__estrella {
+/* Estelas: pasan al revés del cohete, que es lo que da la sensación de
+   que el que se mueve es él y no el fondo. */
+.kit-guard__estela {
   position: absolute;
-  width: 4px; height: 4px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .75);
-  animation: kit-guard-cae 2.4s linear infinite;
+  width: 34px; height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .7);
+  animation: kit-guard-estela 1.7s linear infinite;
 }
-.kit-guard__estrella.e1 { left: 22%; animation-delay: 0s;   }
-.kit-guard__estrella.e2 { left: 52%; animation-delay: .8s;  width: 3px; height: 3px; }
-.kit-guard__estrella.e3 { left: 78%; animation-delay: 1.5s; }
-@keyframes kit-guard-cae {
-  from { top: -6px;  opacity: 0; }
-  20%  { opacity: .9; }
-  to   { top: 132px; opacity: 0; }
+.kit-guard__estela.e1 { top: 26px;  animation-delay: 0s;   }
+.kit-guard__estela.e2 { top: 62px;  animation-delay: .55s; width: 22px; }
+.kit-guard__estela.e3 { top: 96px;  animation-delay: 1.1s; width: 44px; }
+@keyframes kit-guard-estela {
+  from { transform: translateX(240px); opacity: 0; }
+  25%  { opacity: .7; }
+  to   { transform: translateX(-90px); opacity: 0; }
 }
 
 .kit-guard__ok {
@@ -80,8 +92,6 @@
   display: none;
   align-items: center;
   justify-content: center;
-  font-size: 52px;
-  line-height: 1;
 }
 
 /* ── textos ── */
@@ -115,8 +125,13 @@
 /* ── final feliz ── */
 
 .kit-guard--listo .kit-guard__cielo { background: linear-gradient(180deg, #0b5f3e 0%, var(--k-ok) 100%); }
-.kit-guard--listo .kit-guard__cohete,
-.kit-guard--listo .kit-guard__estrella { display: none; }
+.kit-guard--listo .kit-guard__nave {
+  animation: kit-guard-despega .85s cubic-bezier(.4, 0, .2, 1) forwards;
+}
+.kit-guard--listo .kit-guard__estela { animation: none; opacity: 0; }
+@keyframes kit-guard-despega {
+  to { transform: translate(150px, -120px) scale(.7); opacity: 0; }
+}
 .kit-guard--listo .kit-guard__ok { display: flex; animation: kit-guard-sello .38s cubic-bezier(.2, 1.4, .4, 1) both; }
 .kit-guard--listo .kit-guard__bar { background: var(--k-ok); }
 
@@ -126,8 +141,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kit-guard__caja, .kit-guard__cohete, .kit-guard__estrella, .kit-guard--listo .kit-guard__ok {
+  .kit-guard__caja, .kit-guard__nave, .kit-guard__estela,
+  .kit-guard--listo .kit-guard__nave, .kit-guard--listo .kit-guard__ok {
     animation: none !important;
   }
-  .kit-guard__cohete { transform: translateX(-50%) rotate(-45deg); }
+  .kit-guard__nave { transform: none; opacity: 1; }
+  .kit-guard__estela { opacity: .45; transform: none; }
 }

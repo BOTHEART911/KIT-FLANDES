@@ -168,7 +168,7 @@
     var b = barra && barra.querySelector('.kit-banner__tema');
     if (!b) return;
     var oscuro = K.temaActual() === 'oscuro';
-    b.textContent = oscuro ? '☀️' : '🌙';
+    b.innerHTML = K.icono(oscuro ? 'sol' : 'luna', 18);
     b.setAttribute('title', oscuro ? 'Modo claro' : 'Modo oscuro');
   }
 

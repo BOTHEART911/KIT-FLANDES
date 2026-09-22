@@ -153,7 +153,7 @@
         '<div class="kit-capa kit-inst kit-capa--on" role="dialog" aria-modal="true">' +
         '  <div class="kit-capa__velo"></div>' +
         '  <section class="kit-capa__hoja kit-inst__hoja">' +
-        '    <header class="kit-capa__h">Instalar la aplicación<button type="button" class="kit-capa__x">✕</button></header>' +
+        '    <header class="kit-capa__h">Instalar la aplicación<button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
         '    <div class="kit-capa__cuerpo kit-inst__cuerpo"></div>' +
         '  </section>' +
         '</div>'
@@ -227,7 +227,7 @@
         '<ol class="kit-inst__pasos">' +
         '  <li>Toca <b>Copiar el enlace</b> aquí abajo.</li>' +
         '  <li>Abre <b>Safari</b> y pega el enlace en la barra de direcciones.</li>' +
-        '  <li>Ya en Safari: <b>Compartir</b> <span class="kit-inst__ico">⬆️</span> → <b>Añadir a pantalla de inicio</b>.</li>' +
+        '  <li>Ya en Safari: <b>Compartir</b> <span class="kit-inst__ico">' + K.icono('compartir-ios', 17) + '</span> → <b>Añadir a pantalla de inicio</b>.</li>' +
         '</ol>' +
         '<p class="kit-inst__ojo">Sin instalarla, en iPhone <b>no llegan los avisos</b>: iOS solo los ' +
         'entrega a las aplicaciones que están en la pantalla de inicio.</p>' +
@@ -237,7 +237,7 @@
       '<p class="kit-inst__p">En iPhone y iPad la instalación la hace Safari, no la aplicación. ' +
       'Son tres toques:</p>' +
       '<ol class="kit-inst__pasos">' +
-      '  <li><b>Toca el icono de Compartir</b> <span class="kit-inst__ico">⬆️</span> en la barra de Safari ' +
+      '  <li><b>Toca el icono de Compartir</b> <span class="kit-inst__ico">' + K.icono('compartir-ios', 17) + '</span> en la barra de Safari ' +
       '      (abajo en el iPhone, arriba en el iPad).</li>' +
       '  <li>Baja en la lista y elige <b>Añadir a pantalla de inicio</b>.</li>' +
       '  <li>Toca <b>Añadir</b> arriba a la derecha.</li>' +
