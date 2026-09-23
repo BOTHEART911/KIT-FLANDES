@@ -11,6 +11,20 @@
 }
 .kit-esq--fuera { opacity: 0; }
 
+/* 6.1 · "CARGANDO DATOS" SIEMPRE CENTRADO, EN TODAS LAS VISTAS.
+   El esqueleto se mete en el contenedor que le toque, y ese contenedor
+   puede ser una rejilla de 2 o 3 columnas (listas, accesos) o una fila
+   flex. Ahí el esqueleto era UNA celda más y la pastilla del cohete se
+   centraba en esa celda, pegada a la izquierda (lo que vio Oss en la
+   5.4.1). Ahora el esqueleto ocupa siempre la fila entera, sea rejilla
+   o bloque, y la pastilla queda en el centro de verdad. */
+.kit-esq {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .kit-esq--tarjetas { grid-template-columns: 1fr; }
 @media (min-width: 680px)  { .kit-esq--tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1080px) { .kit-esq--tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -93,4 +107,73 @@
 @media (prefers-reduced-motion: reduce) {
   .kit-esq__bloque { animation: none; background: var(--k-papel-2); }
   :root[data-tema="oscuro"] .kit-esq__bloque { background: #1b2a23; }
+}
+
+/* 4.6 · EL AVISO DE ESPERA ─────────────────────────────────────
+   Cuando la carga pasa de 900 ms, el esqueleto solo no basta: la
+   persona no sabe si aquello sigue vivo. Sale el cohete con
+   "Cargando datos", pegado encima del esqueleto y sin taparlo. */
+.kit-esq { position: relative; }
+/* 4.7 · DEBAJO DEL ESQUELETO, CENTRADA Y SIEMPRE DEL MISMO TAMAÑO.
+   El contenedor del esqueleto es una rejilla: en la forma 'tarjetas'
+   la pastilla caía como una celda más, pegada a la izquierda bajo la
+   primera tarjeta. Ahora ocupa su propia fila entera (grid-column
+   1 / -1) y se centra dentro de ella (justify-self), con el ancho de
+   su contenido. Va la última en el DOM, así que queda debajo. */
+.kit-esq__espera {
+  position: relative;
+  grid-column: 1 / -1;
+  justify-self: center;
+  align-self: start;
+  z-index: 2;
+  margin: 4px auto 0;
+  width: max-content; max-width: 90%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px 9px 12px;
+  border-radius: 999px;
+  background: var(--k-marca, #06402B);
+  color: #fff;
+  font: 600 .86rem/1 var(--k-fuente);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+  animation: kit-esq-entra .28s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+@keyframes kit-esq-entra {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+.kit-esq__cohete {
+  position: relative;
+  display: inline-flex;
+  animation: kit-esq-sube 1.5s ease-in-out infinite;
+}
+@keyframes kit-esq-sube {
+  0%, 100% { transform: translateY(2px) rotate(-8deg); }
+  50%      { transform: translateY(-3px) rotate(-2deg); }
+}
+.kit-esq__fuego {
+  position: absolute; left: 50%; bottom: -5px;
+  width: 7px; height: 12px; margin-left: -3.5px;
+  border-radius: 50% 50% 45% 45%;
+  background: linear-gradient(180deg, #ffd166 0%, #f77f00 55%, rgba(247, 127, 0, 0) 100%);
+  transform-origin: 50% 0;
+  animation: kit-esq-fuego .18s ease-in-out infinite alternate;
+}
+@keyframes kit-esq-fuego {
+  from { transform: scaleY(.7); opacity: .85; }
+  to   { transform: scaleY(1.2); opacity: 1; }
+}
+.kit-esq__dice::after {
+  content: '';
+  animation: kit-esq-puntos 1.4s steps(4, end) infinite;
+}
+@keyframes kit-esq-puntos {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kit-esq__espera, .kit-esq__cohete, .kit-esq__fuego { animation: none; }
+  .kit-esq__fuego { display: none; }
+  .kit-esq__dice::after { content: '…'; animation: none; }
 }

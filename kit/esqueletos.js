@@ -38,8 +38,28 @@
   var K = window.KIT;
   if (!K) { try { console.warn('[kit/esqueletos] falta kit.js'); } catch (e) {} return; }
 
-  var ANTES_DE_PINTAR = 180;   /* ms */
+  /*
+   * 4.6 · POR QUÉ LA PANTALLA SE QUEDABA EN BLANCO
+   *
+   * El esqueleto esperaba 180 ms antes de pintarse, para no dar un
+   * parpadeo en las cargas instantáneas. El problema: el enrutador vacía
+   * la vista ANTES, así que durante esos 180 ms no había absolutamente
+   * nada en pantalla. En el teléfono de Oss eso se veía como un blancazo
+   * en Inicio y en Descargar.
+   *
+   * La regla correcta no es el tiempo, es si hay algo debajo:
+   *   · sitio vacío  -> se pinta YA. No hay nada contra lo que parpadear.
+   *   · sitio con contenido -> se espera, que ahí sí molestaría.
+   */
+  var ANTES_DE_PINTAR = 180;   /* ms, solo si la caja NO está vacía */
   var MINIMO_EN_PANTALLA = 320; /* ms, para que no dé un tirón */
+
+  /*
+   * Y si la espera se alarga, el esqueleto solo no basta: la persona no
+   * sabe si aquello sigue vivo. A los 900 ms aparece encima el cohete con
+   * "Cargando datos", que es lo que pidió Oss.
+   */
+  var ANTES_DEL_COHETE = 900;  /* ms */
 
   var FORMAS = {
     tarjetas: function () {
@@ -103,11 +123,12 @@
     var forma = FORMAS[opciones.forma] ? opciones.forma : 'tarjetas';
     var cuantos = Math.max(1, Math.min(opciones.cuantos || 5, 24));
     var capa = null;
+    var aviso = null;
     var puesto = 0;
     var muerto = false;
 
-    var reloj = setTimeout(function () {
-      if (muerto) return;
+    function pintar() {
+      if (muerto || capa) return;
       capa = document.createElement('div');
       capa.className = 'kit-esq kit-esq--' + forma;
       capa.setAttribute('aria-hidden', 'true');
@@ -122,11 +143,31 @@
       /* que el lector de pantalla sepa que se está cargando */
       caja.setAttribute('aria-busy', 'true');
       puesto = Date.now();
-    }, ANTES_DE_PINTAR);
+    }
+
+    /* ¿hay algo pintado debajo? Si no, el esqueleto entra de inmediato. */
+    var vacia = !caja.firstElementChild || opciones.sitio === 'reemplaza';
+    var reloj = null;
+    if (vacia) pintar();
+    else reloj = setTimeout(pintar, ANTES_DE_PINTAR);
+
+    /* el cohete, solo si la espera se hace larga */
+    var relojCohete = setTimeout(function () {
+      if (muerto || !capa) return;
+      aviso = document.createElement('div');
+      aviso.className = 'kit-esq__espera';
+      aviso.setAttribute('role', 'status');
+      aviso.innerHTML =
+        '<span class="kit-esq__cohete">' + (K.icono ? K.icono('cohete', 26) : '') +
+        '  <i class="kit-esq__fuego"></i></span>' +
+        '<span class="kit-esq__dice">' + (opciones.espera || 'Cargando datos') + '</span>';
+      capa.appendChild(aviso);
+    }, opciones.msCohete || ANTES_DEL_COHETE);
 
     return function quitar() {
       muerto = true;
-      clearTimeout(reloj);
+      if (reloj) clearTimeout(reloj);
+      clearTimeout(relojCohete);
       if (!capa) { caja.removeAttribute('aria-busy'); return; }
       var falta = MINIMO_EN_PANTALLA - (Date.now() - puesto);
       var adios = function () {

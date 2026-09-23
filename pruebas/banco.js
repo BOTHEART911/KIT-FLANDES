@@ -368,8 +368,10 @@ ${js}
   {
     const { page, ctx } = await pagina(browser, ['esqueletos'], '<div id="lista"></div>');
 
-    await prueba('no parpadea si la respuesta es rápida', async () => {
-      await page.evaluate(() => { const q = KIT.piezas.esqueletos.poner('#lista'); q(); });
+    /* 4.6: la espera de 180 ms solo vale cuando la caja YA tiene algo
+       debajo; la caja vacía se pinta al instante (ver kit/esqueletos.js). */
+    await prueba('no parpadea si la respuesta es rápida (caja con contenido)', async () => {
+      await page.evaluate(() => { document.querySelector('#lista').innerHTML = '<p>ya había algo</p>'; const q = KIT.piezas.esqueletos.poner('#lista'); q(); });
       await page.waitForTimeout(300);
       igual(await page.locator('.kit-esq').count(), 0);
     });
@@ -379,6 +381,7 @@ ${js}
          umbral desaparece, aquí se ve el parpadeo. */
       await page.evaluate(() => {
         window.__vioEsq = false;
+        document.querySelector('#lista').innerHTML = '<p>ya había algo</p>';
         KIT.piezas.esqueletos.mientras('#lista', new Promise(r => setTimeout(r, 100)));
         const reloj = setInterval(() => {
           if (document.querySelector('.kit-esq')) { window.__vioEsq = true; clearInterval(reloj); }
@@ -389,8 +392,16 @@ ${js}
       falso(await page.evaluate(() => window.__vioEsq), 'con 100 ms no debía llegar a pintarse');
     });
 
+    await prueba('con la caja vacía se pinta YA (sin blancazo)', async () => {
+      await page.evaluate(() => { document.querySelector('#lista').innerHTML = ''; window.__qv = KIT.piezas.esqueletos.poner('#lista'); });
+      await page.waitForTimeout(40);
+      igual(await page.locator('.kit-esq').count() > 0, true);
+      await page.evaluate(() => window.__qv());
+      await page.waitForTimeout(600);
+    });
+
     await prueba('aparece cuando la espera es larga', async () => {
-      await page.evaluate(() => { window.__q = KIT.piezas.esqueletos.poner('#lista', { forma: 'tarjetas', cuantos: 4 }); });
+      await page.evaluate(() => { document.querySelector('#lista').innerHTML = ''; window.__q = KIT.piezas.esqueletos.poner('#lista', { forma: 'tarjetas', cuantos: 4 }); });
       await page.waitForTimeout(320);
       igual(await page.locator('.kit-esq__tarjeta').count(), 4);
     });
