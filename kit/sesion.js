@@ -85,6 +85,10 @@
       '    <div class="kit-sesion__pie">' +
       '      <span>' + K.esc(cfg.pie || 'Alcaldía Municipal de Flandes') + '</span>' +
       '    </div>' +
+      /* 4.7 · el pie de autoría va en TODAS las vistas, también en esta.
+         Aquí todavía no hay sesión: se pinta con los textos por defecto y
+         no se le cobra un viaje al servidor por dos líneas. */
+      (K.piezas.creditos ? '    <footer class="kit-cred kit-sesion__cred">' + K.piezas.creditos.html() + '</footer>' : '') +
       '  </div>' +
       '</div>'
     );
@@ -103,6 +107,13 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+      /* 4.9 · el permiso de avisos se pide AQUÍ, dentro del toque de
+         "Entrar" (como JHONNY-PERDOMO): es el único momento en que el
+         navegador lo muestra seguro, y así no hace falta ninguna hoja. */
+      if (K.piezas.avisos && K.piezas.avisos.pedirAlTocar &&
+          String(form.documento.value || '').trim() && String(form.clave.value || '')) {
+        K.piezas.avisos.pedirAlTocar();
+      }
       intentar(form.documento.value, form.clave.value);
     });
 
@@ -140,7 +151,11 @@
     error('');
     ocupado(true);
 
-    K.pedir('login', { documento: doc, clave: clave, appDestino: K.app }, { sinToken: true, app: 'CORE' })
+    /* 7.0 · con arranqueEnLogin el CORE devuelve también el 'inicio' de la app en
+       este mismo viaje (un viaje a Apps Script cuesta ~2 s de transporte). */
+    var pide = { documento: doc, clave: clave, appDestino: K.app };
+    if (cfg.arranqueEnLogin) pide.conArranque = true;
+    K.pedir('login', pide, { sinToken: true, app: 'CORE' })
       .then(function (d) {
         K.guardar.escribir('sesion.ultimoDocumento', doc);
 
@@ -218,6 +233,20 @@
     K.vibrar(12);
     cerrarPuerta();
     K.disparar('kit:sesion', { entro: true, yo: yo() });
+
+    /* 4.5: recién entrado hace falta el arranque de la app (contrato,
+       avisos, listas, municipios). Si la app dio `comprobar`, se llama
+       también aquí: así la pantalla de inicio se pinta con todo puesto y
+       no con cuatro llamadas sueltas detrás. Si falla, se entra igual:
+       cada vista sabe pedir lo suyo. */
+    if (typeof cfg.comprobar === 'function') {
+      /* 7.0: se le pasa la respuesta del login: si trae el arranque, no hay otro viaje */
+      Promise.resolve(cfg.comprobar(d))
+        .then(function (dd) { if (dd) guardarYo(dd.usuario || dd); })
+        ['catch'](function () {})
+        .then(function () { if (typeof cfg.alEntrar === 'function') cfg.alEntrar(yo()); });
+      return;
+    }
     if (typeof cfg.alEntrar === 'function') cfg.alEntrar(yo());
   }
 
@@ -333,7 +362,22 @@
        dejar pasar: un token viejo no sirve y el usuario se enteraría
        tarde, a mitad de un guardado */
     if (K.token()) {
-      return K.pedir('yo', {}, { app: 'CORE' })
+      /*
+       * 4.5 · UNA LLAMADA, NO DOS.
+       *
+       * Aquí se pedía 'yo' solo para comprobar que el token seguía vivo, y
+       * acto seguido la app pedía 'inicio', que YA devuelve el usuario. Eran
+       * dos viajes a Apps Script, y cada viaje cuesta entre dos y tres
+       * segundos de transporte aunque el servidor conteste en cincuenta
+       * milisegundos. Si la app pasa `comprobar`, esa función hace el viaje
+       * y devuelve el usuario; si no lo pasa, se sigue pidiendo 'yo' como
+       * siempre, que es lo que hacen las otras seis apps.
+       */
+      var comprobacion = (typeof cfg.comprobar === 'function')
+        ? Promise.resolve(cfg.comprobar())
+        : K.pedir('yo', {}, { app: 'CORE' });
+
+      return comprobacion
         .then(function (d) {
           guardarYo(d && (d.usuario || d) || null);
           K.disparar('kit:sesion', { entro: true, yo: yo() });
