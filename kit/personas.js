@@ -6,7 +6,7 @@
      El contratista ve nombres de gente de las otras apps: quien le
      reviso la cuenta, quien la aprobo en Contratacion, quien hizo la
      orden en Contabilidad o el egreso en Tesoreria, quien firma un
-     comunicado, quien atiende su solicitud de prensa. Un nombre suelto
+     comunicado, quien atiende su solicitud a Comunicaciones. Un nombre suelto
      no dice nada; una cara si. Y si esa persona todavia no tiene foto,
      un circulo con sus INICIALES, nunca un icono gris vacio.
 
@@ -141,7 +141,9 @@
 
   var AREA = {
     CONTRATACION: 'Contratación', SUPERVISION: 'Supervisión', CONTABILIDAD: 'Contabilidad',
-    TESORERIA: 'Tesorería', PRENSA: 'Prensa', ADMIN: 'Administración'
+    TESORERIA: 'Tesorería', COMUNICACIONES: 'Comunicaciones', ADMIN: 'Administración',
+    /* Fase 9: la app PRENSA se llama COMUNICACIONES; por si llega el nombre viejo */
+    PRENSA: 'Comunicaciones'
   };
 
   function nombrePropio(s) {

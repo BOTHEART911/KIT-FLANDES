@@ -75,7 +75,7 @@
       cuerpo.appendChild(K.nodo('<p class="kit-perfil__nombre">' + K.esc(P().nombrePropio(o.nombre)) + '</p>'));
       cuerpo.appendChild(K.nodo('<p class="kit-perfil__nota">' + (estado.foto
         ? 'Tócala para verla en grande. Es la misma en todas las apps de la Alcaldía.'
-        : 'Sin foto, se ven tus iniciales. La foto que subas la ven en Supervisión, Contratación, Contabilidad, Tesorería, Prensa y Administración.') +
+        : 'Sin foto, se ven tus iniciales. La foto que subas la ven en Supervisión, Contratación, Contabilidad, Tesorería, Comunicaciones y Administración.') +
         '</p>'));
 
       var acc = K.nodo('<div class="kit-perfil__acciones"></div>');

@@ -299,8 +299,8 @@ ${js}
     });
 
     await prueba('un solo nombre da dos letras, no una', async () => {
-      await page.evaluate(() => KIT.piezas.banner.perfil({ nombre: 'Prensa' }));
-      igual(await page.locator('.kit-banner__foto span').innerText(), 'PR');
+      await page.evaluate(() => KIT.piezas.banner.perfil({ nombre: 'Comunicaciones' }));
+      igual(await page.locator('.kit-banner__foto span').innerText(), 'CO');
     });
 
     await prueba('sin nombre no se rompe', async () => {
