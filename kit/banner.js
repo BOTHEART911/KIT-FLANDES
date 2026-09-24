@@ -42,6 +42,9 @@
   var cfg = {};
 
   function iniciales(nombre) {
+    /* 4.9 · las mismas iniciales que la cara del inicio y las demás caras
+       (nombre + primer apellido): antes aquí salía OM y abajo OP */
+    if (K.piezas.personas) return K.piezas.personas.iniciales(nombre);
     var p = K.norm(nombre).split(/\s+/).filter(Boolean);
     if (!p.length) return '··';
     if (p.length === 1) return p[0].slice(0, 2);

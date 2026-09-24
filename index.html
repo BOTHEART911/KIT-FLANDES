@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#06402B">
-<title>KIT-FLANDES · las 19 piezas</title>
+<title>KIT-FLANDES · las piezas del kit</title>
 
 <!-- Las fuentes del kit. base.css las NOMBRA (IBM Plex Sans y Sora) pero no
      las trae nadie: sin estas dos líneas, las siete apps caen a la fuente
@@ -29,6 +29,10 @@
 <link rel="stylesheet" href="kit/instalar.css">
 <link rel="stylesheet" href="kit/antidoble.css">
 <link rel="stylesheet" href="kit/creditos.css">
+<link rel="stylesheet" href="kit/bienvenida.css">
+<link rel="stylesheet" href="kit/cielo.css">
+<link rel="stylesheet" href="kit/personas.css">
+<link rel="stylesheet" href="kit/buzon.css">
 
 <style>
   body { margin: 0; font-family: var(--k-fuente); background: var(--k-fondo); color: var(--k-tinta); }
@@ -52,7 +56,8 @@
 
 <div class="env">
   <p class="int">
-    Las 19 piezas del kit, funcionando. Esta página no es parte de ninguna app: es el
+    Las piezas del kit, funcionando (versión 7.2: al día con Contratista, Contratación,
+    Supervisión y Contabilidad). Esta página no es parte de ninguna app: es el
     banco de pruebas a mano, para ver y tocar cada pieza antes de montarla.
     El botón de la esquina cambia el tema; todo lo de aquí abajo lo sigue.
   </p>
@@ -139,18 +144,19 @@
 
   <div class="kit-tarjeta pieza">
     <h2><i>11</i> Insights</h2>
-    <p>El robot de la esquina. Se puede arrastrar y recuerda dónde lo dejaste. Trabaja sobre lo que filtren las pastillas de arriba.</p>
+    <p>El robot de la esquina. Un toque lo abre con la guía de la vista y las cifras, sin "Iniciar". Para moverlo, mantenlo apretado medio segundo y arrástralo: recuerda dónde lo dejaste. Trabaja sobre lo que filtren las pastillas de arriba.</p>
   </div>
 
   <div class="kit-tarjeta pieza">
     <h2><i>12</i> Exportador</h2>
-    <p>Columnas a elegir y rango de fechas. El PDF sale membretado con los datos del CORE.</p>
-    <div class="fila"><button class="kit-btn kit-btn--marca" id="b-exportar">Abrir el modal de descarga</button></div>
+    <p>Columnas a elegir y rango de fechas. El Excel es plano (una fila por cuenta). El PDF es un <b>informe por bloques</b>: membrete, cifras arriba y una ficha por cuenta con su estado de color, agrupadas por supervisor. La tabla de antes sigue con <code>modo: 'tabla'</code> (la usa Contratista).</p>
+    <div class="fila"><button class="kit-btn kit-btn--marca" id="b-exportar">Abrir el modal de descarga</button>
+      <button class="kit-btn" id="b-informe-cuentas">Informe de cuentas de un contrato (PDF)</button></div>
   </div>
 
   <div class="kit-tarjeta pieza">
     <h2><i>13</i> Soporte</h2>
-    <p>Con hasta tres fotos. Fíjate en que enseña todo lo que va a mandar, sin esconderlo.</p>
+    <p>Con hasta tres fotos, que viajan reducidas a JPEG de 1.600 px. Al llegar le da a la persona su número de solicitud. Enseña todo lo que va a mandar, sin esconderlo.</p>
     <div class="fila"><button class="kit-btn kit-btn--marca" id="b-soporte">Contar un problema</button></div>
   </div>
 
@@ -168,6 +174,67 @@
     <p>Toca el botón cinco veces seguidas. Solo cuenta una.</p>
     <div class="fila"><button class="kit-btn kit-btn--marca" id="b-doble">Reportar cuenta</button></div>
     <p id="doble-eco">Veces que se ejecutó: 0</p>
+  </div>
+
+
+  <div class="kit-tarjeta pieza" id="cielo-demo">
+    <h2><i>+</i> Cielo</h2>
+    <p>La aurora y las burbujas de la portada, para cualquier franja. En una barra fija se usa <code>soloFondo()</code>, que no mete nodos ni le cambia la posición.</p>
+    <div class="fila"><button class="kit-btn" id="b-cielo">Poner / quitar el cielo en esta tarjeta</button></div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Personas y foto de perfil</h2>
+    <p>Una cara por cada nombre que atiende. Sin foto, un círculo con las iniciales (nombre + primer apellido), del mismo color siempre. La Ñ empareja con N. Toca "Mi foto" para subir, recortar y girar: sale un cuadrado de 512 px.</p>
+    <div class="fila" id="personas-zona"></div>
+    <div class="fila" style="margin-top:12px"><span id="perfil-zona"></span></div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Confirmar</h2>
+    <p>Sustituye al confirm y al alert del navegador, que enseñan el dominio de GitHub. Devuelve una promesa.</p>
+    <div class="fila">
+      <button class="kit-btn kit-btn--marca" id="b-confirmar">Resumen de cambios</button>
+      <button class="kit-btn kit-btn--malo" id="b-peligro">Pregunta de peligro</button>
+      <button class="kit-btn" id="b-alerta">Aviso de un botón</button>
+    </div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Pesos en vivo</h2>
+    <p>Pone los puntos de miles mientras se escribe y guarda solo los dígitos.</p>
+    <div class="fila">
+      <input id="pesos-demo" type="tel" inputmode="numeric" placeholder="Valor del cobro" style="padding:11px 13px;border:1px solid var(--k-linea);border-radius:14px;background:var(--k-papel-2);color:var(--k-tinta)">
+      <span id="pesos-eco" class="kit-pastilla">Se guarda: 0</span>
+    </div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Buzón de avisos</h2>
+    <p>"Mis notificaciones": los avisos quedan, se filtran por sin leer y se marcan leídos con un respiro. La burbuja se entera sola.</p>
+    <div id="buzon-zona"></div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Bienvenida y avisos push</h2>
+    <p>La puerta de instalar o seguir en el navegador. Los avisos push se activan con Firebase; aquí se ve en qué estado queda este aparato.</p>
+    <div class="fila">
+      <button class="kit-btn kit-btn--marca" id="b-bienvenida">Ver la puerta de bienvenida</button>
+      <span id="push-estado" class="kit-pastilla"></span>
+    </div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Preparar imágenes</h2>
+    <p>Una foto de cámara pasa a JPEG con el lado mayor en 1.600 px y bajo 900 KB antes de subir. Elige varias y se arma un collage.</p>
+    <div class="fila"><input type="file" id="img-demo" accept="image/*" multiple></div>
+    <p id="img-eco"></p>
+  </div>
+
+  <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Iconos</h2>
+    <p>El set de trazo que usan todas las piezas. Si falta uno, se pide: no se inventa.</p>
+    <div class="fila" id="iconos-zona" style="gap:14px;color:var(--k-marca)"></div>
   </div>
 
   <div class="kit-tarjeta pieza">
@@ -207,6 +274,7 @@ window.MARCA = {
 </script>
 <script src="version.js"></script>
 <script src="kit/kit.js"></script>
+<script src="kit/iconos.js"></script>
 <script src="kit/version.js"></script>
 <script src="kit/banner.js"></script>
 <script src="kit/sesion.js"></script>
@@ -225,6 +293,15 @@ window.MARCA = {
 <script src="kit/listas.js"></script>
 <script src="kit/instalar.js"></script>
 <script src="kit/creditos.js"></script>
+<script src="kit/imagenes.js"></script>
+<script src="kit/confirmar.js"></script>
+<script src="kit/cielo.js"></script>
+<script src="kit/personas.js"></script>
+<script src="kit/perfil.js"></script>
+<script src="kit/buzon.js"></script>
+<script src="kit/bienvenida.js"></script>
+<script src="kit/avisos.js"></script>
+<script src="kit/informe-cuentas.js"></script>
 
 <script>
 (function () {
@@ -371,6 +448,9 @@ window.MARCA = {
   /* 11 · insights */
   K.piezas.insights.montar({
     vista: 'Cuentas',
+    guia: function (f) {
+      return 'Estás viendo **' + f.length + '** cuentas. Usa las pastillas para quedarte con las devueltas y toca una pregunta de abajo.';
+    },
     filas: function () { return filtradas; },
     filtros: function () { return P.valor() ? 'Estado: ' + P.valor() : 'Sin filtro de estado'; },
     medidas: [
@@ -399,6 +479,13 @@ window.MARCA = {
     K.piezas.exportar.modal({
       titulo: 'Cuentas por revisar',
       campoFecha: 'fecha',
+      bloque: {
+        titulo: function (f) { return f.nombre; },
+        sub: function (f) { return f.id + ' · ' + f.supervisor; },
+        marca: function (f) { return f.estado; },
+        tono: function (f) { return f.estado === 'DEVUELTA' ? 'malo' : f.estado === 'APROBADA' ? 'ok' : 'aviso'; }
+      },
+      grupo: function (f) { return f.supervisor; },
       filas: function () { return filtradas; },
       columnas: [
         { campo: 'id',         titulo: 'ID Contrato', fijo: true },
@@ -445,6 +532,100 @@ window.MARCA = {
   /* instalar */
   K.id('b-instalar').addEventListener('click', function () { K.piezas.instalar.abrir(); });
   K.piezas.instalar.boton('#instalar-zona', 'Instalar (solo si se puede)');
+
+
+  /* ═══ 7.2 · las piezas que llegaron de las apps ═══ */
+
+  /* informe de cuentas de un contrato */
+  K.id('b-informe-cuentas').addEventListener('click', function () {
+    K.piezas.informeCuentas.aPDF({
+      contrato: { id: '1070602493-027', doc: '1070602493', nombre: 'EDILBERTO RAMÍREZ', contrato: '027',
+                  secretaria: 'GOBIERNO', supervisor: 'DIEGO GARCÍA', valorFinal: 30000000, informes: { total: 10 } },
+      cuentas: [
+        { informe: 1, total: 10, estado: 'PAGADA', cobro: 3000000, saldo: 30000000, nuevo: 27000000, radicada: '2026-07-01' },
+        { informe: 2, total: 10, estado: 'PAGADA', cobro: 3000000, saldo: 27000000, nuevo: 24000000, radicada: '2026-08-01' },
+        { informe: 3, total: 10, estado: 'ORDEN DE PAGO', cobro: 3000000, saldo: 24000000, nuevo: 21000000, radicada: '2026-09-01' }
+      ],
+      generado: new Date().toISOString()
+    }, { actividades: false });
+  });
+
+  /* cielo */
+  var conCielo = false;
+  K.id('b-cielo').addEventListener('click', function () {
+    conCielo = !conCielo;
+    if (conCielo) K.piezas.cielo.poner('#cielo-demo', { burbujas: 3 });
+    else K.piezas.cielo.quitar('#cielo-demo');
+  });
+
+  /* personas y perfil */
+  K.piezas.personas.cargar({
+    'OLGA ALCENDRA': { n: 'OLGA ALCENDRA', f: '', a: 'CONTABILIDAD' },
+    'YULI ALEXANDRA MORALES': { n: 'YULI ALEXANDRA MORALES', f: '', a: 'CONTRATACION' },
+    'LIDA ERIKA SANCHEZ PENA': { n: 'LIDA ERIKA SANCHEZ PENA', f: '', a: 'SUPERVISION' }
+  });
+  K.id('personas-zona').appendChild(K.piezas.personas.chip('YULI ALEXANDRA MORALES', 'Revisó la cuenta'));
+  K.id('personas-zona').appendChild(K.piezas.personas.chip('LIDA ERIKA SÁNCHEZ PEÑA'));
+  K.id('personas-zona').appendChild(K.piezas.personas.chip('OLGA ALCENDRA', 'Hizo la orden de pago'));
+  var miFoto = '';
+  function pintarCara() {
+    var z = K.id('perfil-zona'); z.innerHTML = '';
+    z.appendChild(K.piezas.perfil.cara('OSCAR POLANIA', miFoto, { tam: 64 }));
+  }
+  pintarCara();
+  document.addEventListener('kit:foto', function (e) { miFoto = e.detail.foto || ''; pintarCara(); });
+
+  /* confirmar */
+  K.id('b-confirmar').addEventListener('click', function () {
+    K.piezas.confirmar.abrir({
+      titulo: 'Resumen de cambios',
+      lista: [['RP', '2026000049'], ['Banco', 'BANCOLOMBIA'], ['N° de cuenta', '***-4521']],
+      si: 'Confirmar', no: 'Editar'
+    }).then(function (ok) { K.aviso(ok ? 'Confirmaste.' : 'Volviste a editar.', ok ? 'ok' : 'info'); });
+  });
+  K.id('b-peligro').addEventListener('click', function () {
+    K.piezas.confirmar.preguntar({ titulo: '¿Devolver la cuenta?', texto: 'El contratista recibe el motivo por WhatsApp.', si: 'Devolver', peligro: true })
+      .then(function (ok) { K.aviso(ok ? 'Devuelta.' : 'No se devolvió.', ok ? 'malo' : 'info'); });
+  });
+  K.id('b-alerta').addEventListener('click', function () {
+    K.piezas.confirmar.avisar({ titulo: 'Aviso', texto: 'No se REPORTA una cuenta si la anterior no llegó a CERRADA.' });
+  });
+
+  /* pesos en vivo */
+  K.pesosEnVivo(K.id('pesos-demo'), function (c) { K.id('pesos-eco').textContent = 'Se guarda: ' + (c || '0'); });
+
+  /* buzón */
+  var ahora = Date.now();
+  K.piezas.buzon.montar('#buzon-zona', {
+    pedir: function () { return Promise.resolve({ noLeidos: 2, avisos: [
+      { id: 'A1', titulo: 'Tu cuenta 6 fue DEVUELTA', cuerpo: 'La planilla no corresponde al periodo.', ts: ahora - 600000, leida: false },
+      { id: 'A2', titulo: 'Orden de pago creada', cuerpo: 'Cuenta 5 · $ 3.000.000.', ts: ahora - 7200000, leida: false },
+      { id: 'A3', titulo: 'Comunicado de Contratación', cuerpo: 'Recuerda subir la planilla del mes.', ts: ahora - 3 * 86400000, leida: true }
+    ] }); },
+    marcar: function () { return Promise.resolve({}); }
+  }).cargar();
+
+  /* bienvenida y push */
+  K.id('b-bienvenida').addEventListener('click', function () {
+    K.piezas.bienvenida.abrir({ titulo: 'KIT-FLANDES', sub: 'Alcaldía de Flandes', imagen: K.medio('img/logo.webp'), forzar: true })
+      .then(function (s) { K.aviso('Salida de la puerta: ' + s, 'info'); });
+  });
+  K.id('push-estado').textContent = 'Avisos en este aparato: ' + K.piezas.avisos.estado();
+
+  /* imágenes */
+  K.id('img-demo').addEventListener('change', function (e) {
+    var l = [].slice.call(e.target.files || []);
+    if (!l.length) return;
+    (l.length > 1 ? K.piezas.imagenes.collage(l) : K.piezas.imagenes.preparar(l[0])).then(function (r) {
+      K.id('img-eco').textContent = (l.length > 1 ? 'Collage de ' + l.length + ': ' : '') + r.ancho + ' × ' + r.alto + ' px · ' + r.pesoKB + ' KB en JPEG';
+    }, function () { K.id('img-eco').textContent = 'No se pudo abrir esa imagen.'; });
+  });
+
+  /* iconos */
+  K.piezas.iconos.nombres().forEach(function (nombre) {
+    var s = K.nodo('<span title="' + K.esc(nombre) + '">' + K.icono(nombre, 22) + '</span>');
+    K.id('iconos-zona').appendChild(s);
+  });
 
   /* créditos: una muestra dentro de la tarjeta y el pie de verdad al final */
   K.piezas.creditos.montar('#cred-demo');

@@ -30,6 +30,12 @@
    desplaza en horizontal. No sustituye a arreglar la causa. */
 html { overflow-x: hidden; }
 body { max-width: 100%; overflow-x: hidden; }
+/* 5.1 · LA LETRA DE LA APP. Nadie le ponía fuente al body: todo lo que no
+   declaraba la suya (los datos de las fichas, los textos de los accesos)
+   salía en la letra por defecto del navegador, que en iPhone y en el
+   computador es Times, con serifas. En Android no se notaba porque allí la
+   letra por defecto ya es sin serifas. */
+body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
 
 /* ══════════════ TOKENS ══════════════ */
 
@@ -401,3 +407,11 @@ body { max-width: 100%; overflow-x: hidden; }
 .kit-conf__nota { margin: 12px 0 0; font-size: .8rem; line-height: 1.45; color: var(--k-apagado); }
 .kit-conf__pie { display: flex; gap: 10px; }
 .kit-conf__pie .kit-btn { flex: 1 1 0; }
+/* 4.5 · la variante de borrar. Rojo solo aquí: el resto de la app no
+   tiene un solo botón rojo, y por eso este se lee. */
+.kit-conf--peligro .kit-conf__si {
+  background: var(--k-mal, #c0392b);
+  border-color: var(--k-mal, #c0392b);
+  color: #fff;
+}
+.kit-conf--peligro .kit-capa__h { color: var(--k-mal, #c0392b); }

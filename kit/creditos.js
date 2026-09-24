@@ -42,6 +42,23 @@
 
   var cache = null;
 
+  /**
+   * 4.5 · la app puede entregarle la configuración ya traída.
+   *
+   * El pie con la firma salía en TODAS las vistas y cada primera vez pedía
+   * 'config' por su cuenta: un viaje entero a Apps Script (2 a 3 segundos
+   * de transporte medidos) para dos líneas de texto. Ahora el arranque de
+   * la app ya trae esa configuración y se la pasa por aquí. Las apps que no
+   * llamen a esto siguen pidiéndola como siempre.
+   */
+  function configurar(c) {
+    if (!c) return;
+    cache = {
+      autor: c.MARCA_AUTOR || POR_DEFECTO.autor,
+      frase: c.MARCA_AUTOR_FRASE || POR_DEFECTO.frase
+    };
+  }
+
   function textos() {
     if (cache) return Promise.resolve(cache);
     /* la config pública ya viene cacheada por el CORE: esto no cuesta un
@@ -115,6 +132,7 @@
     /* Los textos se guardan en memoria tras la primera lectura: el pie sale
        en todas las vistas y no tiene sentido preguntar cada vez. Esto los
        vuelve a pedir, para cuando cambien desde ADMIN sin recargar. */
-    olvidar: function () { cache = null; }
+    olvidar: function () { cache = null; },
+    configurar: configurar
   };
 }());

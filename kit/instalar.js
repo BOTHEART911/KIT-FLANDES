@@ -51,6 +51,49 @@
     return false;
   }
 
+  /**
+   * 4.5 · "que la app RECONOZCA la instalación".
+   *
+   * instalada() solo sabe si ESTA pestaña corre como aplicación. Si la
+   * persona la instaló y después vuelve a entrar por el navegador, eso
+   * devuelve false y se le seguía ofreciendo instalar algo que ya tiene.
+   *
+   * La huella la deja el propio navegador en 'appinstalled', que se guarda
+   * en este aparato. Dos cosas que hay que tener claras:
+   *   · Es por APARATO, no por persona: es exactamente lo que queremos.
+   *   · Si desinstala la app, el navegador no avisa. Por eso el aviso de
+   *     "búscala en el escritorio" lleva siempre una salida para volver a
+   *     instalarla, y nunca es un callejón.
+   */
+  function yaSeInstalo() {
+    if (instalada()) return true;
+    try { return K.guardar.leer('instalar.hecho', false) === true; } catch (e) { return false; }
+  }
+
+  /** Si dice que la tiene y resulta que no, se borra la huella. */
+  function olvidarInstalacion() {
+    try { K.guardar.borrar('instalar.hecho'); } catch (e) {}
+    K.disparar('kit:instalar', { sePuede: sePuede(), caso: caso() });
+  }
+
+  /**
+   * Una línea corta con lo que toca hacer en ESTE aparato. La vista de
+   * bienvenida la enseña debajo del botón para que la persona sepa qué va
+   * a pasar ANTES de tocarlo (en iPhone no sale ningún cuadro del sistema,
+   * y sin este aviso el botón parece roto).
+   */
+  function pista() {
+    var c = caso();
+    if (c === 'instalada') return 'Ya la tienes en el escritorio de tu dispositivo.';
+    if (c === 'listo') return 'Tu navegador la instala de un toque.';
+    if (c === 'ios-safari') return 'En iPhone y iPad: Compartir → Agregar a inicio. Te lo explicamos paso a paso.';
+    if (c === 'ios-otro') return 'En iPhone solo Safari puede instalarla. Te decimos cómo.';
+    if (c === 'mac-safari') return 'En Mac con Safari: Archivo → Añadir al Dock.';
+    if (c === 'embebido') return 'Abriste el enlace dentro de otra aplicación. Te decimos cómo salir de ahí.';
+    if (c === 'firefox') return 'Firefox de computador no instala aplicaciones web. Te damos la salida.';
+    return 'Te mostramos dónde está el botón en tu navegador.';
+  }
+
   function esIOS() {
     var ua = navigator.userAgent || '';
     if (/iPad|iPhone|iPod/.test(ua)) return true;
@@ -141,10 +184,11 @@
   function abrir() {
     var c = caso();
 
-    if (c === 'instalada') {
-      K.aviso('Ya tienes la aplicación instalada.', 'ok');
-      return Promise.resolve('instalada');
-    }
+    /* 4.5: antes esto era un aviso de dos segundos y se iba. Si la persona
+       toca "Instalar" es porque está buscando la aplicación, y un tostado
+       que desaparece no le dice dónde está. Ahora se le enseña la misma
+       hoja que a todos, con el camino hasta el icono. */
+    if (c === 'instalada' || yaSeInstalo()) return hojaInstalada();
 
     if (c === 'listo') return instalarDeVerdad();
 
@@ -181,6 +225,59 @@
             try { document.execCommand('copy'); K.aviso('Enlace copiado.', 'ok'); } catch (e) {}
             t.remove();
           }
+        });
+      }
+    });
+  }
+
+  /**
+   * La hoja de "ya la tienes". No es un callejón: si resulta que la
+   * desinstaló, el botón de abajo borra la huella y vuelve a ofrecer los
+   * pasos de este aparato.
+   */
+  function hojaInstalada() {
+    return new Promise(function (res) {
+      var dentro = instalada();
+      var hoja = K.nodo(
+        '<div class="kit-capa kit-inst kit-capa--on" role="dialog" aria-modal="true">' +
+        '  <div class="kit-capa__velo"></div>' +
+        '  <section class="kit-capa__hoja kit-inst__hoja">' +
+        '    <header class="kit-capa__h">La aplicación ya está instalada' +
+        '      <button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button>' +
+        '    </header>' +
+        '    <div class="kit-capa__cuerpo kit-inst__cuerpo">' +
+        '      <div class="kit-inst__listo" aria-hidden="true">' +
+        '        <span class="kit-inst__listo-halo"></span>' +
+        '        <span class="kit-inst__listo-ico">' + K.icono('check', 40) + '</span>' +
+        '      </div>' +
+        (dentro
+          ? '<p class="kit-inst__p">Estás usando la aplicación instalada ahora mismo. No hay nada más que hacer.</p>'
+          : '<p class="kit-inst__p"><b>Busca la app en el escritorio de tu dispositivo.</b> Ya la tienes ' +
+            'con su icono, junto a las demás aplicaciones; desde ahí abre más rápido y recibe los avisos.</p>') +
+        '      <ol class="kit-inst__pasos">' +
+        '        <li>Sal de este navegador y mira la pantalla de inicio de tu teléfono.</li>' +
+        '        <li>Busca el icono verde de <b>' + K.esc((window.MARCA && window.MARCA.TITULO) || 'la app') + '</b>.</li>' +
+        '        <li>Ábrela desde ahí de ahora en adelante.</li>' +
+        '      </ol>' +
+        (dentro ? '' :
+        '      <p class="kit-inst__ojo">¿No la encuentras? Puede que la hayas quitado. ' +
+        '        <button type="button" class="kit-inst__reinstalar">Volver a instalarla</button></p>') +
+        '    </div>' +
+        '  </section>' +
+        '</div>'
+      );
+      document.body.appendChild(hoja);
+
+      function fuera(r) { if (hoja.parentNode) hoja.remove(); res(r || 'instalada'); }
+      hoja.querySelector('.kit-capa__x').addEventListener('click', function () { fuera(); });
+      hoja.querySelector('.kit-capa__velo').addEventListener('click', function () { fuera(); });
+
+      var otra = hoja.querySelector('.kit-inst__reinstalar');
+      if (otra) {
+        otra.addEventListener('click', function () {
+          olvidarInstalacion();
+          if (hoja.parentNode) hoja.remove();
+          abrir().then(res, function () { res('navegador'); });
         });
       }
     });
@@ -312,7 +409,9 @@
     caja.appendChild(b);
 
     function revisar() {
-      b.classList.toggle('kit-oculto', !sePuede());
+      /* 4.5: se RETIRA el botón en cuanto la app está instalada en este
+         aparato, aunque se esté mirando desde el navegador. */
+      b.classList.toggle('kit-oculto', !sePuede() || yaSeInstalo());
       if (!texto) b.textContent = etiqueta();
     }
     revisar();
@@ -323,6 +422,7 @@
   K.piezas.instalar = {
     vigilar: vigilar, abrir: abrir, boton: boton,
     sePuede: sePuede, instalada: instalada, caso: caso, etiqueta: etiqueta,
+    yaSeInstalo: yaSeInstalo, olvidarInstalacion: olvidarInstalacion, pista: pista,
     __pasos: pasosDe          /* solo para el banco de pruebas */
   };
 }());

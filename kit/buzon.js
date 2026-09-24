@@ -51,6 +51,19 @@
 
   var ultimoConteo = 0;
 
+  /* 4.7 · EL CONTADOR SE ENTERA DE QUE YA LEISTE.
+     Antes el número solo se guardaba aquí dentro: la burbuja del
+     inicio se pintaba con lo que trajo el arranque y no volvía a
+     mirar, así que seguía en 1 después de leer el comunicado. Ahora
+     cada cambio se anuncia con el evento 'kit:buzon' y quien pinte
+     una burbuja se entera sin pedir nada al servidor. */
+  function contar(n) {
+    n = Math.max(0, Number(n) || 0);
+    var cambio = n !== ultimoConteo;
+    ultimoConteo = n;
+    if (cambio) K.disparar('kit:buzon', { noLeidos: n });
+  }
+
   /* ── fechas ── */
 
   function fechaLarga(aviso) {
@@ -169,7 +182,7 @@
     function cargar() {
       return Promise.resolve(opciones.pedir()).then(function (d) {
         todos = (d && d.avisos) || [];
-        ultimoConteo = (d && d.noLeidos) || 0;
+        contar((d && d.noLeidos) || 0);
         if (opciones.alContar) opciones.alContar(ultimoConteo);
 
         pintarFiltro();
@@ -185,7 +198,7 @@
           marcando = setTimeout(function () {
             Promise.resolve(opciones.marcar(sinLeer)).then(function () {
               todos.forEach(function (a) { a.leida = true; });
-              ultimoConteo = 0;
+              contar(0);
               if (opciones.alContar) opciones.alContar(0);
               pintarFiltro();
             })['catch'](function () {});
@@ -205,7 +218,7 @@
   K.piezas.buzon = {
     montar: montar,
     noLeidos: function () { return ultimoConteo; },
-    recordar: function (n) { ultimoConteo = n || 0; },
+    recordar: contar,
     relativa: relativa,
     fechaLarga: fechaLarga
   };

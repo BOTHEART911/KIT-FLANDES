@@ -1,0 +1,189 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 22 · EL CIELO
+   Pareja: kit/cielo.js
+
+   Qué es
+     El fondo vivo de la portada de bienvenida —la aurora que respira y las
+     burbujas que suben— sacado de allí y convertido en algo que se le puede
+     poner a CUALQUIER superficie oscura de la marca.
+
+   Por qué
+     La portada era la única pantalla con movimiento propio. El resto de
+     franjas verdes de la app (la cabecera del saludo, la barra de arriba)
+     eran un degradado quieto. Ahora comparten el mismo cielo, así que la
+     app se siente de una pieza en vez de tener una pantalla bonita y las
+     demás planas.
+
+   Cómo se usa
+     KIT.piezas.cielo.poner(elemento);        // le mete el cielo
+     KIT.piezas.cielo.poner(elemento, {burbujas: 2, luz: 'suave'});
+     KIT.piezas.cielo.quitar(elemento);
+
+   DOS VERSIONES, Y HAY QUE ELEGIR BIEN  (4.6.2)
+
+     1) .kit-cielo — la buena, con burbujas. Mete nodos dentro del elemento.
+        SOLO para contenedores de contenido llano: una franja con textos,
+        una portada. NO para una barra fija ni para nada que tenga dentro un
+        menú desplegable o algo posicionado en absoluto.
+
+     2) .kit-cielo-fondo — solo fondo, sin nodos, sin tocar la posición ni
+        crear contexto de apilado. Para barras fijas y cualquier sitio
+        delicado. Da la luz que cruza, sin burbujas.
+
+   POR QUÉ ESTÁ ESCRITO ESTO  (me costó una entrega, 22/09/2026)
+     La primera versión ponía `position: relative` e `isolation: isolate` al
+     elemento. Se la puse a la barra de arriba, que es `position: fixed`:
+       · el `relative` la sacó de su sitio -> la barra se fue con el scroll y
+         quedó un hueco blanco arriba, porque el body reserva su alto.
+       · el `isolate` creó un contexto de apilado nuevo -> el menú del perfil,
+         que se dibuja dentro de la barra, quedó ATRAPADO ahí y salía POR
+         DETRÁS de las tarjetas.
+     Una pieza de adorno JAMÁS puede cambiar la posición ni el apilado de lo
+     que decora. Ahora no lo hace: si el elemento ya tiene posición propia,
+     no se le toca.
+
+   Reglas que se respetan
+     · Va SIEMPRE detrás: nada de lo que se pinte encima cambia de sitio.
+     · NO cambia la posición de nada ni crea contextos de apilado.
+     · Se apaga solo si la persona pidió menos movimiento en su sistema
+       (prefers-reduced-motion), y entonces queda como un fondo quieto.
+     · No depende del tema: la aurora y las burbujas son luz blanca a muy
+       baja opacidad, así que funcionan igual sobre el verde del modo claro
+       y sobre el verde apagado del modo oscuro.
+   ============================================================ */
+
+.kit-cielo { overflow: hidden; }
+
+/* La posición SOLO se toca si el elemento no tenía ninguna. La pieza la pone
+   kit/cielo.js después de mirar el estilo ya calculado. */
+.kit-cielo--relativo { position: relative; }
+
+/* ══════════════════════════════════════════════════════════
+   VERSIÓN 2 · SOLO FONDO — para barras fijas y sitios delicados
+   No mete nodos, no toca la posición, no crea contexto de apilado.
+   ══════════════════════════════════════════════════════════ */
+
+.kit-cielo-fondo {
+  background-image:
+    radial-gradient(58% 190% at 18% 50%, rgba(255, 255, 255, .10), transparent 70%),
+    radial-gradient(44% 170% at 80% 50%, rgba(255, 255, 255, .07), transparent 72%);
+  background-repeat: no-repeat;
+  background-size: 150% 100%, 130% 100%;
+  animation: kit-cielo-cruza 17s ease-in-out infinite alternate;
+}
+:root[data-tema="oscuro"] .kit-cielo-fondo {
+  background-image:
+    radial-gradient(58% 190% at 18% 50%, rgba(255, 255, 255, .055), transparent 70%),
+    radial-gradient(44% 170% at 80% 50%, rgba(255, 255, 255, .04), transparent 72%);
+}
+@keyframes kit-cielo-cruza {
+  from { background-position: -14% 0, 112% 0; }
+  to   { background-position:  22% 0,  78% 0; }
+}
+
+.kit-cielo__capa {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* lo que va encima del cielo tiene que quedar encima de verdad */
+.kit-cielo > *:not(.kit-cielo__capa) { position: relative; z-index: 1; }
+
+/* ── la aurora: dos manchas de luz que respiran ── */
+
+.kit-cielo__aurora {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(38% 28% at 22% 26%, rgba(255, 255, 255, .20), transparent 60%),
+    radial-gradient(32% 24% at 78% 68%, rgba(255, 255, 255, .13), transparent 62%);
+  filter: blur(6px);
+  animation: kit-cielo-respira 11s ease-in-out infinite alternate;
+}
+.kit-cielo--suave .kit-cielo__aurora {
+  background:
+    radial-gradient(40% 30% at 24% 20%, rgba(255, 255, 255, .13), transparent 62%),
+    radial-gradient(34% 26% at 80% 72%, rgba(255, 255, 255, .08), transparent 64%);
+}
+@keyframes kit-cielo-respira {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(2%, 2%, 0) scale(1.08); }
+}
+
+/* ── las burbujas: suben despacio y se desvanecen ── */
+
+.kit-cielo__burbujas { position: absolute; inset: 0; overflow: hidden; }
+.kit-cielo__burbujas i {
+  position: absolute;
+  bottom: -60%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%,
+              rgba(255, 255, 255, .13), rgba(255, 255, 255, 0) 68%);
+  animation: kit-cielo-flota 21s linear infinite;
+}
+.kit-cielo__burbujas i:nth-child(1) { left: 8%;  width: 150px; height: 150px; animation-duration: 21s; }
+.kit-cielo__burbujas i:nth-child(2) { left: 52%; width: 96px;  height: 96px;  animation-duration: 17s; animation-delay: -7s; }
+.kit-cielo__burbujas i:nth-child(3) { left: 78%; width: 200px; height: 200px; animation-duration: 26s; animation-delay: -13s; }
+.kit-cielo__burbujas i:nth-child(4) { left: 32%; width: 120px; height: 120px; animation-duration: 23s; animation-delay: -18s; }
+
+@keyframes kit-cielo-flota {
+  0%   { transform: translate3d(0, 0, 0) scale(.9); opacity: 0; }
+  14%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { transform: translate3d(14px, -320%, 0) scale(1.14); opacity: 0; }
+}
+
+/* ── franjas bajitas (una barra de 60 px): burbujas más pequeñas o
+      no se ve subir ninguna, solo manchas cruzando ── */
+
+.kit-cielo--franja .kit-cielo__burbujas i {
+  width: 68px; height: 68px; bottom: -80px;
+}
+.kit-cielo--franja .kit-cielo__burbujas i:nth-child(3) { width: 92px; height: 92px; }
+@media (max-width: 720px) {
+  .kit-cielo__burbujas i:nth-child(4) { display: none; }
+}
+
+/* ── quien pidió menos movimiento no lo recibe ── */
+
+/* ── el modo oscuro necesita MENOS luz, no la misma ──
+   En noche el verde de la marca es más claro que en día, así que la misma
+   aurora al 20 % de blanco lo lavaba y la barra de arriba salía con una
+   mancha lechosa en medio. Aquí se baja a la mitad. */
+
+:root[data-tema="oscuro"] .kit-cielo__aurora {
+  background:
+    radial-gradient(38% 28% at 22% 26%, rgba(255, 255, 255, .10), transparent 60%),
+    radial-gradient(32% 24% at 78% 68%, rgba(255, 255, 255, .06), transparent 62%);
+}
+:root[data-tema="oscuro"] .kit-cielo__burbujas i {
+  background: radial-gradient(circle at 32% 30%,
+              rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 68%);
+}
+
+/* En una franja de 60 px el ojo ve la mancha, no el movimiento: menos luz. */
+.kit-cielo--franja .kit-cielo__aurora,
+.kit-cielo--suave.kit-cielo--franja .kit-cielo__aurora {
+  background:
+    radial-gradient(44% 34% at 20% 30%, rgba(255, 255, 255, .09), transparent 64%),
+    radial-gradient(36% 28% at 82% 70%, rgba(255, 255, 255, .06), transparent 66%);
+  filter: blur(10px);
+}
+:root[data-tema="oscuro"] .kit-cielo--franja .kit-cielo__aurora {
+  background:
+    radial-gradient(44% 34% at 20% 30%, rgba(255, 255, 255, .05), transparent 64%),
+    radial-gradient(36% 28% at 82% 70%, rgba(255, 255, 255, .035), transparent 66%);
+}
+.kit-cielo--franja .kit-cielo__burbujas i {
+  background: radial-gradient(circle at 32% 30%,
+              rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-cielo-fondo { animation: none; }
+  .kit-cielo__aurora { animation: none; }
+  .kit-cielo__burbujas i { animation: none; opacity: .5; bottom: auto; top: 10%; }
+}

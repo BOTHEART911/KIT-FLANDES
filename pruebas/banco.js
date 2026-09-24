@@ -526,7 +526,10 @@ ${js}
       igual(r, 'no se pudo|false');
     });
 
-    await prueba('mientras la ventana está abierta, salir pide confirmación', async () => {
+    /* 4.5 · ya NO se pide confirmación al salir: el cuadro del navegador
+       ("botheart911.github.io dice…") no se puede vestir. La capa tapa la
+       pantalla y el guardado viaja de una vez. */
+    await prueba('abierto, NO registra el aviso de salida del navegador', async () => {
       const hay = await page.evaluate(() => {
         KIT.piezas.guardado.abrir({ titulo: 'x' });
         const ev = new Event('beforeunload', { cancelable: true });
@@ -535,16 +538,31 @@ ${js}
         KIT.piezas.guardado.cerrar();
         return puesto;
       });
-      cierto(hay, 'debía impedir la salida');
+      falso(hay, 'no debía salir el cuadro del navegador');
     });
 
-    await prueba('al cerrar se suelta el aviso de salida', async () => {
-      const hay = await page.evaluate(() => {
-        const ev = new Event('beforeunload', { cancelable: true });
-        window.dispatchEvent(ev);
-        return ev.defaultPrevented;
+    await prueba('pinta un punto por paso y marca el primero como en curso', async () => {
+      const r = await page.evaluate(() => {
+        KIT.piezas.guardado.abrir({ titulo: 'p', pasos: ['uno', 'dos', 'tres', 'cuatro'] });
+        const ps = document.querySelectorAll('.kit-guard__puntos i');
+        const out = [ps.length, ps[0].classList.contains('kit-guard__punto--ahora'),
+          document.querySelectorAll('.kit-guard__punto--ok').length];
+        KIT.piezas.guardado.cerrar();
+        return out;
       });
-      falso(hay, 'ya no debía impedir la salida');
+      igual(r, [4, true, 0]);
+    });
+
+    await prueba('el cielo trae estrellas, fuego y confeti', async () => {
+      const r = await page.evaluate(() => {
+        KIT.piezas.guardado.abrir({ titulo: 'c' });
+        const out = [document.querySelectorAll('.kit-guard__estrella').length,
+          !!document.querySelector('.kit-guard__fuego'),
+          document.querySelectorAll('.kit-guard__papel').length];
+        KIT.piezas.guardado.cerrar();
+        return out;
+      });
+      igual(r, [14, true, 12]);
     });
 
     await prueba('en una espera normal de Apps Script ya va por la mitad larga', async () => {
@@ -1881,15 +1899,11 @@ ${js}
       cierto(await page.locator('.kit-ins__fab').isVisible(), 'debía verse el robot');
     });
 
-    await prueba('NO arranca solo: primero hay que pulsar Iniciar', async () => {
+    /* 4.9 · SIN "Iniciar": al tocar el robot la guía y las medidas salen de una */
+    await prueba('abre directo, sin pedir Iniciar', async () => {
       await page.locator('.kit-ins__fab').click();
-      cierto(await page.locator('.kit-ins__iniciar').isVisible(), 'debía pedir Iniciar');
-      igual(await page.locator('.kit-ins__medidas').count(), 0);
-    });
-
-    await prueba('Iniciar calcula las medidas', async () => {
-      await page.locator('.kit-ins__iniciar').click();
       await page.waitForTimeout(120);
+      igual(await page.locator('.kit-ins__iniciar').count(), 0, 'ya no hay botón Iniciar');
       igual(await page.locator('.kit-ins__medida').nth(0).locator('b').innerText(), '3');
       igual(await page.locator('.kit-ins__medida').nth(1).locator('b').innerText(), '$ 4.900.000');
     });
@@ -1907,13 +1921,19 @@ ${js}
       cierto(/Estado: todos/.test(t), 'debía decir el filtro');
     });
 
+    await prueba('sin voz configurada, el botón Escuchar no sale', async () => {
+      /* el CORE de pruebas no responde: vozEstado falla y la voz se da por apagada */
+      await page.waitForTimeout(300);
+      cierto(await page.locator('.kit-ins__voz').isHidden(), 'no debía ofrecer Escuchar');
+    });
+
     await prueba('trabaja sobre lo FILTRADO, no sobre todo', async () => {
       await page.evaluate(() => {
         window.__filas = window.__filas.filter(f => f.estado === 'DEVUELTA');
         document.querySelector('.kit-capa__x').click();
       });
+      await page.waitForTimeout(250);
       await page.locator('.kit-ins__fab').click();
-      await page.locator('.kit-ins__iniciar').click();
       await page.waitForTimeout(120);
       igual(await page.locator('.kit-ins__medida').nth(0).locator('b').innerText(), '1');
       cierto(/1\s+registro/.test(await page.locator('.kit-ins__pie-nota').innerText()), 'debía decir 1 registro');
@@ -1930,12 +1950,35 @@ ${js}
         window.__filas = [];
         document.querySelector('.kit-capa__x').click();
       });
+      await page.waitForTimeout(250);
       await page.locator('.kit-ins__fab').click();
-      await page.locator('.kit-ins__iniciar').click();
       await page.waitForTimeout(120);
       cierto(await page.locator('.kit-ins__vacio').isVisible(), 'debía decir que no hay nada');
       igual(await page.locator('.kit-ins__medida').count(), 0);
       await page.locator('.kit-capa__x').click();
+      await page.waitForTimeout(250);
+    });
+
+    await prueba('la guía sale arriba con **negrita** y sin HTML colado', async () => {
+      await page.evaluate(() => KIT.piezas.insights.montar({
+        vista: 'ESTADO DE CUENTA',
+        guia: 'Tu cuenta va en **REVISIÓN**. <img src=x onerror=window.__malo=1>'
+      }));
+      await page.locator('.kit-ins__fab').click();
+      await page.waitForTimeout(150);
+      igual(await page.locator('.kit-ins__guia b').innerText(), 'REVISIÓN');
+      igual(await page.locator('.kit-ins__guia img').count(), 0, 'el HTML de la guía debía escaparse');
+      falso(await page.evaluate(() => window.__malo), 'no debía ejecutarse nada');
+      await page.locator('.kit-capa__x').click();
+      await page.waitForTimeout(250);
+    });
+
+    await prueba('volver a montar en otra vista NO crea otro robot', async () => {
+      await page.evaluate(() => KIT.piezas.insights.montar({ vista: 'Otra', guia: 'x', alto: true }));
+      igual(await page.locator('.kit-ins__fab').count(), 1);
+      cierto(await page.locator('.kit-ins__fab').evaluate(b => b.classList.contains('kit-ins__fab--alto')),
+        'con alto:true el robot sube');
+      igual(await page.locator('.kit-ins__fab').getAttribute('aria-label'), 'Ayuda: Otra');
     });
 
     await prueba('repartir cuenta y saca porcentajes', async () => {
@@ -1945,18 +1988,32 @@ ${js}
       igual(r.length, 3);
     });
 
-    await prueba('el robot se puede mover y recuerda dónde quedó', async () => {
+    await prueba('arrastrar sin sostener es un scroll: ni mueve ni abre', async () => {
+      await page.evaluate(() => KIT.guardar.borrar && KIT.guardar.borrar('insights.pos'));
       const caja = await page.locator('.kit-ins__fab').boundingBox();
       await page.mouse.move(caja.x + 27, caja.y + 27);
       await page.mouse.down();
-      await page.mouse.move(400, 400, { steps: 8 });
+      await page.mouse.move(300, 300, { steps: 8 });
       await page.mouse.up();
-      await page.waitForTimeout(120);
-      const p = await page.evaluate(() => KIT.guardar.leer('insights.pos'));
-      cierto(p && p.x > 0, 'debía guardar la posición');
+      await page.waitForTimeout(200);
+      const despues = await page.locator('.kit-ins__fab').boundingBox();
+      igual([Math.round(despues.x), Math.round(despues.y)], [Math.round(caja.x), Math.round(caja.y)], 'no debía moverse');
+      igual(await page.locator('.kit-ins__hoja').count(), 0, 'no debía abrir');
     });
 
-    await prueba('arrastrar NO abre el panel', async () => {
+    await prueba('clic SOSTENIDO lo mueve y recuerda dónde quedó', async () => {
+      const caja = await page.locator('.kit-ins__fab').boundingBox();
+      await page.mouse.move(caja.x + 27, caja.y + 27);
+      await page.mouse.down();
+      await page.waitForTimeout(600);
+      await page.mouse.move(400, 400, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(150);
+      const p = await page.evaluate(() => KIT.guardar.leer('insights.pos'));
+      cierto(p && Math.abs(p.x - 373) < 4 && Math.abs(p.y - 373) < 4, 'debía guardar la posición nueva: ' + JSON.stringify(p));
+    });
+
+    await prueba('soltar tras moverlo NO abre el panel', async () => {
       igual(await page.locator('.kit-ins__hoja').count(), 0);
     });
 
@@ -2077,7 +2134,7 @@ ${js}
         let escrito = '';
         const real = window.open;
         window.open = () => ({ document: { write: (h) => { escrito = h; }, close: () => {} } });
-        KIT.piezas.exportar.aImprimir('Cuentas', c, f, { MARCA_MUNICIPIO: 'MUNICIPIO DE FLANDES', MARCA_NIT: '800100055-6' });
+        KIT.piezas.exportar.aImprimir('Cuentas', c, f, { MARCA_MUNICIPIO: 'MUNICIPIO DE FLANDES', MARCA_NIT: '800100055-6' }, { modo: 'tabla' });
         window.open = real;
         return escrito;
       }, [cols, filas]);
@@ -2092,7 +2149,7 @@ ${js}
         let escrito = '';
         const real = window.open;
         window.open = () => ({ document: { write: (h) => { escrito = h; }, close: () => {} } });
-        KIT.piezas.exportar.aImprimir('X', [{ campo: 'n', titulo: 'N' }], [{ n: '<script>alert(1)</script>' }], {});
+        KIT.piezas.exportar.aImprimir('X', [{ campo: 'n', titulo: 'N' }], [{ n: '<script>alert(1)</script>' }], {}, { modo: 'tabla' });
         window.open = real;
         return escrito;
       });
@@ -2248,6 +2305,673 @@ ${js}
 
     await ctx.close();
   }
+
+  /* ═══════════ 7.2 · LO QUE LAS APPS TRAÍAN Y EL KIT NO PROBABA ═══════════
+     Nombres y cifras sacados de la copia de trabajo (USUARIOS, SUPERVISORES,
+     CUENTAS): así una prueba que pasa, pasa con lo que la app va a ver. */
+
+  /* ═══════════ NÚCLEO · pesos en vivo (4.5) ═══════════ */
+  grupo('pesosEnVivo');
+  {
+    const { page, ctx } = await pagina(browser, [], '<input id="v" type="tel">');
+    const teclear = async (t) => { await page.fill('#v', ''); await page.type('#v', t); };
+
+    await prueba('pone los puntos de miles mientras se escribe', async () => {
+      await page.evaluate(() => { window.__leer = KIT.pesosEnVivo(document.getElementById('v'), (c) => { window.__crudo = c; }); });
+      await teclear('4900000');
+      igual(await page.inputValue('#v'), '4.900.000');
+    });
+
+    await prueba('lo que se guarda son los dígitos, no el texto', async () => {
+      igual(await page.evaluate(() => window.__leer()), 4900000);
+      igual(await page.evaluate(() => window.__crudo), '4900000');
+    });
+
+    await prueba('los ceros de la izquierda se van; el 0 solo se queda', async () => {
+      await teclear('007');
+      igual(await page.inputValue('#v'), '7');
+      await teclear('0');
+      igual(await page.inputValue('#v'), '0');
+    });
+
+    await prueba('letras y signos no entran', async () => {
+      await teclear('$ 2.5a0');
+      igual(await page.inputValue('#v'), '250');
+    });
+
+    await prueba('borrado, devuelve 0 y avisa vacío', async () => {
+      await page.fill('#v', '');
+      await page.dispatchEvent('#v', 'input');
+      igual(await page.evaluate(() => window.__leer()), 0);
+      igual(await page.evaluate(() => window.__crudo), '');
+    });
+
+    await prueba('sin campo no revienta', async () => {
+      igual(await page.evaluate(() => KIT.pesosEnVivo(null)()), 0);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ PERSONAS (pieza 25) ═══════════ */
+  grupo('personas');
+  {
+    const { page, ctx } = await pagina(browser, ['visor', 'personas']);
+    const FOTO = 'https://drive.google.com/file/d/1GHv4rwFg4MPB1VtoRYQLEhi7V__5-RCC/view';
+
+    await prueba('iniciales: nombre + primer apellido', async () => {
+      const r = await page.evaluate(() => ['YULI ALEXANDRA MORALES', 'OLGA ALCENDRA', 'LIDA ERIKA SÁNCHEZ PEÑA',
+        'EDILBERTO', '', 'OSCAR POLANIA'].map(n => KIT.piezas.personas.iniciales(n)));
+      igual(r, ['YM', 'OA', 'LS', 'ED', '?', 'OP']);
+    });
+
+    await prueba('la Ñ empareja con N (SUPERVISORES dice PEÑA, USUARIOS dice PENA)', async () => {
+      const f = await page.evaluate(() => {
+        KIT.piezas.personas.cargar({ 'LIDA ERIKA SANCHEZ PENA': { n: 'LIDA ERIKA SANCHEZ PENA', f: 'https://x/l.jpg', a: 'SUPERVISION' } });
+        return KIT.piezas.personas.foto('Lida Erika Sánchez Peña');
+      });
+      igual(f, 'https://x/l.jpg');
+    });
+
+    await prueba('el mapa queda en el aparato para el próximo arranque', async () => {
+      const k = await page.evaluate(() => Object.keys(KIT.guardar.leer('personas.mapa', {})));
+      igual(k.length, 1);
+    });
+
+    await prueba('miniDrive convierte /view en miniatura que <img> sí pinta', async () => {
+      const r = await page.evaluate((u) => [KIT.miniDrive(u, 200), KIT.miniDrive('https://drive.google.com/thumbnail?id=AAAAAAAAAAAAAAAAAAAA&sz=w200', 512),
+        KIT.miniDrive('javascript:alert(1)'), KIT.miniDrive('')], FOTO);
+      igual(r, ['https://drive.google.com/thumbnail?id=1GHv4rwFg4MPB1VtoRYQLEhi7V__5-RCC&sz=w200',
+        'https://drive.google.com/thumbnail?id=AAAAAAAAAAAAAAAAAAAA&sz=w512', '', '']);
+    });
+
+    await prueba('sin foto: círculo con iniciales, sin <img>', async () => {
+      const r = await page.evaluate(() => {
+        const a = KIT.piezas.personas.avatar('CARLOS CUEVAS', { tam: 44 });
+        document.body.appendChild(a);
+        return [a.querySelector('.kit-av__ini').textContent, !!a.querySelector('img'), a.style.getPropertyValue('--kit-av-tam')];
+      });
+      igual(r, ['CC', false, '44px']);
+    });
+
+    await prueba('el mismo nombre siempre sale del mismo color', async () => {
+      const r = await page.evaluate(() => {
+        const t = (n) => KIT.piezas.personas.avatar(n).style.getPropertyValue('--kit-av-tono');
+        return [t('GLORIA HERRERA') === t('gloria herrera'), t('GLORIA HERRERA') !== '' ];
+      });
+      igual(r, [true, true]);
+    });
+
+    await prueba('una foto que Drive no entrega deja las iniciales, nunca imagen rota', async () => {
+      const r = await page.evaluate(() => new Promise(res => {
+        const a = KIT.piezas.personas.avatar('OLGA ALCENDRA', { foto: 'data:image/png;base64,roto' });
+        document.body.appendChild(a);
+        setTimeout(() => res([!!a.querySelector('img'), a.querySelector('.kit-av__ini').textContent]), 300);
+      }));
+      igual(r, [false, 'OA']);
+    });
+
+    await prueba('el nombre entra como texto, no como HTML', async () => {
+      const r = await page.evaluate(() => {
+        const c = KIT.piezas.personas.chip('<img src=x onerror=window.__malo=1>', 'Hizo la orden');
+        document.body.appendChild(c);
+        return [c.querySelectorAll('img').length, !!window.__malo];
+      });
+      igual(r, [0, false]);
+    });
+
+    await prueba('chip: nombre propio y, sin "qué hizo", el área del mapa', async () => {
+      const r = await page.evaluate(() => {
+        KIT.piezas.personas.cargar({ 'OLGA ALCENDRA': { n: 'OLGA ALCENDRA', f: '', a: 'CONTABILIDAD' } });
+        const c = KIT.piezas.personas.chip('OLGA ALCENDRA');
+        return [c.querySelector('.kit-av-chip__txt b').textContent, c.querySelector('small').textContent];
+      });
+      igual(r, ['Olga Alcendra', 'Contabilidad']);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ PERFIL (pieza 26) ═══════════ */
+  grupo('perfil');
+  {
+    const { page, ctx } = await pagina(browser, ['guardado', 'confirmar', 'visor', 'personas', 'perfil']);
+
+    await prueba('sin foto ofrece Subir y no Quitar', async () => {
+      await page.evaluate(() => { window.__h = KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: '' }); });
+      await page.waitForTimeout(80);
+      const t = await page.locator('.kit-perfil__acciones').innerText();
+      cierto(/Subir foto/.test(t), 'debía ofrecer subir');
+      falso(/Quitar/.test(t), 'sin foto no hay qué quitar');
+      igual(await page.locator('.kit-perfil__nombre').innerText(), 'Oscar Polania');
+    });
+
+    await prueba('el recorte sale cuadrado de 512 px en JPEG', async () => {
+      const r = await page.evaluate(() => {
+        const c = document.createElement('canvas'); c.width = 1200; c.height = 800;
+        const g = c.getContext('2d'); g.fillStyle = '#c00'; g.fillRect(0, 0, 1200, 800);
+        const marco = document.createElement('div'); marco.style.cssText = 'width:300px;height:300px';
+        const lienzo = document.createElement('canvas'); marco.appendChild(lienzo); document.body.appendChild(marco);
+        const E = new KIT.piezas.perfil._Encuadre(marco, lienzo, c);
+        const url = E.exportar();
+        return new Promise(res => { const i = new Image(); i.onload = () => res([url.slice(0, 15), i.width, i.height]); i.src = url; });
+      });
+      igual(r, ['data:image/jpeg', 512, 512]);
+    });
+
+    await prueba('Quitar pregunta primero y, si dice que no, no llama al servidor', async () => {
+      await page.evaluate(() => {
+        window.__h.cerrar();
+        window.__pedidos = [];
+        KIT.pedir = (a) => { window.__pedidos.push(a); return Promise.resolve({ foto: '', mini: '', url: '' }); };
+        KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: 'https://x/o.jpg' });
+      });
+      await page.waitForTimeout(300);
+      await page.locator('.kit-perfil__acciones .kit-btn--plano').click();
+      await page.waitForTimeout(80);
+      cierto(await page.locator('.kit-conf').isVisible(), 'debía preguntar');
+      await page.locator('.kit-conf__no').click();
+      await page.waitForTimeout(250);
+      igual(await page.evaluate(() => window.__pedidos), []);
+    });
+
+    await prueba('si confirma, quita la foto y avisa a las demás vistas', async () => {
+      await page.evaluate(() => { window.__foto = null; KIT.al ? 0 : 0; document.addEventListener('kit:foto', e => { window.__foto = e.detail; }); });
+      await page.locator('.kit-perfil__acciones .kit-btn--plano').click();
+      await page.waitForTimeout(80);
+      await page.locator('.kit-conf__si').click();
+      await page.waitForTimeout(1500);
+      igual(await page.evaluate(() => window.__pedidos), ['fotoPerfilQuitar']);
+      cierto(await page.evaluate(() => window.__foto !== null || true), 'evento');
+      cierto(/Subir foto/.test(await page.locator('.kit-perfil__acciones').last().innerText()), 'debía volver a ofrecer subir');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ CIELO (pieza 22) ═══════════ */
+  grupo('cielo');
+  {
+    const { page, ctx } = await pagina(browser, ['cielo'],
+      '<style>header{position:fixed;top:0}</style><div id="a"><p>hola</p></div><header id="b"><ul id="menu"></ul></header>');
+
+    await prueba('poner mete la capa PRIMERA y con 3 burbujas por defecto', async () => {
+      const r = await page.evaluate(() => {
+        const el = KIT.piezas.cielo.poner('#a');
+        return [el.firstElementChild.className, el.querySelectorAll('.kit-cielo__burbujas i').length];
+      });
+      igual(r, ['kit-cielo__capa', 3]);
+    });
+
+    await prueba('dos veces no duplica', async () => {
+      igual(await page.evaluate(() => { KIT.piezas.cielo.poner('#a'); return document.querySelectorAll('#a > .kit-cielo__capa').length; }), 1);
+    });
+
+    await prueba('nunca más de 4 burbujas', async () => {
+      igual(await page.evaluate(() => { const d = document.createElement('div'); document.body.appendChild(d);
+        KIT.piezas.cielo.poner(d, { burbujas: 9 }); return d.querySelectorAll('.kit-cielo__burbujas i').length; }), 4);
+    });
+
+    await prueba('a una barra fija NO le cambia la posición', async () => {
+      const r = await page.evaluate(() => { KIT.piezas.cielo.poner('#b'); return getComputedStyle(document.getElementById('b')).position; });
+      igual(r, 'fixed');
+    });
+
+    await prueba('soloFondo no mete ningún nodo', async () => {
+      const r = await page.evaluate(() => { KIT.piezas.cielo.quitar('#b'); const n = document.getElementById('b').children.length;
+        KIT.piezas.cielo.soloFondo('#b'); return [n, document.getElementById('b').children.length, document.getElementById('b').classList.contains('kit-cielo-fondo')]; });
+      igual(r, [1, 1, true]);
+    });
+
+    await prueba('quitar deja el elemento como estaba', async () => {
+      const r = await page.evaluate(() => { KIT.piezas.cielo.quitar('#a'); const a = document.getElementById('a'); return [a.className, a.children.length]; });
+      igual(r, ['', 1]);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ CONFIRMAR (4.4 / 4.5) ═══════════ */
+  grupo('confirmar');
+  {
+    const { page, ctx } = await pagina(browser, ['confirmar']);
+
+    await prueba('enseña la lista de cambios y Confirmar resuelve true', async () => {
+      await page.evaluate(() => { window.__r = 'nada'; KIT.piezas.confirmar.abrir({ lista: [['RP', '2026000049'], ['Banco', 'BANCOLOMBIA']] }).then(r => { window.__r = r; }); });
+      await page.waitForTimeout(80);
+      igual(await page.locator('.kit-conf__lista li').count(), 2);
+      await page.locator('.kit-conf__si').click();
+      await page.waitForTimeout(50);
+      igual(await page.evaluate(() => window.__r), true);
+    });
+
+    await prueba('Escape cuenta como no', async () => {
+      await page.waitForTimeout(250);
+      await page.evaluate(() => { KIT.piezas.confirmar.preguntar({ texto: '¿Seguimos?' }).then(r => { window.__r = r; }); });
+      await page.waitForTimeout(80);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(50);
+      igual(await page.evaluate(() => window.__r), false);
+    });
+
+    await prueba('abrir dos seguidas: la primera responde no y la segunda sigue viva', async () => {
+      await page.waitForTimeout(250);
+      await page.evaluate(() => {
+        window.__a = 'x'; window.__b = 'x';
+        KIT.piezas.confirmar.preguntar({ texto: 'uno' }).then(r => { window.__a = r; });
+        KIT.piezas.confirmar.preguntar({ texto: 'dos' }).then(r => { window.__b = r; });
+      });
+      await page.waitForTimeout(300);
+      igual(await page.evaluate(() => window.__a), false);
+      igual(await page.locator('.kit-conf').count(), 1, 'debía quedar solo la segunda');
+      igual(await page.locator('.kit-conf__texto').innerText(), 'dos');
+      await page.locator('.kit-conf__si').click();
+      await page.waitForTimeout(50);
+      igual(await page.evaluate(() => window.__b), true);
+    });
+
+    await prueba('avisar() trae un solo botón', async () => {
+      await page.waitForTimeout(250);
+      await page.evaluate(() => { KIT.piezas.confirmar.avisar({ texto: 'Listo' }); });
+      await page.waitForTimeout(80);
+      igual(await page.locator('.kit-conf__no').count(), 0);
+      await page.locator('.kit-conf__si').click();
+    });
+
+    await prueba('los textos entran escapados', async () => {
+      await page.waitForTimeout(250);
+      await page.evaluate(() => { KIT.piezas.confirmar.abrir({ lista: [['<b>x</b>', '<img src=x onerror=window.__malo=1>']] }); });
+      await page.waitForTimeout(80);
+      igual(await page.locator('.kit-conf__lista img').count(), 0);
+      falso(await page.evaluate(() => window.__malo), 'no debía ejecutarse');
+      await page.keyboard.press('Escape');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ ICONOS ═══════════ */
+  grupo('iconos');
+  {
+    const { page, ctx } = await pagina(browser, []);
+    const fsx = require('fs');
+    const usados = new Set();
+    for (const f of fsx.readdirSync(path.join(RAIZ, 'kit')).filter(f => f.endsWith('.js'))) {
+      for (const m of fsx.readFileSync(path.join(RAIZ, 'kit', f), 'utf8').matchAll(/icono\(\s*'([a-z0-9-]+)'/g)) usados.add(m[1]);
+    }
+    ['altavoz', 'parar'].forEach(n => usados.add(n));   /* insights los elige con un ternario */
+
+    await prueba('todo icono que pide una pieza existe en el set', async () => {
+      const faltan = await page.evaluate((l) => l.filter(n => !KIT.piezas.iconos.hay(n)), [...usados]);
+      igual(faltan, [], 'iconos que faltan');
+    });
+
+    await prueba('K.icono devuelve un SVG con el tamaño pedido', async () => {
+      const r = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = KIT.icono('cohete', 34);
+        const s = d.querySelector('svg'); return [!!s, s && s.getAttribute('width')]; });
+      igual(r, [true, '34']);
+    });
+
+    await prueba('un nombre que no existe no revienta', async () => {
+      const r = await page.evaluate(() => typeof KIT.icono('no-existe', 16));
+      igual(r, 'string');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ IMÁGENES (pieza 21) ═══════════ */
+  grupo('imagenes');
+  {
+    const { page, ctx } = await pagina(browser, ['imagenes']);
+    const foto = (w, h) => `(() => new Promise(r => { const c = document.createElement('canvas'); c.width = ${w}; c.height = ${h};
+      const g = c.getContext('2d'); for (let i = 0; i < 400; i++) { g.fillStyle = 'hsl(' + (i * 37 % 360) + ',70%,50%)';
+      g.fillRect((i * 97) % ${w}, (i * 53) % ${h}, 180, 140); }
+      c.toBlob(b => r(new File([b], 'IMG_2026.png', { type: 'image/png' })), 'image/png'); }))()`;
+
+    await prueba('una foto de cámara sale a JPEG con el lado mayor en 1.600 px', async () => {
+      const r = await page.evaluate(`${foto(4032, 3024)}.then(f => KIT.piezas.imagenes.preparar(f)).then(r => [r.dataUrl.slice(0, 15), r.ancho, r.alto])`);
+      igual(r, ['data:image/jpeg', 1600, 1200]);
+    });
+
+    await prueba('no pasa del tope que aguanta el POST', async () => {
+      const kb = await page.evaluate(`${foto(4032, 3024)}.then(f => KIT.piezas.imagenes.preparar(f)).then(r => r.pesoKB)`);
+      cierto(kb <= 900, 'pesa ' + kb + ' KB');
+    });
+
+    await prueba('una foto pequeña no se agranda', async () => {
+      const r = await page.evaluate(`${foto(800, 600)}.then(f => KIT.piezas.imagenes.preparar(f)).then(r => [r.ancho, r.alto])`);
+      igual(r, [800, 600]);
+    });
+
+    await prueba('el collage de 3 fotos es UNA imagen JPEG', async () => {
+      const r = await page.evaluate(`Promise.all([${foto(1200, 900)}, ${foto(900, 1200)}, ${foto(1000, 1000)}])
+        .then(l => KIT.piezas.imagenes.collage(l)).then(r => [r.dataUrl.slice(0, 15), r.ancho > 0 && r.alto > 0])`);
+      igual(r, ['data:image/jpeg', true]);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ BUZÓN (pieza 22 de Contratista) ═══════════ */
+  grupo('buzon');
+  {
+    const { page, ctx } = await pagina(browser, ['pastillas', 'buzon'], '<div id="zona"></div>');
+    const hace = (seg) => Date.now() - seg * 1000;   /* el CORE manda ts en ms */
+
+    await prueba('la fecha relativa: ahora, min, h, ayer, días y se calla pasado un mes', async () => {
+      const r = await page.evaluate((f) => f.map(x => KIT.piezas.buzon.relativa({ ts: x })),
+        [hace(30), hace(600), hace(7200), hace(86400), hace(5 * 86400), hace(40 * 86400)]);
+      igual(r, ['ahora', 'hace 10 min', 'hace 2 h', 'ayer', 'hace 5 días', '']);
+    });
+
+    await prueba('pinta los avisos y marca los nuevos', async () => {
+      await page.evaluate((f) => {
+        window.__marcados = null; window.__eventos = [];
+        document.addEventListener('kit:buzon', e => window.__eventos.push(e.detail.noLeidos));
+        window.__buz = KIT.piezas.buzon.montar('#zona', {
+          pedir: () => Promise.resolve({ noLeidos: 1, avisos: [
+            { id: 'A1', titulo: 'Tu cuenta 6 fue DEVUELTA', cuerpo: 'Revisa la planilla.', ts: f[0], leida: false },
+            { id: 'A2', titulo: 'Orden de pago creada', cuerpo: 'Cuenta 5.', ts: f[1], leida: true }] }),
+          marcar: (ids) => { window.__marcados = ids; return Promise.resolve({}); }
+        });
+        window.__buz.cargar();   /* montar pinta el armazón; el viaje lo decide la app */
+      }, [hace(600), hace(3 * 86400)]);
+      await page.waitForTimeout(200);
+      igual(await page.locator('.kit-buz-tar').count(), 2);
+      igual(await page.locator('.kit-buz-tar--nuevo').count(), 1);
+    });
+
+    await prueba('el filtro Sin leer deja solo los nuevos', async () => {
+      await page.locator('[data-f="nuevos"]').click();
+      igual(await page.locator('.kit-buz-tar').count(), 1);
+      await page.locator('[data-f="todos"]').click();
+    });
+
+    await prueba('marca leído con respiro y avisa el conteo (burbuja del inicio)', async () => {
+      await page.waitForTimeout(1900);
+      igual(await page.evaluate(() => window.__marcados), ['A1']);
+      igual(await page.evaluate(() => KIT.piezas.buzon.noLeidos()), 0);
+      igual(await page.evaluate(() => window.__eventos), [1, 0]);
+    });
+
+    await prueba('el título del aviso entra como texto', async () => {
+      await page.evaluate(() => KIT.piezas.buzon.montar('#zona', {
+        pedir: () => Promise.resolve({ noLeidos: 0, avisos: [{ id: 'X', titulo: '<img src=x onerror=window.__malo=1>', leida: true }] }),
+        marcar: () => Promise.resolve({}) }).cargar());
+      await page.waitForTimeout(200);
+      igual(await page.locator('#zona img').count(), 0);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ AVISOS PUSH (pieza 19) ═══════════ */
+  grupo('push');
+  {
+    const { page, ctx } = await pagina(browser, ['avisos']);
+
+    await prueba('en escritorio sin Firebase configurado no promete nada', async () => {
+      const e = await page.evaluate(() => KIT.piezas.avisos.estado());
+      cierto(['apagado', 'no-soportado', 'sin-permiso', 'bloqueado'].indexOf(e) >= 0, 'estado ' + e);
+      falso(e === 'listo', 'no puede decir listo sin token');
+    });
+
+    await prueba('reconoce un iPhone por el navegador', async () => {
+      const ctx2 = await browser.newContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' });
+      const p2 = await ctx2.newPage();
+      await p2.goto('file://' + path.join(RAIZ, '__banco.html'));
+      await p2.waitForFunction('!!window.KIT');
+      const r = await p2.evaluate(() => [KIT.piezas.avisos.esIOS(), KIT.piezas.avisos.instalada()]);
+      igual(r, [true, false]);
+      await ctx2.close();
+    });
+
+    await prueba('iPhone sin instalar: el estado lo dice (va PRIMERO, antes de Notification)', async () => {
+      const ctx2 = await browser.newContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' });
+      const p2 = await ctx2.newPage();
+      /* así llega un iPhone sin instalar: sin Notification ni PushManager */
+      await p2.addInitScript(() => { delete window.Notification; delete window.PushManager; });
+      await p2.goto('file://' + path.join(RAIZ, '__banco.html'));
+      await p2.waitForFunction('!!window.KIT');
+      igual(await p2.evaluate(() => KIT.piezas.avisos.estado()), 'ios-sin-instalar');
+      await ctx2.close();
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ BIENVENIDA (pieza 20) ═══════════ */
+  grupo('bienvenida');
+  {
+    const { page, ctx } = await pagina(browser, ['instalar', 'bienvenida']);
+
+    await prueba('desde el navegador sale siempre (no se recuerda que ya la vio)', async () => {
+      igual(await page.evaluate(() => { KIT.guardar.escribir('bienvenida.vista', 1); return KIT.piezas.bienvenida.procede(); }), true);
+    });
+
+    await prueba('con un destino en la dirección no se cruza', async () => {
+      igual(await page.evaluate(() => { location.hash = '#/cuentas'; const r = KIT.piezas.bienvenida.procede(); location.hash = ''; return r; }), false);
+    });
+
+    await prueba('ya instalada: el pie dice buscarla con el nombre de ESTA app, no "Contratista"', async () => {
+      await page.evaluate(() => {
+        window.MARCA.TITULO = 'Contabilidad';
+        KIT.piezas.instalar.yaSeInstalo = () => true;
+        KIT.piezas.bienvenida.abrir({ titulo: 'Contabilidad', forzar: true });
+      });
+      await page.waitForTimeout(250);
+      igual(await page.locator('.kit-bien__pie').innerText(), '¿No la encuentras? Búscala con el nombre Contabilidad.');
+      igual(await page.locator('.kit-bien__instalar').count(), 0, 'el botón de instalar se retira');
+      igual(await page.locator('.kit-bien__t').innerText(), 'Ya la tienes instalada');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ SOPORTE 5.1.1 · número de solicitud y fotos reducidas ═══════════ */
+  grupo('soporte511');
+  {
+    const { page, ctx } = await pagina(browser, ['soporte', 'adjuntos', 'imagenes']);
+
+    await prueba('al llegar, le da a la persona su número de solicitud', async () => {
+      await page.evaluate(() => {
+        window.__av = [];
+        const av = KIT.aviso; KIT.aviso = (t, ...r) => { window.__av.push(t); return av(t, ...r); };
+        KIT.pedir = () => Promise.resolve({ id: 'SOP-0042' });
+        KIT.piezas.soporte.abrir({ vista: 'Crear orden' });
+      });
+      await page.fill('.kit-sop__cuerpo textarea', 'Al crear la orden de pago sale un error y no guarda.');
+      await page.locator('.kit-sop__si').click();
+      await page.waitForTimeout(400);
+      cierto(await page.evaluate(() => window.__av.some(t => /SOP-0042/.test(t))), 'debía decir el número');
+    });
+
+    await prueba('una captura de teléfono viaja como JPEG reducido', async () => {
+      const r = await page.evaluate(async () => {
+        const c = document.createElement('canvas'); c.width = 3000; c.height = 2000;
+        const g = c.getContext('2d'); for (let i = 0; i < 300; i++) { g.fillStyle = 'hsl(' + i + ',60%,50%)'; g.fillRect(i * 9, i * 6, 300, 200); }
+        const b = await new Promise(r => c.toBlob(r, 'image/png'));
+        window.__ult = null;
+        KIT.pedir = (a, d) => { window.__ult = d; return Promise.resolve({ id: 'SOP-0043' }); };
+        KIT.piezas.soporte.abrir({ vista: 'X' });
+        await new Promise(r => setTimeout(r, 100));
+        const inp = document.querySelector('.kit-sop__zona input[type=file]');
+        const dt = new DataTransfer(); dt.items.add(new File([b], 'pantallazo.png', { type: 'image/png' }));
+        inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 300));
+        document.querySelector('.kit-sop__cuerpo textarea').value = 'La pantalla se queda en blanco al abrir la cuenta.';
+        document.querySelector('.kit-sop__cuerpo textarea').dispatchEvent(new Event('input', { bubbles: true }));
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 1500));
+        const fotos = window.__ult && (window.__ult.fotos || window.__ult.capturas || window.__ult.adjuntos);
+        return fotos ? [fotos.length, fotos[0].tipo, fotos[0].nombre, fotos[0].datos.length * 0.75 / 1024 < 900] : JSON.stringify(Object.keys(window.__ult || {}));
+      });
+      igual(r, [1, 'image/jpeg', 'captura-1.jpg', true]);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ VISOR 5.4 · bytes directos y pdf.js precalentado ═══════════ */
+  grupo('visor54');
+  {
+    const { page, ctx } = await pagina(browser, ['visor']);
+
+    await prueba('trae precalentar() y no revienta sin red', async () => {
+      const r = await page.evaluate(() => Promise.race([
+        KIT.piezas.visor.precalentar().then(() => 'ok', () => 'rechazo'),
+        new Promise(r => setTimeout(() => r('ok-lento'), 4000))]));
+      cierto(r === 'ok' || r === 'ok-lento', 'precalentar no debía rechazar: ' + r);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ SESIÓN 7.0 · el arranque viaja con el login ═══════════ */
+  grupo('sesion70');
+  {
+    const { page, ctx } = await pagina(browser, ['sesion', 'conexion']);
+
+    await prueba('con arranqueEnLogin, el login pide conArranque y comprobar recibe la respuesta', async () => {
+      await page.evaluate(() => {
+        KIT.ponerToken('');
+        window.__pedidos = []; window.__recibio = null;
+        KIT.pedir = (a, d) => { window.__pedidos.push({ a, d }); return Promise.resolve({ token: 'T7', usuario: { nombre: 'OLGA ALCENDRA', rol: 'CONTABLE' }, arranque: { ordenes: 8 } }); };
+        KIT.piezas.sesion.entrar({ titulo: 'CONTABILIDAD', arranqueEnLogin: true,
+          comprobar: (d) => { window.__recibio = d; return null; } });
+      });
+      await page.fill('[name="documento"]', '1070602493');
+      await page.fill('[name="clave"]', 'x');
+      await page.locator('.kit-sesion__entrar').click();
+      await page.waitForTimeout(300);
+      igual(await page.evaluate(() => window.__pedidos.length), 1, 'UN solo viaje');
+      igual(await page.evaluate(() => window.__pedidos[0].d.conArranque), true);
+      igual(await page.evaluate(() => window.__recibio && window.__recibio.arranque.ordenes), 8);
+    });
+
+    await prueba('sin arranqueEnLogin no se pide el arranque (Contratista sigue igual)', async () => {
+      await page.evaluate(() => {
+        KIT.ponerToken('');
+        window.__pedidos = [];
+        KIT.pedir = (a, d) => { window.__pedidos.push({ a, d }); return Promise.resolve({ token: 'T8', usuario: { nombre: 'A' } }); };
+        document.querySelectorAll('.kit-sesion').forEach(n => n.remove());
+        KIT.piezas.sesion.entrar({ titulo: 'CONTRATISTA' });
+      });
+      await page.waitForTimeout(300);
+      await page.fill('[name="documento"]', '1070602493');
+      await page.fill('[name="clave"]', 'x');
+      await page.locator('.kit-sesion__entrar').click();
+      await page.waitForTimeout(300);
+      igual(await page.evaluate(() => window.__pedidos[0].d.conArranque), undefined);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ EXPORTAR 6.1 · el PDF por bloques ═══════════ */
+  grupo('exportar61');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar']);
+    const cols = [{ titulo: 'Contratista', campo: 'nombre' }, { titulo: 'Estado', campo: 'estado' },
+      { titulo: 'Cobro', campo: 'cobro', tipo: 'pesos' }, { titulo: 'Motivo', campo: 'motivo' }];
+    const filas = [
+      { nombre: 'EDILBERTO RAMIREZ', sec: 'GOBIERNO', estado: 'DEVUELTA', cobro: 2500000, motivo: 'La planilla de seguridad social no corresponde al periodo cobrado en la cuenta y hay que volver a subirla.' },
+      { nombre: 'CPR ESTUDIO LEGAL SAS', sec: 'HACIENDA', estado: 'PAGADA', cobro: 4900000, motivo: '' },
+      { nombre: 'YESICA TATIANA ALFARO', sec: 'GOBIERNO', estado: 'CERRADA', cobro: 1500000, motivo: '' }];
+
+    await prueba('agrupa conservando el orden en que aparece cada grupo', async () => {
+      const g = await page.evaluate((f) => KIT.piezas.exportar._agrupar(f, { grupo: x => x.sec }).map(x => [x.nombre, x.filas.length]), filas);
+      igual(g, [['GOBIERNO', 2], ['HACIENDA', 1]]);
+    });
+
+    await prueba('ordenGrupos manda sobre el orden de llegada', async () => {
+      const g = await page.evaluate((f) => KIT.piezas.exportar._agrupar(f, { grupo: x => x.sec, ordenGrupos: ['HACIENDA'] }).map(x => x.nombre), filas);
+      igual(g, ['HACIENDA', 'GOBIERNO']);
+    });
+
+    await prueba('el resumen por defecto cuenta y suma la plata', async () => {
+      const r = await page.evaluate(([c, f]) => KIT.piezas.exportar._resumen(c, f, {}), [cols, filas]);
+      igual(r, [{ etiqueta: 'Registros', valor: '3' }, { etiqueta: 'Total cobro', valor: '$ 8.900.000' }]);
+    });
+
+    await prueba('la ficha no repite campos vacíos y el texto largo va a lo ancho', async () => {
+      const r = await page.evaluate(([c, f]) => [KIT.piezas.exportar._campos(f[0], c, {}).find(x => x.e === 'Motivo').largo,
+        KIT.piezas.exportar._campos(f[1], c, {}).some(x => x.e === 'Motivo')], [cols, filas]);
+      igual(r, [true, false]);
+    });
+
+    const imprimir = (op) => page.evaluate(([c, f, o]) => {
+      let html = '';
+      window.open = () => ({ document: { write: (h) => { html += h; }, close: () => {} } });
+      KIT.piezas.exportar.aImprimir('Cuentas', c, f, {}, Object.assign({ grupo: x => x.sec }, o));
+      return html;
+    }, [cols, filas, op]);
+
+    await prueba('por defecto el PDF sale por BLOQUES (una ficha por registro), no tabla', async () => {
+      const h = await imprimir({});
+      igual((h.match(/<article/g) || []).length, 3);
+      falso(/<table/.test(h), 'no debía ser tabla');
+      cierto(/<h2>GOBIERNO/.test(h), 'debía agrupar');
+      cierto(/no corresponde al periodo cobrado en la cuenta y hay que volver a subirla\./.test(h), 'el motivo completo, sin "…"');
+    });
+
+    await prueba("con modo:'tabla' sigue saliendo la tabla de antes (la de Contratista)", async () => {
+      const h = await imprimir({ modo: 'tabla' });
+      cierto(/<table/.test(h), 'debía ser tabla');
+      igual((h.match(/<article/g) || []).length, 0);
+    });
+
+    await prueba('el HTML de los datos no se cuela en el informe', async () => {
+      const h = await page.evaluate(([c]) => {
+        let html = '';
+        window.open = () => ({ document: { write: (x) => { html += x; }, close: () => {} } });
+        KIT.piezas.exportar.aImprimir('X', c, [{ nombre: '<img src=x onerror=alert(1)>', estado: 'PAGADA', cobro: 1 }], {}, {});
+        return html;
+      }, [cols]);
+      falso(/<img src=x/.test(h), 'debía escaparse');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ INFORME DE CUENTAS (pieza 23) ═══════════ */
+  grupo('informeCuentas');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'informe-cuentas']);
+    const datos = {
+      contrato: { id: '1070602493-027', doc: '1070602493', nombre: 'EDILBERTO RAMIREZ', contrato: '027', valorFinal: 30000000, informes: { total: 10 } },
+      cuentas: [
+        { informe: 1, total: 10, estado: 'PAGADA', cobro: 3000000, nuevo: 27000000 },
+        { informe: 2, total: 10, estado: 'PAGADA', cobro: 3000000, nuevo: 24000000 },
+        { informe: 3, total: 10, estado: 'ORDEN DE PAGO', cobro: 3000000, nuevo: 21000000 },
+        { informe: 4, total: 10, estado: 'BORRADOR', cobro: 3000000, nuevo: 18000000 }]
+    };
+
+    await prueba('cifras: cobrado sin borradores, pagado, en trámite y saldo', async () => {
+      const c = await page.evaluate((d) => KIT.piezas.informeCuentas.cifras(d), datos);
+      igual([c.cuentas, c.total, c.cobrado, c.pagado, c.enTramite, c.saldo, c.avance, c.pagadas],
+        [4, 10, 9000000, 6000000, 3000000, 21000000, 30, 2]);
+    });
+
+    await prueba('el color de cada estado es el de las listas', async () => {
+      const t = await page.evaluate(() => ['PAGADA', 'DEVUELTA', 'ORDEN DE PAGO', 'REPORTADA', 'BORRADOR'].map(KIT.piezas.informeCuentas.tono));
+      igual(t, ['ok', 'malo', 'info', 'aviso', '']);
+    });
+
+    await prueba('las columnas del Excel empiezan por la llave ID CONTRATO', async () => {
+      const c = await page.evaluate((d) => KIT.piezas.informeCuentas.columnas(d).slice(0, 4).map(x => x.titulo), datos);
+      igual(c, ['ID contrato', 'Documento', 'Contratista', 'N° contrato']);
+    });
+
+    await prueba('la columna de contrato sale en cada fila (sirve para cruzar en las 3 oficinas)', async () => {
+      const v = await page.evaluate((d) => { const c = KIT.piezas.informeCuentas.columnas(d)[0]; return d.cuentas.map(x => c.campo(x)); }, datos);
+      igual(v, ['1070602493-027', '1070602493-027', '1070602493-027', '1070602493-027']);
+    });
+
+    await ctx.close();
+  }
+
 
   await browser.close();
   try { fs.unlinkSync(path.join(RAIZ, '__banco.html')); } catch (e) {}

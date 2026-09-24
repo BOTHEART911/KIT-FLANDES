@@ -48,3 +48,39 @@
 }
 
 .kit-inst__copiar { justify-content: center; }
+
+/* 4.5 · la hoja de "ya la tienes instalada": un sello verde con su halo,
+   para que se entienda de un vistazo que no hay nada que hacer. */
+.kit-inst__listo {
+  position: relative;
+  width: 84px; height: 84px;
+  margin: 2px auto 14px;
+  display: grid; place-items: center;
+}
+.kit-inst__listo-ico {
+  position: relative;
+  width: 68px; height: 68px; border-radius: 50%;
+  display: grid; place-items: center;
+  color: #fff; background: #1f9d55;
+  animation: kit-inst-sello .5s cubic-bezier(.2, 1.5, .4, 1) both;
+}
+.kit-inst__listo-halo {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(31, 157, 85, .55);
+  animation: kit-inst-halo 2.6s ease-out infinite;
+}
+@keyframes kit-inst-sello { from { transform: scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes kit-inst-halo {
+  0%   { transform: scale(.86); opacity: .9; }
+  70%  { transform: scale(1.22); opacity: 0; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+.kit-inst__reinstalar {
+  border: 0; background: none; padding: 0;
+  font: inherit; color: var(--brand, #06402B);
+  text-decoration: underline; cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kit-inst__listo-ico, .kit-inst__listo-halo { animation: none; }
+  .kit-inst__listo-halo { opacity: .5; }
+}

@@ -17,6 +17,27 @@
        { titulo: 'Cédula',                       url: '...', tipo: 'imagen' }
      ], { indice: 0 });
 
+   4.7 · DOCUMENTOS QUE LLEGAN DEL SERVIDOR, NO DE DRIVE
+     Un documento puede traer `cargar` en vez de `url`:
+
+       { titulo: 'Planilla.pdf', tipo: 'pdf',
+         cargar: function () { return KIT.pedir('...', {...}); } }
+
+     `cargar` devuelve {nombre, mime, base64} o {nombre, mime, bytes} (5.4:
+     Uint8Array ya listo, sin base64). El visor lo pide SOLO cuando
+     se va a ver (no todos de golpe) y lo guarda mientras esté abierto.
+
+     Por qué hace falta: el /preview de Drive solo se ve si el teléfono
+     tiene abierta la cuenta de Google con permiso sobre ese archivo. El
+     contratista casi nunca la tiene, y al reportar el plan de pagos se le
+     quita el permiso. Con los bytes en la mano:
+       · la imagen se pinta directa;
+       · el PDF se dibuja página por página con pdf.js, que se baja del CDN
+         la primera vez. Un PDF dentro de un iframe NO se ve en Android
+         (Chrome no trae visor ahí) y en iPhone solo sale la primera hoja.
+         Si el CDN no responde, se cae a un iframe y se ofrece descargarlo.
+       · descargar, abrir e imprimir trabajan sobre ese mismo archivo.
+
    Lo que hace de verdad, no de adorno
      · Abrir en pestaña, descargar e imprimir funcionan sobre el documento
        que se está viendo, no sobre el primero.
@@ -55,6 +76,141 @@
   function paraBajar(url) {
     var id = idDrive(url);
     return id ? 'https://drive.google.com/uc?export=download&id=' + id : url;
+  }
+
+  /* ── 4.7 · documentos con bytes ── */
+
+  var CDN_PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+  var pdfjsCargando = null;
+
+  function pdfjs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfjsCargando) return pdfjsCargando;
+    pdfjsCargando = new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = CDN_PDFJS + 'pdf.min.js';
+      s.async = true;
+      s.onload = function () {
+        if (!window.pdfjsLib) { rej(new Error('pdf.js no quedó cargado')); return; }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = CDN_PDFJS + 'pdf.worker.min.js';
+        /* 5.4 · UN solo trabajador para todos los PDF de la sesión: arrancarlo
+           cuesta y antes se arrancaba con cada documento. Si el navegador no
+           deja crearlo así, pdf.js lo crea a su manera. */
+        try {
+          var arranque = new Blob(['importScripts("' + CDN_PDFJS + 'pdf.worker.min.js");'], { type: 'application/javascript' });
+          window.pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(URL.createObjectURL(arranque));
+        } catch (e) { /* pdf.js se arregla solo */ }
+        res(window.pdfjsLib);
+      };
+      s.onerror = function () { pdfjsCargando = null; rej(new Error('No se pudo bajar pdf.js')); };
+      document.head.appendChild(s);
+    });
+    return pdfjsCargando;
+  }
+
+  function aBytes(b64) {
+    var bin = atob(String(b64 || '').replace(/\s/g, ''));
+    var n = bin.length, out = new Uint8Array(n);
+    for (var k = 0; k < n; k++) out[k] = bin.charCodeAt(k);
+    return out;
+  }
+
+  /** Trae los bytes de un documento con `cargar`, una sola vez. */
+  function traer(d) {
+    if (d._url) return Promise.resolve(d);
+    if (d._pidiendo) return d._pidiendo;
+    d._pidiendo = Promise.resolve(d.cargar()).then(function (r) {
+      /* 5.4 · `cargar` puede devolver los bytes ya listos (Uint8Array) */
+      var bytes = (r && r.bytes && typeof r.bytes.length === 'number' && !r.base64) ? r.bytes : aBytes(r.base64);
+      var mime = r.mime || 'application/octet-stream';
+      d._bytes = bytes;
+      d._blob = new Blob([bytes], { type: mime });
+      d._url = URL.createObjectURL(d._blob);
+      d._nombre = r.nombre || d.titulo || 'documento';
+      d._tipo = d.tipo || r.tipo || (/^image\//.test(mime) ? 'imagen' : (/pdf/.test(mime) ? 'pdf' : 'otro'));
+      d._pidiendo = null;
+      return d;
+    }, function (e) { d._pidiendo = null; throw e; });
+    return d._pidiendo;
+  }
+
+  function soltar(lista) {
+    (lista || []).forEach(function (d) {
+      if (d && d._url) { try { URL.revokeObjectURL(d._url); } catch (e) {} d._url = null; d._blob = null; d._bytes = null; }
+    });
+  }
+
+  /** Dibuja un PDF página por página dentro del lienzo. */
+  function dibujarPDF(d, lienzo) {
+    return pdfjs().then(function (lib) {
+      return lib.getDocument({ data: d._bytes.slice() }).promise;
+    }).then(function (pdf) {
+      if (actual() !== d) return;
+      var hojas = document.createElement('div');
+      hojas.className = 'kit-visor__hojas';
+      lienzo.innerHTML = '';
+      lienzo.appendChild(hojas);
+      var ancho = Math.max(280, Math.min(lienzo.clientWidth - 24, 1100));
+      var escalaPantalla = Math.min(window.devicePixelRatio || 1, 2);
+      var cadena = Promise.resolve();
+      for (var p = 1; p <= pdf.numPages; p++) {
+        (function (n) {
+          cadena = cadena.then(function () {
+            if (actual() !== d) return;
+            return pdf.getPage(n).then(function (pag) {
+              var base = pag.getViewport({ scale: 1 });
+              var vista = pag.getViewport({ scale: (ancho / base.width) * escalaPantalla });
+              var c = document.createElement('canvas');
+              c.className = 'kit-visor__hoja';
+              c.width = Math.floor(vista.width);
+              c.height = Math.floor(vista.height);
+              c.style.width = Math.floor(vista.width / escalaPantalla) + 'px';
+              hojas.appendChild(c);
+              return pag.render({ canvasContext: c.getContext('2d'), viewport: vista }).promise;
+            });
+          });
+        })(p);
+      }
+      return cadena;
+    });
+  }
+
+  /** Lo que se ve de un documento que llegó con bytes. */
+  function pintarBytes(d, lienzo) {
+    lienzo.innerHTML = '<div class="kit-visor__cargando">Abriendo el documento…</div>';
+    traer(d).then(function () {
+      if (actual() !== d) return;
+      if (d._tipo === 'imagen') {
+        var img = new Image();
+        img.className = 'kit-visor__img';
+        img.alt = d.titulo || '';
+        img.src = d._url;
+        lienzo.innerHTML = '';
+        lienzo.appendChild(img);
+        return;
+      }
+      if (d._tipo === 'pdf') {
+        return dibujarPDF(d, lienzo)['catch'](function () {
+          /* sin pdf.js (sin red hacia el CDN): el iframe, y si el teléfono
+             no lo pinta, la persona igual tiene el botón de descargar */
+          if (actual() !== d) return;
+          lienzo.innerHTML = '';
+          var f = document.createElement('iframe');
+          f.className = 'kit-visor__marco';
+          f.src = d._url;
+          lienzo.appendChild(f);
+          lienzo.appendChild(K.nodo('<p class="kit-visor__nota">¿No se ve? Toca descargar ' + K.icono('descargar', 14) + ' arriba.</p>'));
+        });
+      }
+      lienzo.innerHTML = '<div class="kit-visor__malo">Este tipo de archivo no se puede ver aquí.<br>' +
+        '<button type="button" class="kit-btn kit-btn--marca">Descargarlo</button></div>';
+      lienzo.querySelector('button').addEventListener('click', function () { accion('bajar'); });
+    })['catch'](function (e) {
+      if (actual() !== d) return;
+      lienzo.innerHTML = '<div class="kit-visor__malo">' + K.esc((e && e.message) || 'No se pudo abrir el documento.') + '<br>' +
+        '<button type="button" class="kit-btn kit-btn--marca">Volver a intentar</button></div>';
+      lienzo.querySelector('button').addEventListener('click', function () { pintar(); });
+    });
   }
 
   function tipoDe(d) {
@@ -163,6 +319,7 @@
       b.title = chico ? 'Volver al tamaño normal' : 'Minimizar';
       return;
     }
+    if (d.cargar && !d.url) { accionBytes(a, d); return; }
     if (a === 'abrir') { window.open(paraAbrir(d.url), '_blank', 'noopener'); return; }
     if (a === 'bajar') {
       var l = document.createElement('a');
@@ -192,6 +349,25 @@
     }
   }
 
+  /* 4.7 · abrir, descargar e imprimir un documento que llegó con bytes */
+  function accionBytes(a, d) {
+    traer(d).then(function () {
+      if (a === 'bajar') {
+        var l = document.createElement('a');
+        l.href = d._url;
+        l.download = d._nombre;
+        document.body.appendChild(l);
+        l.click();
+        l.remove();
+        K.aviso('Descargando ' + d._nombre, 'ok', 2600);
+        return;
+      }
+      var w = window.open(d._url, '_blank');
+      if (!w) { K.aviso('El navegador bloqueó la ventana. Usa descargar.', 'aviso'); return; }
+      if (a === 'imprimir') K.aviso('Se abrió en otra pestaña: desde ahí puedes imprimir.', 'info', 4200);
+    })['catch'](function (e) { K.aviso((e && e.message) || 'No se pudo abrir.', 'malo'); });
+  }
+
   function pintar() {
     var d = actual();
     var lienzo = capa.querySelector('.kit-visor__lienzo');
@@ -200,6 +376,12 @@
 
     lienzo.innerHTML = '<div class="kit-visor__cargando">Abriendo el documento…</div>';
     if (!d) return;
+
+    if (d.cargar && !d.url) {
+      pintarBytes(d, lienzo);
+      puntos();
+      return;
+    }
 
     var marco;
     if (tipoDe(d) === 'imagen') {
@@ -224,7 +406,10 @@
       lienzo.querySelector('button').addEventListener('click', function () { accion('abrir'); });
     });
     lienzo.appendChild(marco);
+    puntos();
+  }
 
+  function puntos() {
     /* puntos de navegación */
     var p = capa.querySelector('.kit-visor__puntos');
     p.innerHTML = '';
@@ -253,7 +438,8 @@
 
   function abrir(lista, opciones) {
     opciones = opciones || {};
-    docs = (Array.isArray(lista) ? lista : [lista]).filter(function (d) { return d && d.url; });
+    soltar(docs);
+    docs = (Array.isArray(lista) ? lista : [lista]).filter(function (d) { return d && (d.url || typeof d.cargar === 'function'); });
     if (!docs.length) { K.aviso('No hay documentos para mostrar.', 'aviso'); return; }
     i = Math.min(Math.max(opciones.indice || 0, 0), docs.length - 1);
 
@@ -268,6 +454,7 @@
     if (!capa) return;
     capa.classList.remove('kit-visor--on');
     capa.querySelector('.kit-visor__lienzo').innerHTML = '';   /* suelta el iframe */
+    soltar(docs);
     docs = [];
     i = 0;
   }
@@ -275,6 +462,8 @@
   K.piezas.visor = {
     abrir: abrir, cerrar: cerrar, ir: ir,
     abierto: function () { return !!(capa && capa.classList.contains('kit-visor--on')); },
-    idDrive: idDrive, paraVer: paraVer, paraAbrir: paraAbrir, paraBajar: paraBajar
+    idDrive: idDrive, paraVer: paraVer, paraAbrir: paraAbrir, paraBajar: paraBajar,
+    /* 5.4 · bajar pdf.js y su trabajador ANTES del primer documento */
+    precalentar: function () { return pdfjs()['catch'](function () { return null; }); }
   };
 }());

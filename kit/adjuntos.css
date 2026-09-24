@@ -94,3 +94,34 @@
   .kit-adj__item { animation: none; }
   .kit-adj__soltar, .kit-adj--encima .kit-adj__soltar { transition: none; transform: none; }
 }
+
+/* 4.6 · la casilla activa y el botón de pegar ───────────────────
+   Con veinte casillas a la vista hay que ver CUÁL se va a quedar
+   con el Ctrl+V. La activa se marca con el borde de la marca. */
+.kit-adj__soltar { position: relative; }
+
+/* 4.6.1 · LA CASILLA ACTIVA SE VE.
+   Se quitó el botón "Pegar" (leía un portapapeles donde no están los
+   archivos copiados del explorador y mentía). Ahora basta con poner el
+   puntero encima: la casilla se marca y el Ctrl+V va ahí y en ningún otro
+   sitio. En el móvil, el toque hace lo mismo. */
+.kit-adj--activa .kit-adj__soltar {
+  border-color: var(--k-marca, #06402B);
+  border-style: solid;
+  background: rgba(var(--k-marca-rgb, 6, 64, 43), .05);
+  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb, 6, 64, 43), .14);
+}
+.kit-adj--activa .kit-adj__admite::after {
+  content: ' · el Ctrl+V viene aquí';
+  font-weight: 600;
+  color: var(--k-marca, #06402B);
+}
+:root[data-tema="oscuro"] .kit-adj--activa .kit-adj__admite::after {
+  color: var(--k-marca-clara, #4ea87b);
+}
+/* en pantalla táctil no hay puntero que se pose: ahí lo marca el toque */
+@media (hover: none) and (pointer: coarse) {
+  .kit-adj--activa .kit-adj__admite::after { content: ' · aquí se pega'; }
+}
+
+.kit-adj__admite { display: block; }

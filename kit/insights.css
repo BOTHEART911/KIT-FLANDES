@@ -26,7 +26,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 .kit-ins__fab:hover { transform: scale(1.06); }
-.kit-ins__fab:active { cursor: grabbing; transform: scale(.94); }
+.kit-ins__fab:active { transform: scale(.94); }
+.kit-ins__fab[hidden] { display: none; }
+/* 4.9 · la vista tiene un boton fijo abajo (Siguiente, Guardar): el robot
+   sube para no taparlo. Si la persona ya lo movio, manda donde lo dejo. */
+.kit-ins__fab--alto:not(.kit-ins__fab--puesto) { bottom: calc(92px + env(safe-area-inset-bottom, 0)); }
+/* 4.9 · clic sostenido: se "despega" antes de poder arrastrarlo */
+.kit-ins__fab--mueve {
+  cursor: grabbing;
+  transform: scale(1.16);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .32), 0 0 0 6px rgba(var(--k-marca-rgb), .22);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
 
 /* ── panel ── */
 
@@ -36,10 +47,38 @@
 
 .kit-ins__cuerpo { display: flex; flex-direction: column; gap: 16px; }
 
-.kit-ins__arranque { text-align: center; padding: 18px 8px; }
-.kit-ins__arranque p { margin: 0 0 16px; font: 400 14px/1.5 var(--k-fuente); color: var(--k-tinta-2); }
-.kit-ins__arranque b { color: var(--k-tinta); font-weight: 600; }
-.kit-ins__iniciar { justify-content: center; min-width: 140px; }
+.kit-ins__guia {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  background: rgba(var(--k-marca-rgb), .07);
+  border: 1px solid rgba(var(--k-marca-rgb), .18);
+  border-radius: var(--k-r-md);
+  padding: 13px 14px;
+}
+.kit-ins__guia-ico { color: var(--k-marca); flex: 0 0 auto; margin-top: 1px; }
+:root[data-tema="oscuro"] .kit-ins__guia-ico { color: var(--k-marca-clara); }
+.kit-ins__guia p { margin: 0; font: 400 14px/1.6 var(--k-fuente); color: var(--k-tinta); }
+.kit-ins__guia b { font-weight: 700; }
+
+/* el boton de la voz: siempre a mano, y en rojo suave mientras suena */
+.kit-ins__voz {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--k-linea);
+  background: var(--k-papel-2);
+  color: var(--k-tinta);
+  border-radius: var(--k-r-pill);
+  padding: 6px 12px;
+  font: 600 12.5px/1 var(--k-fuente);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.kit-ins__voz[hidden] { display: none; }
+.kit-ins__voz--on { background: var(--k-malo-fondo); border-color: var(--k-malo); color: var(--k-malo); }
+.kit-ins__preg--on { background: var(--k-marca); color: #fff; border-color: var(--k-marca); }
 
 .kit-ins__salida { display: flex; flex-direction: column; gap: 16px; }
 
@@ -128,3 +167,6 @@
 @media (prefers-reduced-motion: reduce) {
   .kit-ins__fab { transition: none; }
 }
+
+/* 4.9 · las preguntas pueden ser largas: que partan linea en vez de salirse */
+.kit-ins__preg { white-space: normal; text-align: left; line-height: 1.3; }

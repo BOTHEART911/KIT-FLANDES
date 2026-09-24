@@ -1,0 +1,151 @@
+/* ============================================================
+   KIT-FLANDES · PIEZA 25 · PERSONAS — estilos
+   Pareja de kit/personas.js. Tambien la usa kit/perfil.js.
+   ============================================================ */
+
+.kit-av {
+  --kit-av-tam: 36px;
+  --kit-av-tono: 152;
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--kit-av-tam);
+  height: var(--kit-av-tam);
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-grid;
+  place-items: center;
+  background: hsl(var(--kit-av-tono) 42% 90%);
+  color: hsl(var(--kit-av-tono) 55% 26%);
+  box-shadow: 0 0 0 2px var(--k-papel), 0 1px 3px rgba(0, 0, 0, .12);
+  vertical-align: middle;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tema="oscuro"] .kit-av {
+  background: hsl(var(--kit-av-tono) 30% 26%);
+  color: hsl(var(--kit-av-tono) 60% 86%);
+}
+.kit-av__ini {
+  font: 700 calc(var(--kit-av-tam) * .38)/1 var(--k-fuente-titulo);
+  letter-spacing: .02em;
+  user-select: none;
+}
+.kit-av__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.kit-av--foto .kit-av__img { opacity: 1; }
+.kit-av--toca { cursor: zoom-in; }
+.kit-av--toca:focus-visible { outline: 2px solid var(--k-marca); outline-offset: 2px; }
+
+/* cara + nombre + que hizo */
+.kit-av-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+.kit-av-chip__txt { display: flex; flex-direction: column; min-width: 0; }
+.kit-av-chip__txt b {
+  font: 600 13.5px/1.25 var(--k-fuente);
+  color: var(--k-tinta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kit-av-chip__txt small {
+  font: 400 12px/1.3 var(--k-fuente);
+  color: var(--k-apagado);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ══════════════ foto de perfil (kit/perfil.js) ══════════════ */
+
+.kit-perfil__hoja { width: min(440px, 100%); }
+.kit-perfil__cuerpo { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.kit-perfil__cara { position: relative; }
+.kit-perfil__nombre { font: 700 17px/1.3 var(--k-fuente-titulo); margin: 0; }
+.kit-perfil__nota { margin: 0; font: 400 13px/1.5 var(--k-fuente); color: var(--k-apagado); max-width: 34ch; }
+.kit-perfil__acciones { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.kit-perfil__acciones .kit-btn { flex: 1 1 140px; justify-content: center; }
+.kit-perfil__archivo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* el recorte */
+.kit-recorte { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.kit-recorte__marco {
+  position: relative;
+  width: min(300px, 78vw);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--k-r-lg);
+  overflow: hidden;
+  background: #111;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.kit-recorte__marco:active { cursor: grabbing; }
+.kit-recorte__img {
+  position: absolute;
+  left: 0; top: 0;
+  transform-origin: 0 0;
+  max-width: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+/* el circulo: lo de fuera queda en penumbra, como en cualquier recorte de perfil */
+.kit-recorte__mascara {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* closest-side: el círculo claro coincide con el aro blanco (sin eso el
+     degradado se mide a la esquina y queda un círculo más grande que el aro) */
+  background: radial-gradient(circle closest-side at center, transparent 99.2%, rgba(0, 0, 0, .55) 100%);
+}
+.kit-recorte__mascara::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85);
+}
+.kit-recorte__zoom { display: flex; align-items: center; gap: 10px; width: min(300px, 78vw); color: var(--k-apagado); }
+.kit-recorte__zoom input[type="range"] { flex: 1 1 auto; accent-color: var(--k-marca); }
+.kit-recorte__pista { margin: 0; font: 400 12.5px/1.45 var(--k-fuente); color: var(--k-apagado); }
+.kit-recorte__botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* la cara del inicio, tocable, con su camarita */
+.kit-perfil-cara {
+  position: relative;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-perfil-cara .kit-av { box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 4px 14px rgba(0, 0, 0, .18); }
+.kit-perfil-cara__cam {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--k-papel);
+  color: var(--k-marca);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .2);
+}
+:root[data-tema="oscuro"] .kit-perfil-cara__cam { color: var(--k-marca-clara); }
+.kit-perfil-cara:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }

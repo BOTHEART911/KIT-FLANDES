@@ -288,6 +288,78 @@
   function numero(v) {
     return aNumero(v).toLocaleString('es-CO');
   }
+
+  /**
+   * 4.5 · EL CAMPO DE PESOS SE FORMATEA MIENTRAS SE ESCRIBE
+   *
+   * Hasta la 4.4 el campo se ordenaba al salir de él. Suena igual y no lo
+   * es: mientras la persona teclea ve "2500000" y ahí NADIE cuenta los
+   * ceros. Así es como se mete un dígito de más y se cobra diez veces lo
+   * que toca. La app vieja lo ponía bonito al vuelo, y es lo que Oss pide
+   * recuperar: "la app debe ser de fácil navegación".
+   *
+   * Lo delicado es el CURSOR. Si al reescribir el valor se manda el cursor
+   * al final, corregir una cifra por el medio es imposible. Aquí se cuenta
+   * cuántos DÍGITOS quedan a la izquierda del cursor y se vuelve a poner
+   * donde había ese mismo número de dígitos, que es lo único que no se
+   * descoloca cuando aparecen o desaparecen los puntos.
+   *
+   * EL FALLO DE LA 4.5, PARA QUE NO SE REPITA (cazado el 22/09 por Oss)
+   *
+   * La primera versión leía el número con aNumero() sobre el texto que ESTA
+   * MISMA función acababa de formatear. Y ahí está la trampa: con el campo
+   * en "4.200", teclear otro cero deja "4.2000", y aNumero lee eso como el
+   * decimal 4,2 — un punto con cuatro cifras detrás no es separador de
+   * miles. Resultado: el campo se quedaba en "4,2" y se guardaba un 4 donde
+   * iban cuatro millones doscientos mil.
+   *
+   * REGLA: aquí NUNCA se vuelve a leer el formato propio. Solo se miran los
+   * DÍGITOS. aNumero() es para lo que escribe una persona o lo que viene de
+   * la hoja, no para lo que escribió esta función.
+   *
+   * Devuelve una función para leer el número pelado, que es lo que se
+   * manda al CORE: en la hoja nunca entra un punto.
+   */
+  function pesosEnVivo(inp, alCambiar) {
+    if (!inp) return function () { return 0; };
+
+    /* Los dígitos y nada más. Un campo de pesos no lleva decimales: en la
+       hoja los valores son enteros y el formato de aquí no los admite. */
+    function digitos(t) { return String(t === null || t === undefined ? '' : t).replace(/\D/g, ''); }
+
+    function pintar() {
+      var crudo = inp.value;
+      var digitosAntes = digitos(crudo.slice(0, inp.selectionStart || 0)).length;
+
+      /* Un campo vacío se queda vacío: escribir un 0 de la nada hace que la
+         persona lo borre a cada rato. Y el "0" que teclea ella sí vale. */
+      var solo = digitos(crudo).replace(/^0+(?=\d)/, '');   /* 007 -> 7 */
+      var n = solo ? Number(solo) : 0;
+
+      inp.value = solo ? n.toLocaleString('es-CO') : '';
+
+      /* el cursor, donde volvían a estar esos mismos dígitos */
+      var pos = 0, vistos = 0;
+      while (pos < inp.value.length && vistos < digitosAntes) {
+        if (/\d/.test(inp.value[pos])) vistos++;
+        pos++;
+      }
+      try { inp.setSelectionRange(pos, pos); } catch (e) { /* type=tel en iOS a veces se queja */ }
+
+      if (typeof alCambiar === 'function') alCambiar(solo ? String(n) : '');
+    }
+
+    inp.addEventListener('input', pintar);
+    inp.addEventListener('blur', pintar);
+    /* Pegar un valor con puntos, comas o un $ delante entra igual: se
+       queda con los dígitos, que es lo que hay que guardar. */
+    inp.addEventListener('paste', function () { setTimeout(pintar, 0); });
+
+    /* el valor de arranque también pasa por el mismo filtro */
+    if (inp.value) pintar();
+
+    return function () { return Number(digitos(inp.value) || 0); };
+  }
   /** '2026-09-21' o Date → '21/09/2026'. Lo que no es fecha se devuelve tal cual. */
   function fecha(v) {
     if (!v) return '';
@@ -368,7 +440,7 @@
     pedir: pedir, problema: problema,
 
     medio: medio, precargar: precargar, sonar: sonar, vibrar: vibrar,
-    pesos: pesos, numero: numero, aNumero: aNumero, fecha: fecha,
+    pesos: pesos, numero: numero, aNumero: aNumero, pesosEnVivo: pesosEnVivo, fecha: fecha,
     aviso: aviso,
 
     /* ── 4.4 · RED DE SEGURIDAD DE LOS ICONOS ──

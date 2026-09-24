@@ -74,7 +74,8 @@
     }
 
     var hoja = K.nodo(
-      '<div class="kit-capa kit-conf" role="dialog" aria-modal="true">' +
+      '<div class="kit-capa kit-conf' + (o.peligro ? ' kit-conf--peligro' : '') +
+      '" role="dialog" aria-modal="true">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-conf__hoja">' +
       '    <header class="kit-capa__h">' + K.esc(o.titulo || 'Resumen de cambios') +
@@ -85,8 +86,9 @@
       (o.nota ? '<p class="kit-conf__nota">' + K.esc(o.nota) + '</p>' : '') +
       '    </div>' +
       '    <div class="kit-capa__pie kit-conf__pie">' +
+      (o.solo ? '' :
       '      <button type="button" class="kit-btn kit-btn--plano kit-conf__no">' +
-             K.esc(o.no || 'Editar') + '</button>' +
+             K.esc(o.no || 'Editar') + '</button>') +
       '      <button type="button" class="kit-btn kit-btn--marca kit-conf__si">' +
              K.esc(o.si || 'Confirmar') + '</button>' +
       '    </div>' +
@@ -97,7 +99,8 @@
     document.body.appendChild(hoja);
 
     hoja.querySelector('.kit-conf__si').addEventListener('click', function () { cerrar(true); });
-    hoja.querySelector('.kit-conf__no').addEventListener('click', function () { cerrar(false); });
+    var bNo = hoja.querySelector('.kit-conf__no');
+    if (bNo) bNo.addEventListener('click', function () { cerrar(false); });
     hoja.querySelector('.kit-capa__x').addEventListener('click', function () { cerrar(false); });
     hoja.querySelector('.kit-capa__velo').addEventListener('click', function () { cerrar(false); });
 
@@ -118,5 +121,58 @@
     return new Promise(function (res) { resolver = res; });
   }
 
-  K.piezas.confirmar = { abrir: abrir, cerrar: function () { cerrar(false); } };
+  /* ════════════════════════════════════════════════════════════
+     4.5 · NI UN CUADRO DEL SISTEMA
+
+     Oss mandó la captura del confirm de Chrome:
+
+         botheart911.github.io dice
+         Tienes cambios sin guardar. ¿Salir de todos modos?
+
+     Ese cuadro sale con el nombre del dominio, en el idioma del
+     sistema operativo, y no se le puede cambiar ni el texto ni los
+     botones. En una app que la gente instala en el teléfono,
+     enseñarle el dominio de GitHub es como enseñarle las tripas.
+
+     Así que la app se cubre entera:
+       preguntar()  sustituye a window.confirm
+       avisar()     sustituye a window.alert
+
+     Las dos devuelven promesa, igual que abrir(). El único cuadro
+     del navegador que queda es el de beforeunload, y ese se quitó
+     de raíz (ver kit/guardado.js y borrador.js).
+     ════════════════════════════════════════════════════════════ */
+
+  /** El confirm de la app. `peligro: true` pinta el botón en rojo. */
+  function preguntar(o) {
+    o = o || {};
+    return abrir({
+      titulo: o.titulo || '¿Seguimos?',
+      texto: o.texto || '',
+      lista: o.lista,
+      nota: o.nota,
+      si: o.si || 'Sí',
+      no: o.no || 'Cancelar',
+      peligro: o.peligro === true
+    });
+  }
+
+  /** El alert de la app: un solo botón, y se resuelve al cerrarse. */
+  function avisar(o) {
+    o = o || {};
+    return abrir({
+      titulo: o.titulo || 'Aviso',
+      texto: o.texto || '',
+      lista: o.lista,
+      nota: o.nota,
+      si: o.si || 'Entendido',
+      solo: true,
+      peligro: o.peligro === true
+    }).then(function () { return true; });
+  }
+
+  K.piezas.confirmar = {
+    abrir: abrir, preguntar: preguntar, avisar: avisar,
+    cerrar: function () { cerrar(false); }
+  };
 }());

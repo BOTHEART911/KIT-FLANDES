@@ -119,13 +119,17 @@
       b.disabled = true;
       b.classList.add('kit-ocupado');
 
-      (adj ? adj.aBase64() : Promise.resolve([]))
+      fotosListas(adj)
         .then(function (fotos) {
           return K.pedir('soporte', { mensaje: msj, contexto: ctx, fotos: fotos }, { ms: 90000 });
         })
-        .then(function () {
+        .then(function (r) {
           fuera();
-          K.aviso('Tu reporte llegó a soporte. Gracias.', 'ok', 5000);
+          /* 5.1.1: el CORE guarda en la hoja SOPORTE y avisa al grupo de
+             desarrollo. Se le da a la persona el número para que pueda
+             preguntar por él. */
+          var n = r && r.id ? ' Tu número es ' + r.id + '.' : '';
+          K.aviso('Tu solicitud quedó registrada y llegó a soporte.' + n, 'ok', 7000);
         })
         .catch(function (e) {
           b.disabled = false;
@@ -139,6 +143,24 @@
 
     setTimeout(function () { texto.focus(); }, 80);
     return { cerrar: fuera };
+  }
+
+  /**
+   * 5.1.1 · LAS FOTOS VIAJAN REDUCIDAS. Una captura de teléfono pesa de 2 a
+   * 8 MB y tres de ellas en base64 tumban el POST a Apps Script. Si la pieza
+   * de imágenes está cargada, cada foto se pasa a JPEG de 1.600 px antes de
+   * salir (la misma regla de las evidencias); si no, va tal cual.
+   */
+  function fotosListas(adj) {
+    if (!adj) return Promise.resolve([]);
+    var I = K.piezas.imagenes;
+    var lista = adj.archivos ? adj.archivos() : [];
+    if (!I || !I.preparar || !lista.length) return adj.aBase64();
+    return Promise.all(lista.map(function (f, i) {
+      return I.preparar(f).then(function (r) {
+        return { nombre: 'captura-' + (i + 1) + '.jpg', tipo: 'image/jpeg', datos: String(r.dataUrl).slice(String(r.dataUrl).indexOf(',') + 1) };
+      });
+    }));
   }
 
   function porWhatsapp(msj, ctx, hoja) {

@@ -43,39 +43,87 @@
   var reloj = null;
   var pct = 0;
   var pasos = PASOS;
-  var guardia = null;
-  var mensajeSalida = 'Se está guardando. Si sales ahora, puede quedar a medias.';
 
-  function noSalir(ev) {
-    ev.preventDefault();
-    ev.returnValue = mensajeSalida;
-    return ev.returnValue;
-  }
+  /*
+   * 4.5 · POR QUÉ YA NO HAY beforeunload
+   *
+   * Hasta la 4.4, mientras esta capa estaba abierta se registraba un
+   * beforeunload para que el navegador preguntara antes de salir. Eso es lo
+   * que producía el cuadro que Oss fotografió:
+   *
+   *     botheart911.github.io dice
+   *     Tienes cambios sin guardar. ¿Salir de todos modos?
+   *
+   * Ese cuadro NO se puede vestir: el navegador ignora el texto que se le
+   * pase, pone el nombre del dominio y lo escribe en el idioma del sistema.
+   * O sea: el único modo de que no salga es no pedirlo.
+   *
+   * Lo que lo sustituye, que además protege más:
+   *   · Esta capa tapa la pantalla entera mientras se guarda, así que salir
+   *     exige un gesto deliberado (cerrar la pestaña).
+   *   · El guardado se manda de una sola vez; si se corta, no queda medio
+   *     escrito: o entra o no entra.
+   *   · Lo que la persona escribe se guarda solo en el propio aparato
+   *     (ver kit/borrador local en borrador.js), así que cerrar a destiempo
+   *     no le pierde el texto.
+   */
 
   function crear() {
+    /* 4.5 · el cielo se puebla.
+       Oss dijo que el cohete estaba pobre. Lo que faltaba no era otro
+       dibujo: era que pasara algo. Ahora el cohete atraviesa un cielo con
+       estrellas que corren hacia atrás (eso es lo que da la sensación de
+       velocidad), suelta fuego por debajo y deja tres estelas; al terminar,
+       despega de verdad y el cielo se llena de confeti. Todo es CSS: ni una
+       imagen más que cargar. */
+    var estrellas = '';
+    for (var e = 0; e < 14; e++) estrellas += '<i class="kit-guard__estrella s' + (e % 7) + '"></i>';
+    var confeti = '';
+    for (var c = 0; c < 12; c++) confeti += '<i class="kit-guard__papel c' + (c % 6) + '"></i>';
+
     capa = K.nodo(
       '<div class="kit-guard" role="alertdialog" aria-live="assertive" aria-modal="true">' +
       '  <div class="kit-guard__caja">' +
       '    <div class="kit-guard__cielo">' +
+      '      <div class="kit-guard__estrellas" aria-hidden="true">' + estrellas + '</div>' +
       /* La nave lleva el VIAJE (se desplaza por el cielo) y el cohete de
          dentro solo la inclinación: separarlos es lo que deja combinar las
          dos cosas sin que una pise a la otra en el transform. */
       '      <span class="kit-guard__nave">' +
-      '        <span class="kit-guard__cohete">' + K.icono('cohete', 34) + '</span>' +
+      '        <span class="kit-guard__cohete">' + K.icono('cohete', 34) +
+      '          <i class="kit-guard__fuego" aria-hidden="true"></i>' +
+      '        </span>' +
       '      </span>' +
       '      <i class="kit-guard__estela e1"></i>' +
       '      <i class="kit-guard__estela e2"></i>' +
       '      <i class="kit-guard__estela e3"></i>' +
       '      <span class="kit-guard__ok">' + K.icono('check', 46) + '</span>' +
+      '      <div class="kit-guard__confeti" aria-hidden="true">' + confeti + '</div>' +
       '    </div>' +
       '    <div class="kit-guard__t"></div>' +
       '    <div class="kit-guard__p"></div>' +
       '    <div class="kit-guard__pista"><i class="kit-guard__bar"></i></div>' +
       '    <div class="kit-guard__paso"></div>' +
+      '    <div class="kit-guard__puntos" aria-hidden="true"></div>' +
       '  </div>' +
       '</div>'
     );
     document.body.appendChild(capa);
+  }
+
+  /** Un punto por paso. Se van marcando: dice cuánto falta de verdad. */
+  function pintarPuntos(cuantos, hecho) {
+    var caja = q('puntos');
+    if (!caja) return;
+    if (caja.children.length !== cuantos) {
+      var h = '';
+      for (var i = 0; i < cuantos; i++) h += '<i></i>';
+      caja.innerHTML = h;
+    }
+    for (var j = 0; j < caja.children.length; j++) {
+      caja.children[j].classList.toggle('kit-guard__punto--ok', j < hecho);
+      caja.children[j].classList.toggle('kit-guard__punto--ahora', j === hecho);
+    }
   }
 
   function q(clase) { return capa ? capa.querySelector('.kit-guard__' + clase) : null; }
@@ -87,13 +135,13 @@
     capa.classList.add('kit-guard--on');
 
     pasos = (op.pasos && op.pasos.length) ? op.pasos : PASOS;
-    mensajeSalida = op.salir || mensajeSalida;
 
     q('t').textContent = op.titulo || 'Guardando';
     /* el subtítulo admite <b> porque el texto suele llevar un énfasis */
     q('p').innerHTML = op.sub || 'No cierres esta ventana hasta que termine.';
     q('paso').textContent = pasos[0];
     q('bar').style.width = '0%';
+    pintarPuntos(pasos.length, 0);
 
     pct = 0;
     var i = 0;
@@ -108,18 +156,31 @@
       if (pct > 92) pct = 92;
       q('bar').style.width = pct.toFixed(1) + '%';
       var quiero = Math.min(pasos.length - 1, Math.floor(pct / (92 / pasos.length)));
-      if (quiero !== i) { i = quiero; q('paso').textContent = pasos[i]; }
+      if (quiero !== i) {
+        i = quiero;
+        /* el rótulo no cambia de golpe: se va y vuelve */
+        var nodo = q('paso');
+        nodo.classList.add('kit-guard__paso--cambia');
+        setTimeout(function () {
+          nodo.textContent = pasos[i];
+          nodo.classList.remove('kit-guard__paso--cambia');
+        }, 160);
+        pintarPuntos(pasos.length, i);
+      }
     }, 260);
 
-    if (!guardia) {
-      guardia = noSalir;
-      window.addEventListener('beforeunload', guardia);
-    }
+    /*
+     * 4.5 · NO SE REGISTRA beforeunload. Ver el comentario de arriba: ese
+     * es el cuadro del sistema que sale con el nombre del dominio, y el
+     * navegador no deja cambiarlo ni una coma. La capa ya tapa la pantalla
+     * entera y dice "no cierres"; y lo que se está guardando se manda al
+     * servidor de una vez, no en trozos, así que cerrar a mitad no deja
+     * nada a medias en la hoja.
+     */
   }
 
   function parar() {
     if (reloj) { clearInterval(reloj); reloj = null; }
-    if (guardia) { window.removeEventListener('beforeunload', guardia); guardia = null; }
   }
 
   function cerrar() {
@@ -140,6 +201,7 @@
       q('t').textContent = op.titulo || '¡Listo!';
       q('p').innerHTML = op.sub || 'Ya quedó guardado.';
       q('paso').textContent = op.paso || 'Guardado correctamente';
+      pintarPuntos(pasos.length, pasos.length);
       K.sonar('sound/pay_success.mp3');
       K.vibrar(14);
       setTimeout(function () { cerrar(); res(); }, op.espera || 1700);

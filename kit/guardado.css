@@ -148,3 +148,120 @@
   .kit-guard__nave { transform: none; opacity: 1; }
   .kit-guard__estela { opacity: .45; transform: none; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   4.5 · EL COHETE, CON ALGO QUE CONTAR
+
+   "Demasiado pobre", dijo Oss, y tenía razón: el cohete se movía
+   pero el cielo estaba quieto, y sin nada alrededor no hay
+   sensación de avanzar. Lo que se añade:
+
+     · estrellas que corren hacia atrás — es lo que da la
+       velocidad, no el cohete;
+     · fuego debajo del cohete, que tiembla;
+     · un punto por paso, que se va marcando: dice cuánto falta
+       de verdad, no como la barra, que va a ojo;
+     · el rótulo del paso se va y vuelve en vez de saltar;
+     · al terminar, el cohete despega y caen doce papelitos.
+
+   Todo con CSS. Ni una imagen ni una librería más.
+   ════════════════════════════════════════════════════════════ */
+
+.kit-guard__cielo { position: relative; overflow: hidden; }
+
+/* las estrellas */
+.kit-guard__estrellas { position: absolute; inset: 0; pointer-events: none; }
+.kit-guard__estrellas i {
+  position: absolute; right: -8px;
+  width: 2px; height: 2px; border-radius: 50%;
+  background: rgba(255, 255, 255, .85);
+  animation: kit-guard-estrella 2.2s linear infinite;
+}
+.kit-guard__estrellas i.s0 { top: 12%; animation-duration: 1.9s; animation-delay: -.2s; }
+.kit-guard__estrellas i.s1 { top: 26%; animation-duration: 2.6s; animation-delay: -.9s; width: 3px; height: 3px; }
+.kit-guard__estrellas i.s2 { top: 38%; animation-duration: 1.6s; animation-delay: -1.4s; }
+.kit-guard__estrellas i.s3 { top: 54%; animation-duration: 2.9s; animation-delay: -.5s; }
+.kit-guard__estrellas i.s4 { top: 67%; animation-duration: 2.1s; animation-delay: -1.8s; width: 3px; height: 3px; }
+.kit-guard__estrellas i.s5 { top: 79%; animation-duration: 2.4s; animation-delay: -1.1s; }
+.kit-guard__estrellas i.s6 { top: 90%; animation-duration: 1.8s; animation-delay: -.7s; }
+@keyframes kit-guard-estrella {
+  0%   { transform: translateX(0) scaleX(1); opacity: 0; }
+  10%  { opacity: .9; }
+  80%  { opacity: .9; }
+  100% { transform: translateX(-340px) scaleX(4); opacity: 0; }
+}
+
+/* el fuego del cohete */
+.kit-guard__cohete { position: relative; display: inline-block; }
+.kit-guard__fuego {
+  position: absolute; left: 50%; bottom: -7px;
+  width: 9px; height: 16px; margin-left: -4.5px;
+  border-radius: 50% 50% 45% 45%;
+  background: linear-gradient(180deg, #ffd166 0%, #f77f00 55%, rgba(247, 127, 0, 0) 100%);
+  transform-origin: 50% 0;
+  animation: kit-guard-fuego .18s ease-in-out infinite alternate;
+}
+@keyframes kit-guard-fuego {
+  from { transform: scaleY(.72) scaleX(.9); opacity: .85; }
+  to   { transform: scaleY(1.18) scaleX(1.08); opacity: 1; }
+}
+
+/* un punto por paso */
+.kit-guard__puntos {
+  display: flex; justify-content: center; gap: 7px;
+  margin-top: 12px;
+}
+.kit-guard__puntos i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--k-linea, rgba(0, 0, 0, .16));
+  transition: background .25s ease, transform .25s ease;
+}
+.kit-guard__punto--ok    { background: var(--k-ok, #1f9d55); }
+.kit-guard__punto--ahora {
+  background: var(--k-marca, #06402B);
+  animation: kit-guard-punto 1s ease-in-out infinite;
+}
+@keyframes kit-guard-punto {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.45); }
+}
+
+/* el rótulo del paso, que se va y vuelve */
+.kit-guard__paso { transition: opacity .16s ease, transform .16s ease; }
+.kit-guard__paso--cambia { opacity: 0; transform: translateY(-5px); }
+
+/* el confeti del final */
+.kit-guard__confeti { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.kit-guard--listo .kit-guard__confeti { opacity: 1; }
+.kit-guard__confeti i {
+  position: absolute; top: -12px;
+  width: 7px; height: 11px; border-radius: 1px;
+  opacity: 0;
+}
+.kit-guard--listo .kit-guard__confeti i {
+  animation: kit-guard-papel 1.5s cubic-bezier(.3, .7, .5, 1) forwards;
+}
+.kit-guard__confeti i.c0 { left: 10%; background: #ffd166; animation-delay: .04s; }
+.kit-guard__confeti i.c1 { left: 22%; background: #fff;    animation-delay: .16s; }
+.kit-guard__confeti i.c2 { left: 35%; background: #8ae6b4; animation-delay: .00s; }
+.kit-guard__confeti i.c3 { left: 48%; background: #ffd166; animation-delay: .22s; }
+.kit-guard__confeti i.c4 { left: 62%; background: #fff;    animation-delay: .10s; }
+.kit-guard__confeti i.c5 { left: 76%; background: #8ae6b4; animation-delay: .28s; }
+.kit-guard__confeti i:nth-child(n+7) { width: 5px; height: 8px; }
+@keyframes kit-guard-papel {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translateY(150px) rotate(420deg); opacity: 0; }
+}
+
+/* mientras se guarda, el cielo se apaga un poco al terminar */
+.kit-guard--listo .kit-guard__estrellas,
+.kit-guard--listo .kit-guard__fuego { opacity: 0; transition: opacity .3s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-guard__estrellas,
+  .kit-guard__confeti,
+  .kit-guard__fuego { display: none; }
+  .kit-guard__punto--ahora { animation: none; }
+  .kit-guard__paso--cambia { opacity: 1; transform: none; }
+}
