@@ -38,6 +38,7 @@ día con las copias de las cuatro apps publicadas el 23/09/2026.
 | `listas.js` | Patrón de carga única de listas (filtros locales, sin volver al servidor). |
 | `insights.js/.css` | El robot de cada vista: abre **directo** con la guía y las cifras, sin "Iniciar". La voz arranca sola si el CORE la tiene configurada. Se mueve con **clic sostenido** (medio segundo); un roce o un scroll no lo mueven. |
 | `exportar.js/.css` | Excel plano y **PDF gerencial por bloques** (membrete, cifras, una ficha por registro, agrupable). La tabla de antes sigue con `{ modo: 'tabla' }`. |
+| `compartir.js` | **10.5:** el botón COMPARTIR nativo del teléfono o del computador (`navigator.share`) con un texto armado; quien comparte escoge el destino. Sin ese botón, el texto queda copiado y se avisa. `texto({titulo, texto})` → `'nativo'`, `'copiado'` o `'cancelado'`. Íconos nuevos: `compartir` y `vencido`. |
 | `informe-cuentas.js` | Informe de las cuentas de UN contrato (Excel y PDF por bloques). Lo usan SUPERVISIÓN y CONTABILIDAD; va igual a TESORERÍA. |
 | `soporte.js/.css` | Soporte con hasta 3 fotos, que viajan reducidas. Al llegar le da a la persona su **número de solicitud**. Si el CORE no contesta, ofrece WhatsApp. **10.4:** calificación con **estrellas** de los casos resueltos (llega sola con `inicio`: el CORE pega `_soporte` y `K.pedir` dispara `kit:soporte`; con 1 o 2 estrellas se reabre) y **Mis solicitudes** (`soporteMios`). |
 | `conexion.js/.css` | "Es tu internet, no la app": barra sin conexión, atajos de rescate y errores traducidos. |
@@ -53,7 +54,7 @@ día con las copias de las cuatro apps publicadas el 23/09/2026.
 | `creditos.js/.css` | El pie: **Oscar Polania**, *Experto en soluciones digitales*. Lee `MARCA_AUTOR` de CONFIG. |
 | `version.js` | Detecta una publicación nueva, borra **solo** las cachés de esa app y recarga desde el inicio. |
 
-`buzon` solo lo usa CONTRATISTA hoy. `informe-cuentas` lo usan SUPERVISIÓN y CONTABILIDAD.
+`buzon` solo lo usa CONTRATISTA hoy. `compartir` lo usan SUPERVISIÓN y ADMIN (cuentas atrasadas); en las demás apps está la copia, sin cargar. `informe-cuentas` lo usan SUPERVISIÓN y CONTABILIDAD.
 
 ---
 
@@ -92,6 +93,7 @@ Después el kit, en este orden:
 <script src="kit/exportar.js"></script>
 <script src="kit/informe-cuentas.js"></script>   <!-- solo si la app lo usa -->
 <script src="kit/buzon.js"></script>             <!-- solo si la app lo usa -->
+<script src="kit/compartir.js"></script>         <!-- solo si la app lo usa -->
 ```
 
 Cada `.css` va en el `<head>` con su pareja. Una app puede dejar fuera las

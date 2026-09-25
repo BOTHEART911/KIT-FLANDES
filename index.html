@@ -194,6 +194,14 @@
   </div>
 
   <div class="kit-tarjeta pieza">
+    <h2><i>+</i> Compartir nativo</h2>
+    <p>10.5 · Abre el compartir del teléfono o del computador con un texto ya escrito. Sin ese botón, el texto queda copiado.</p>
+    <div class="fila">
+      <button class="kit-btn kit-btn--marca" id="b-compartir">Compartir un texto</button>
+    </div>
+  </div>
+
+  <div class="kit-tarjeta pieza">
     <h2><i>+</i> Confirmar</h2>
     <p>Sustituye al confirm y al alert del navegador, que enseñan el dominio de GitHub. Devuelve una promesa.</p>
     <div class="fila">
@@ -305,6 +313,7 @@ window.MARCA = {
 <script src="kit/bienvenida.js"></script>
 <script src="kit/avisos.js"></script>
 <script src="kit/informe-cuentas.js"></script>
+<script src="kit/compartir.js"></script>
 
 <script>
 (function () {
@@ -639,6 +648,12 @@ window.MARCA = {
     (l.length > 1 ? K.piezas.imagenes.collage(l) : K.piezas.imagenes.preparar(l[0])).then(function (r) {
       K.id('img-eco').textContent = (l.length > 1 ? 'Collage de ' + l.length + ': ' : '') + r.ancho + ' × ' + r.alto + ' px · ' + r.pesoKB + ' KB en JPEG';
     }, function () { K.id('img-eco').textContent = 'No se pudo abrir esa imagen.'; });
+  });
+
+  /* 10.5 · compartir nativo */
+  K.id('b-compartir').addEventListener('click', function () {
+    K.piezas.compartir.texto({ titulo: 'Prueba del kit', texto: '*CUENTAS ATRASADAS* · Supervisión de prueba\n\n1. *Ana Pérez* — cuenta 3 de 6, venció el 07/09/2026' })
+      .then(function (como) { K.aviso('Resultado: ' + como, 'info', 2500); });
   });
 
   /* iconos */

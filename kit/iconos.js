@@ -233,7 +233,17 @@
       '<path d="M12 3.3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.7l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/>',
     'salvavidas':
       '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6"/>' +
-      '<path d="M5.9 5.9l3.6 3.6M14.5 14.5l3.6 3.6M18.1 5.9l-3.6 3.6M9.5 14.5l-3.6 3.6"/>'
+      '<path d="M5.9 5.9l3.6 3.6M14.5 14.5l3.6 3.6M18.1 5.9l-3.6 3.6M9.5 14.5l-3.6 3.6"/>',
+
+    /* ---------- 10.5: cuentas atrasadas ---------- */
+    /* el de compartir de Android / Windows: tres nodos unidos */
+    'compartir':
+      '<circle cx="17.6" cy="5.8" r="2.6"/><circle cx="6.4" cy="12" r="2.6"/><circle cx="17.6" cy="18.2" r="2.6"/>' +
+      '<path d="M8.7 10.7l6.6-3.6M8.7 13.3l6.6 3.6"/>',
+    /* calendario con un signo de alerta: el plazo ya se venció */
+    'vencido':
+      '<rect x="3.4" y="4.8" width="17.2" height="15.8" rx="2.4"/><path d="M3.4 9.6h17.2M8 3v3.4M16 3v3.4"/>' +
+      '<path d="M12 12.4v3.6"/><circle cx="12" cy="18.1" r=".9" fill="currentColor" stroke="none"/>'
   };
 
   function svg(nombre, tam) {
