@@ -157,7 +157,10 @@
   <div class="kit-tarjeta pieza">
     <h2><i>13</i> Soporte</h2>
     <p>Con hasta tres fotos, que viajan reducidas a JPEG de 1.600 px. Al llegar le da a la persona su número de solicitud. Enseña todo lo que va a mandar, sin esconderlo.</p>
-    <div class="fila"><button class="kit-btn kit-btn--marca" id="b-soporte">Contar un problema</button></div>
+    <p>10.4: cuando un caso queda resuelto, la próxima vez que la persona abre cualquier app le salen las <b>estrellas</b> (con 1 o 2 el caso se reabre). Desde el modal ve <b>sus solicitudes</b> y en qué van.</p>
+    <div class="fila"><button class="kit-btn kit-btn--marca" id="b-soporte">Contar un problema</button>
+      <button class="kit-btn" id="b-estrellas">Calificar un soporte</button>
+      <button class="kit-btn" id="b-mias">Mis solicitudes</button></div>
   </div>
 
   <div class="kit-tarjeta pieza">
@@ -501,6 +504,23 @@ window.MARCA = {
   /* 13 · soporte */
   K.id('b-soporte').addEventListener('click', function () {
     K.piezas.soporte.abrir({ vista: 'Demostración del kit' });
+  });
+  /* 10.4 · estrellas y mis solicitudes, con datos de ejemplo (no viaja nada) */
+  var CASO_DEMO = { id: 'SOP0100', app: 'CONTRATISTA', tipo: 'CARGADO POR ADMIN', fecha: '24/09/2026 20:10:00',
+    solicitud: 'No le abre el Drive de la cuenta 5.', respuesta: 'Se le compartió la carpeta a su correo nuevo y se probó con él.',
+    respondidoPor: 'OSCAR MAURICIO POLANIA GUERRA', fechaRespuesta: '24/09/2026 20:12:00', reabierto: 0 };
+  K.id('b-estrellas').addEventListener('click', function () {
+    var pedir = K.pedir;
+    K.pedir = function (a, d) { K.pedir = pedir; return Promise.resolve({ reabierto: d.estrellas <= 2, pendientes: [] }); };
+    K.piezas.soporte.calificar(CASO_DEMO, { reabreHasta: 2, comentarioHasta: 3 });
+  });
+  K.id('b-mias').addEventListener('click', function () {
+    var pedir = K.pedir;
+    K.pedir = function () { K.pedir = pedir; return Promise.resolve({ total: 2, reabreHasta: 2, comentarioHasta: 3, lista: [
+      Object.assign({ estado: 'RESUELTO', porCalificar: true }, CASO_DEMO),
+      { id: 'SOP0098', app: 'CONTRATISTA', estado: 'CERRADO', fecha: '20/09/2026 09:00:00', solicitud: 'No me deja reportar la cuenta.',
+        respuesta: 'La cuenta anterior no estaba cerrada; ya quedó.', respondidoPor: 'OSCAR POLANIA', estrellas: 5, comentario: 'Muy rápido' }] }); };
+    K.piezas.soporte.mias();
   });
 
   /* 14 · conexión */

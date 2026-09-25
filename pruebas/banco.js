@@ -2973,6 +2973,224 @@ ${js}
   }
 
 
+  /* ═══════════ SOPORTE 10.4 · estrellas, reabrir y mis solicitudes ═══════════ */
+  grupo('soporte104');
+  {
+    const { page, ctx } = await pagina(browser, ['soporte', 'adjuntos', 'imagenes', 'esqueletos', 'personas']);
+    const CASO = { id: 'SOP0100', app: 'CONTRATISTA', tipo: 'CARGADO POR ADMIN', fecha: '24/09/2026 20:10:00',
+                   solicitud: 'No le abre el Drive de la cuenta 5', respuesta: 'Se le compartió la carpeta a su correo nuevo',
+                   respondidoPor: 'OSCAR MAURICIO POLANIA GUERRA', fechaRespuesta: '24/09/2026 20:12:00', reabierto: 0 };
+    const limpiar = () => page.evaluate(() => { document.querySelectorAll('.kit-capa').forEach(x => x.remove()); document.querySelectorAll('.kit-aviso').forEach(x => x.remove()); });
+
+    await prueba('los iconos estrella y salvavidas existen', async () => {
+      igual(await page.evaluate(() => [KIT.piezas.iconos.hay('estrella'), KIT.piezas.iconos.hay('salvavidas')]), [true, true]);
+    });
+
+    await prueba('K.pedir: si "inicio" trae _soporte, se abren las estrellas sin otro viaje', async () => {
+      const r = await page.evaluate(async (caso) => {
+        window.__llamadas = 0;
+        window.fetch = () => { window.__llamadas++; return Promise.resolve({ text: () => Promise.resolve(JSON.stringify({ ok: true, data: { yo: {}, _soporte: { pendientes: [caso], reabreHasta: 2, comentarioHasta: 3 } } })) }); };
+        const d = await KIT.pedir('inicio', {});
+        await new Promise(r => setTimeout(r, 1500));
+        const c = document.querySelector('.kit-est-capa');
+        return [window.__llamadas, !!d.yo, !!c, c && c.querySelector('.kit-est__cab b').textContent, c && c.querySelector('.kit-est__resp').textContent];
+      }, CASO);
+      igual(r, [1, true, true, 'SOP0100', 'Se le compartió la carpeta a su correo nuevo']);
+    });
+
+    await prueba('4 estrellas: "Buena", comentario opcional y se guarda', async () => {
+      const r = await page.evaluate(async () => {
+        window.__cal = null;
+        KIT.pedir = (a, d) => { window.__cal = [a, d]; return Promise.resolve({ reabierto: false, pendientes: [], soporte: {} }); };
+        window.__av = []; const av = KIT.aviso; KIT.aviso = (t, ...x) => { window.__av.push(t); return av(t, ...x); };
+        const capa = document.querySelector('.kit-est-capa');
+        const antes = capa.querySelector('.kit-est__si').disabled;
+        capa.querySelectorAll('.kit-est__b')[3].click();
+        const et = capa.querySelector('.kit-est__et').textContent;
+        const encendidas = capa.querySelectorAll('.kit-est__b--on').length;
+        const oculto = capa.querySelector('.kit-est__com').classList.contains('kit-oculto');
+        capa.querySelector('.kit-est__si').click();
+        await new Promise(r => setTimeout(r, 300));
+        return [antes, et, encendidas, oculto, window.__cal, !!document.querySelector('.kit-est-capa'), window.__av.some(t => /Gracias/.test(t) && /SOP0100/.test(t))];
+      });
+      igual(r, [true, 'Buena', 4, false, ['soporteCalificar', { id: 'SOP0100', estrellas: 4, comentario: '' }], false, true]);
+    });
+
+    await prueba('2 estrellas sin comentario: no viaja y lo pide', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        window.__cal = null;
+        KIT.pedir = (a, d) => { window.__cal = [a, d]; return Promise.resolve({ reabierto: true, pendientes: [] }); };
+        KIT.piezas.soporte.calificar(Object.assign({}, caso, { id: 'SOP0101' }), { reabreHasta: 2, comentarioHasta: 3 });
+        const capa = document.querySelector('.kit-est-capa');
+        capa.querySelectorAll('.kit-est__b')[1].click();
+        const boton = capa.querySelector('.kit-est__si').textContent;
+        const etiqueta = capa.querySelector('.kit-est__com span').textContent;
+        capa.querySelector('.kit-est__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const error = capa.querySelector('.kit-sop__error').textContent;
+        return [window.__cal, boton, /obligatorio/.test(etiqueta), /qué faltó/.test(error), capa.querySelector('.kit-est__et').className.indexOf('malo') >= 0];
+      }, CASO);
+      igual(r, [null, 'Calificar y reabrir', true, true, true]);
+    });
+
+    await prueba('2 estrellas con comentario: se reabre y lo dice', async () => {
+      const r = await page.evaluate(async () => {
+        window.__av = []; const av = KIT.aviso; KIT.aviso = (t, ...x) => { window.__av.push(t); return av(t, ...x); };
+        const capa = document.querySelector('.kit-est-capa');
+        capa.querySelector('textarea').value = 'Sigo sin ver la carpeta';
+        capa.querySelector('.kit-est__si').click();
+        await new Promise(r => setTimeout(r, 300));
+        return [window.__cal, !!document.querySelector('.kit-est-capa'), window.__av.some(t => /Volvimos a abrir el caso SOP0101/.test(t))];
+      });
+      igual(r, [['soporteCalificar', { id: 'SOP0101', estrellas: 2, comentario: 'Sigo sin ver la carpeta' }], false, true]);
+    });
+
+    await prueba('con reabreHasta 1, dos estrellas ya no reabren', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        KIT.piezas.soporte.calificar(Object.assign({}, caso, { id: 'SOP0102' }), { reabreHasta: 1, comentarioHasta: 3 });
+        const capa = document.querySelector('.kit-est-capa');
+        capa.querySelectorAll('.kit-est__b')[1].click();
+        return capa.querySelector('.kit-est__si').textContent;
+      }, CASO);
+      igual(r, 'Calificar');
+    });
+
+    await prueba('"Después" cierra y ese caso no se vuelve a ofrecer en la visita; uno nuevo sí', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        KIT.piezas.soporte.pendientes({ pendientes: [Object.assign({}, caso, { id: 'SOP0110' })] });
+        const a = !!document.querySelector('.kit-est-capa');
+        document.querySelector('.kit-est__luego').click();
+        await new Promise(r => setTimeout(r, 500));
+        KIT.disparar('kit:soporte', { pendientes: [Object.assign({}, caso, { id: 'SOP0110' })] });
+        await new Promise(r => setTimeout(r, 200));
+        const b = !!document.querySelector('.kit-est-capa');
+        KIT.disparar('kit:soporte', { pendientes: [Object.assign({}, caso, { id: 'SOP0111' })] });
+        await new Promise(r => setTimeout(r, 200));
+        const c = document.querySelector('.kit-est-capa .kit-est__cab b');
+        return [a, b, c && c.textContent];
+      }, CASO);
+      igual(r, [true, false, 'SOP0111']);
+    });
+
+    await prueba('dos pendientes: al calificar el primero sale el segundo', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        KIT.pedir = () => Promise.resolve({ reabierto: false, pendientes: [] });
+        KIT.piezas.soporte.pendientes({ pendientes: [Object.assign({}, caso, { id: 'SOP0120' }), Object.assign({}, caso, { id: 'SOP0121' })] });
+        const uno = document.querySelector('.kit-est-capa .kit-est__cab b').textContent;
+        document.querySelectorAll('.kit-est__b')[4].click();
+        document.querySelector('.kit-est__si').click();
+        await new Promise(r => setTimeout(r, 900));
+        const dos = document.querySelector('.kit-est-capa .kit-est__cab b');
+        return [uno, dos && dos.textContent, document.querySelectorAll('.kit-est-capa').length];
+      }, CASO);
+      igual(r, ['SOP0120', 'SOP0121', 1]);
+    });
+
+    await prueba('las flechas del teclado mueven la calificación', async () => {
+      const r = await page.evaluate(() => {
+        const z = document.querySelector('.kit-est');
+        z.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        z.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        z.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+        return [document.querySelectorAll('.kit-est__b--on').length, document.querySelector('.kit-est__b[aria-checked="true"]').getAttribute('aria-label')];
+      });
+      igual(r, [1, '1 estrella · Muy mala']);
+    });
+
+    await prueba('Escape cierra la capa de estrellas', async () => {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(100);
+      igual(await page.locator('.kit-est-capa').count(), 0);
+    });
+
+    await prueba('el texto del caso entra como texto, no como HTML', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        KIT.piezas.soporte.calificar(Object.assign({}, caso, { id: 'SOP0130', solicitud: '<img src=x onerror="window.__xss=1">' }), {});
+        return [document.querySelector('.kit-est__sol').textContent.indexOf('<img') === 0, !!document.querySelector('.kit-est__sol img'), !!window.__xss];
+      }, CASO);
+      igual(r, [true, false, false]);
+    });
+
+    await prueba('Mis solicitudes: pinta cada caso con su estado, respuesta y estrellas', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = (a) => Promise.resolve(a !== 'soporteMios' ? {} : { total: 3, reabreHasta: 2, comentarioHasta: 3, lista: [
+          { id: 'SOP0200', app: 'CONTRATISTA', estado: 'RESUELTO', fecha: '24/09/2026 10:00:00', solicitud: 'A', respuesta: 'B', respondidoPor: 'OSCAR POLANIA', porCalificar: true },
+          { id: 'SOP0199', app: 'SUPERVISION', estado: 'CERRADO', fecha: '23/09/2026 10:00:00', solicitud: 'C', respuesta: 'D', estrellas: 5, comentario: 'Rápido' },
+          { id: 'SOP0198', app: 'CONTRATISTA', estado: 'PENDIENTE', fecha: '22/09/2026 10:00:00', solicitud: 'E' }] });
+        KIT.piezas.soporte.mias();
+        await new Promise(r => setTimeout(r, 700));
+        const cs = [...document.querySelectorAll('.kit-mias__c')];
+        return [cs.length, cs.map(c => c.querySelector('.kit-mias__est').className.replace('kit-mias__est kit-mias__est--', '')),
+                cs[1].querySelectorAll('.kit-est__v--on').length, /Rápido/.test(cs[1].textContent), !!cs[0].querySelector('.kit-mias__cal'),
+                !!cs[2].querySelector('.kit-mias__resp'), !!cs[1].querySelector('.kit-mias__cal')];
+      });
+      igual(r, [3, ['ok', 'nada', 'aviso'], 5, true, true, false, false]);
+    });
+
+    await prueba('Mis solicitudes: "Calificar" abre las estrellas de ese caso', async () => {
+      const r = await page.evaluate(async () => {
+        document.querySelector('.kit-mias__cal').click();
+        await new Promise(r => setTimeout(r, 100));
+        const c = document.querySelector('.kit-est-capa .kit-est__cab b');
+        return c && c.textContent;
+      });
+      igual(r, 'SOP0200');
+    });
+
+    await prueba('Mis solicitudes: vacío con mensaje y error con Reintentar', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = () => Promise.resolve({ lista: [], total: 0 });
+        KIT.piezas.soporte.mias();
+        await new Promise(r => setTimeout(r, 600));
+        const vacio = /Todavía no has pedido soporte/.test(document.querySelector('.kit-mias__lista').textContent);
+        document.querySelectorAll('.kit-capa').forEach(x => x.remove());
+        KIT.pedir = () => Promise.reject(new Error('Sin conexión'));
+        KIT.piezas.soporte.mias();
+        await new Promise(r => setTimeout(r, 600));
+        const l = document.querySelector('.kit-mias__lista');
+        return [vacio, /Sin conexión/.test(l.textContent), !!l.querySelector('button')];
+      });
+      igual(r, [true, true, true]);
+    });
+
+    await prueba('el modal de soporte lleva a Mis solicitudes', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = () => Promise.resolve({ lista: [], total: 0 });
+        KIT.piezas.soporte.abrir({ vista: 'Inicio' });
+        document.querySelector('.kit-sop__mias').click();
+        await new Promise(r => setTimeout(r, 300));
+        return [!!document.querySelector('.kit-mias'), !!document.querySelector('.kit-sop__si')];
+      });
+      igual(r, [true, false]);
+    });
+
+    await prueba('modo oscuro: las estrellas encendidas se ven doradas y la tarjeta oscura', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        document.documentElement.setAttribute('data-tema', 'oscuro');
+        KIT.piezas.soporte.calificar(Object.assign({}, caso, { id: 'SOP0140' }), {});
+        document.querySelectorAll('.kit-est__b')[2].click();
+        const on = getComputedStyle(document.querySelector('.kit-est__b--on')).color;
+        const off = getComputedStyle(document.querySelectorAll('.kit-est__b')[4]).color;
+        const hoja = getComputedStyle(document.querySelector('.kit-est-capa .kit-capa__hoja')).backgroundColor;
+        document.documentElement.setAttribute('data-tema', 'claro');
+        return [on, on !== off, hoja];
+      }, CASO);
+      igual(r.slice(0, 2), ['rgb(245, 167, 10)', true]);
+      cierto(r[2] !== 'rgb(255, 255, 255)', 'la hoja no debía quedar blanca en oscuro: ' + r[2]);
+    });
+
+    await ctx.close();
+  }
+
   await browser.close();
   try { fs.unlinkSync(path.join(RAIZ, '__banco.html')); } catch (e) {}
 

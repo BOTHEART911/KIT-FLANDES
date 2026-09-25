@@ -16,6 +16,25 @@ const KIT = path.resolve(__dirname, '..', 'salida', 'KIT-FLANDES', 'kit');
 
 /* [archivo, grupo del banco, qué se rompe, texto original, texto mutado] */
 const MUTACIONES = [
+  /* 10.4 · soporte profesional */
+  ['kit.js', 'soporte104', 'K.pedir ya no avisa de los soportes por calificar',
+    "setTimeout(function () { disparar('kit:soporte', sop); }, 1200);", ''],
+  ['soporte.js', 'soporte104', 'con 2 estrellas no se pide el comentario',
+    "if (elegido <= reabre && c.length < 5)", "if (elegido < reabre && c.length < 5)"],
+  ['soporte.js', 'soporte104', '"Después" no recuerda el caso y vuelve a salir',
+    "if (!c || !c.id || VISTOS[c.id]) return;", "if (!c || !c.id) return;"],
+  ['soporte.js', 'soporte104', 'no pasa al siguiente pendiente',
+    "      setTimeout(siguiente, 450);", ''],
+  ['soporte.js', 'soporte104', 'la solicitud entra como HTML',
+    "hoja.querySelector('.kit-est__sol').textContent = dato(caso.solicitud);", "hoja.querySelector('.kit-est__sol').innerHTML = dato(caso.solicitud);"],
+  ['soporte.js', 'soporte104', 'viajan las estrellas equivocadas',
+    "{ id: caso.id, estrellas: elegido, comentario: c }", "{ id: caso.id, estrellas: elegido - 1, comentario: c }"],
+  ['soporte.js', 'soporte104', 'Mis solicitudes no ofrece calificar',
+    "        if (x.porCalificar) {", "        if (false) {"],
+  ['soporte.js', 'soporte104', 'Escape no cierra las estrellas',
+    "    function tecla(e) { if (e.key === 'Escape') fuera(null); }", "    function tecla(e) {}"],
+  ['soporte.css', 'soporte104', 'la estrella encendida no se rellena',
+    ".kit-est__b--on { color: #f5a70a; }", ".kit-est__b--on { }"],
   ['kit.js', 'nucleo', 'norm() vuelve a comerse la Ñ',
     ".replace(/ñ/g, '\\u0001').replace(/Ñ/g, '\\u0002')", ''],
   ['kit.js', 'nucleo', 'pesos() toma el punto de miles por decimal',

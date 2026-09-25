@@ -224,7 +224,16 @@
       '<path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',
     'arrastrar':
       '<path d="M12 3v18"/><path d="M3 12h18"/><path d="M9 6l3-3 3 3"/><path d="M9 18l3 3 3-3"/>' +
-      '<path d="M6 9l-3 3 3 3"/><path d="M18 9l3 3-3 3"/>'
+      '<path d="M6 9l-3 3 3 3"/><path d="M18 9l3 3-3 3"/>',
+
+    /* ---------- 10.4: soporte profesional ---------- */
+    /* la estrella se rellena desde el CSS (.kit-est__b--on) para que la
+       misma figura sirva vacia y llena */
+    'estrella':
+      '<path d="M12 3.3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.7l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/>',
+    'salvavidas':
+      '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6"/>' +
+      '<path d="M5.9 5.9l3.6 3.6M14.5 14.5l3.6 3.6M18.1 5.9l-3.6 3.6M9.5 14.5l-3.6 3.6"/>'
   };
 
   function svg(nombre, tam) {

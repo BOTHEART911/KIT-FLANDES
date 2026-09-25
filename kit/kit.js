@@ -177,7 +177,16 @@
           throw problema('RESPUESTA_NO_JSON',
             'El servidor respondió algo que no es JSON. Suele ser el despliegue mal publicado.');
         }
-        if (j && j.ok) return j.data;
+        if (j && j.ok) {
+          /* 10.4 · el CORE pega '_soporte' a 'inicio' (y al login) cuando la
+             persona tiene un soporte resuelto por calificar: la pieza de
+             soporte abre las estrellas sin pedir otro viaje. */
+          if (j.data && j.data._soporte) {
+            var sop = j.data._soporte;
+            setTimeout(function () { disparar('kit:soporte', sop); }, 1200);
+          }
+          return j.data;
+        }
         var p = problema((j && j.codigo) || 'ERROR', (j && j.error) || 'El servidor no pudo atender la solicitud.');
         if (p.codigo === 'SESION_VENCIDA' || p.codigo === 'SIN_SESION') ponerToken('');
         throw p;
