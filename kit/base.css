@@ -154,6 +154,12 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
 }
 .kit-btn--malo { background: var(--k-malo); border-color: transparent; color: #fff; }
 .kit-btn--plano { background: transparent; border-color: transparent; box-shadow: none; }
+/* 10.6 · el botón plano de peligro (Retirar, Quitar, Eliminar sesión): antes
+   heredaba el texto blanco de --malo sobre el fondo transparente de --plano
+   y quedaba INVISIBLE. Texto rojo con borde suave. */
+.kit-btn--plano.kit-btn--malo { background: transparent; color: var(--k-malo); border-color: rgba(220, 38, 38, .35); }
+.kit-btn--plano.kit-btn--malo:hover { background: var(--k-malo-fondo); }
+:root[data-tema="oscuro"] .kit-btn--plano.kit-btn--malo { color: #f87171; border-color: rgba(248, 113, 113, .4); }
 
 .kit-tarjeta {
   background: var(--k-papel);

@@ -243,7 +243,17 @@
     /* calendario con un signo de alerta: el plazo ya se venció */
     'vencido':
       '<rect x="3.4" y="4.8" width="17.2" height="15.8" rx="2.4"/><path d="M3.4 9.6h17.2M8 3v3.4M16 3v3.4"/>' +
-      '<path d="M12 12.4v3.6"/><circle cx="12" cy="18.1" r=".9" fill="currentColor" stroke="none"/>'
+      '<path d="M12 12.4v3.6"/><circle cx="12" cy="18.1" r=".9" fill="currentColor" stroke="none"/>',
+
+    /* ---------- 10.6: tableros de ADMIN ---------- */
+    /* barras sobre un eje: el tablero general del ecosistema */
+    'grafica':
+      '<path d="M3.5 3.5v17h17"/><rect x="7" y="12" width="3" height="5.5" rx=".6"/>' +
+      '<rect x="12" y="8" width="3" height="9.5" rx=".6"/><rect x="17" y="5" width="3" height="12.5" rx=".6"/>',
+    /* velocimetro: cuanto se demora cada area en revisar */
+    'velocimetro':
+      '<path d="M4.2 17.5a9 9 0 1 1 15.6 0"/><path d="M12 13.6l4.2-4.6"/><circle cx="12" cy="14.4" r="1.4"/>' +
+      '<path d="M6.6 11.2l1.2.7M12 6.5v1.4M17.4 11.2l-1.2.7"/>'
   };
 
   function svg(nombre, tam) {
