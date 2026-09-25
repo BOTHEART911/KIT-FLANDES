@@ -2298,9 +2298,122 @@ ${js}
         'las cachés de las otras apps NO se tocan: las siete viven en el mismo origen');
     });
 
+    await prueba('25/09 · limpiarCaches(nuevo) respeta la caché que está llenando el service worker nuevo', async () => {
+      const quedan = await page.evaluate(async () => {
+        await caches.open('contratista-v2026.09.25.1');
+        await caches.open('contratista-v2026.09.25.2');
+        await caches.open('tesoreria-v1');
+        await KIT.piezas.version.limpiarCaches('2026.09.25.2');
+        return (await caches.keys()).sort();
+      });
+      igual(quedan.filter(k => k.indexOf('contratista-') === 0), ['contratista-v2026.09.25.2'], 'solo se va la vieja de esta app');
+      cierto(quedan.indexOf('tesoreria-v1') >= 0, 'las de otras apps no se tocan');
+    });
+
+    await prueba('25/09 · sin vigilar(), listo() abre de una (no frena a nadie)', async () => {
+      const r = await page.evaluate(() => KIT.piezas.version.listo());
+      falso(r, 'listo() sin vigilar resuelve false');
+    });
+
+    await prueba('25/09 · KIT.pedir no sale hasta que la pieza de versión abre la puerta', async () => {
+      const r = await page.evaluate(async () => {
+        const antes = window.fetch, v = KIT.piezas.version, listoAntes = v.listo;
+        let llamadas = 0, abrir;
+        window.fetch = () => { llamadas++; return Promise.resolve(new Response('{"ok":true,"data":{"x":1}}')); };
+        v.listo = () => new Promise(res => { abrir = res; });
+        const pr = KIT.pedir('algo', {});
+        await new Promise(r => setTimeout(r, 150));
+        const mientras = llamadas;
+        abrir(false);
+        const d = await pr;
+        window.fetch = antes; v.listo = listoAntes;
+        return { mientras, despues: llamadas, x: d.x };
+      });
+      igual(r.mientras, 0, 'con la puerta cerrada no puede salir ninguna llamada al CORE');
+      igual(r.despues, 1, 'al abrirse sale una sola');
+      igual(r.x, 1, 'y trae su respuesta');
+    });
+
+    await prueba('25/09 · la respuesta rota (el 404 en HTML de Google) da el mensaje de intermitencias', async () => {
+      const r = await page.evaluate(async () => {
+        const antes = window.fetch;
+        window.fetch = () => Promise.resolve(new Response('<!DOCTYPE html><html>404</html>', { status: 404 }));
+        let e = null; try { await KIT.pedir('inicio', {}); } catch (x) { e = x; }
+        window.fetch = antes;
+        return { codigo: e && e.codigo, msg: e && e.message };
+      });
+      igual(r.codigo, 'RESPUESTA_NO_JSON', 'el código no cambia: las apps lo usan para reintentar');
+      igual(r.msg, 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.', 'texto pedido por Oss');
+      falso(/JSON|despliegue/i.test(r.msg), 'nunca se le habla de JSON ni de despliegues a la persona');
+    });
+
     await prueba('el número cargado se puede fingir para probar', async () => {
       const n = await page.evaluate(() => { KIT.piezas.version._fijar('2026.01.01.1'); return KIT.piezas.version.numero(); });
       igual(n, '2026.01.01.1', 'número fijado');
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ 25/09 · UN TROPIEZO DE RED NO CIERRA LA SESIÓN ═══════════ */
+  grupo('sesionRed');
+  {
+    const { page, ctx } = await pagina(browser, ['conexion', 'sesion']);
+
+    const arrancar = (codigos) => page.evaluate(async (codigos) => {
+      document.querySelectorAll('.kit-resc,.kit-sesion').forEach(n => n.remove());
+      KIT.ponerToken('tk-prueba');
+      let n = 0;
+      await KIT.piezas.sesion.entrar({
+        titulo: 'PRUEBA',
+        comprobar: () => { const c = codigos[Math.min(n++, codigos.length - 1)]; return c ? Promise.reject(KIT.problema(c, 'x')) : Promise.resolve({ documento: '1' }); },
+        alEntrar: () => { window.__entro = true; }
+      });
+      await new Promise(r => setTimeout(r, 400));
+      return {
+        llamadas: n, token: KIT.token(),
+        rescate: !!document.querySelector('.kit-resc'),
+        puerta: !!document.querySelector('.kit-sesion'),
+        texto: (document.querySelector('.kit-resc') || {}).innerText || ''
+      };
+    }, codigos);
+
+    await prueba('red caída dos veces: reintenta una vez, avisa y la sesión sigue', async () => {
+      const r = await arrancar(['SIN_RED', 'SIN_RED']);
+      igual(r.llamadas, 2, 'un reintento automático');
+      cierto(!!r.token, 'el token NO se borra');
+      cierto(r.rescate && !r.puerta, 'sale el aviso con Reintentar, no la puerta de entrada');
+    });
+
+    await prueba('respuesta rota: el aviso trae el texto de intermitencias', async () => {
+      const r = await arrancar(['RESPUESTA_NO_JSON', 'RESPUESTA_NO_JSON']);
+      cierto(r.texto.indexOf('Quizás tu internet presenta intermitencias') >= 0, 'texto: ' + r.texto.slice(0, 80));
+      cierto(!!r.token, 'token intacto');
+    });
+
+    await prueba('un tropiezo y luego bien: entra sin que la persona note nada', async () => {
+      await page.evaluate(() => { window.__entro = false; });
+      const r = await arrancar(['TIEMPO', null]);
+      cierto(await page.evaluate(() => window.__entro), 'entró al segundo intento');
+      cierto(!r.rescate && !r.puerta, 'sin avisos');
+    });
+
+    await prueba('sesión vencida de verdad: sí se borra y va a la puerta', async () => {
+      const r = await arrancar(['SESION_VENCIDA']);
+      igual(r.llamadas, 1, 'no se reintenta lo que el CORE ya rechazó');
+      falso(!!r.token, 'token borrado');
+      cierto(r.puerta, 'puerta de entrada');
+    });
+
+    await prueba('cerrar el aviso sin escoger también reintenta (no deja la pantalla vacía)', async () => {
+      const r = await page.evaluate(async () => {
+        let cerro = false;
+        KIT.piezas.conexion.explicar(KIT.problema('SIN_RED', 'x'), [], { alCerrar: () => { cerro = true; } });
+        await new Promise(r => setTimeout(r, 50));
+        document.querySelector('.kit-resc__salir').click();
+        return cerro;
+      });
+      cierto(r, 'alCerrar se llamó');
     });
 
     await ctx.close();

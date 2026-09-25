@@ -36,6 +36,9 @@
      KIT.piezas.version.vigilar();        una vez, al arrancar la app
      KIT.piezas.version.numero()          '2026.09.21.1'
      KIT.piezas.version.comprobar()       Promise<boolean> (true = había una nueva)
+     KIT.piezas.version.listo()           Promise que se resuelve cuando ya se
+                                          sabe que NO hay que recargar; KIT.pedir
+                                          la espera antes de hablar con el CORE
 
    El número sale en el pie, junto a la firma: lo pinta kit/creditos.js.
 
@@ -69,16 +72,51 @@
       ['catch'](function () { return ''; });
   }
 
-  /** Borra SOLO las cachés de esta app. Devuelve cuántas se llevó. */
-  function limpiarCaches() {
+  /** Borra SOLO las cachés de esta app. Devuelve cuántas se llevó.
+      25/09 · `conservar` es el número recién publicado: su caché la está
+      llenando en ese mismo momento el service worker nuevo, y borrarla a
+      medio llenar lo dejaba sirviendo desde la red archivo por archivo. */
+  function limpiarCaches(conservar) {
     if (!raiz.caches || !raiz.caches.keys) return Promise.resolve(0);
+    var nueva = conservar ? (PREFIJO + 'v' + String(conservar)).toLowerCase() : '';
     return raiz.caches.keys().then(function (llaves) {
       var mias = llaves.filter(function (k) {
-        return String(k).toLowerCase().indexOf(PREFIJO) === 0;
+        var n = String(k).toLowerCase();
+        return n.indexOf(PREFIJO) === 0 && n !== nueva;
       });
       return Promise.all(mias.map(function (k) { return raiz.caches['delete'](k); }))
         .then(function () { return mias.length; });
     })['catch'](function () { return 0; });
+  }
+
+  /*
+   * 25/09 · ANTES DE RECARGAR, QUE EL SERVICE WORKER NUEVO QUEDE AL MANDO.
+   *
+   * Si se recarga con el viejo todavía al mando, la página vuelve a salir
+   * del armazón viejo. Se le pide al navegador que revise el service worker
+   * y, si hay uno instalándose, se espera a que se active (tiene
+   * skipWaiting + clients.claim). Con tope: una red lenta no puede dejar la
+   * app esperando para siempre.
+   */
+  function esperarServiceWorker(tope) {
+    var sw = raiz.navigator && raiz.navigator.serviceWorker;
+    if (!sw || !sw.getRegistration) return Promise.resolve();
+    return new Promise(function (listo) {
+      var hecho = false;
+      function fin() { if (!hecho) { hecho = true; listo(); } }
+      setTimeout(fin, tope || 4000);
+      sw.getRegistration().then(function (reg) {
+        if (!reg) return fin();
+        var p = reg.update ? reg.update() : Promise.resolve();
+        return Promise.resolve(p)['catch'](function () {}).then(function () {
+          var nuevo = reg.installing || reg.waiting;
+          if (!nuevo) return fin();
+          nuevo.addEventListener('statechange', function () {
+            if (nuevo.state === 'activated' || nuevo.state === 'redundant') fin();
+          });
+        });
+      })['catch'](fin);
+    });
   }
 
   /**
@@ -100,10 +138,21 @@
 
       var ya = '';
       try { ya = sessionStorage.getItem(K.ns + MARCA_RECARGA) || ''; } catch (e) {}
-      if (ya === enLaRed) return false;
+      if (ya === enLaRed) {
+        /* 25/09 · Ya se recargó por este número. Si el <script> sigue
+           diciendo el viejo es porque el navegador se lo guardó (GitHub
+           Pages lo deja 10 minutos en su caché): el código ya es el nuevo.
+           Se toma el de la red como el cargado y no se vuelve a preguntar
+           por él en cada regreso. */
+        CARGADA = enLaRed;
+        return false;
+      }
       try { sessionStorage.setItem(K.ns + MARCA_RECARGA, enLaRed); } catch (e) {}
+      RECARGANDO = true;
 
-      return limpiarCaches().then(function () {
+      return esperarServiceWorker(4000).then(function () {
+        return limpiarCaches(enLaRed);
+      }).then(function () {
         /* 5.4.1 · La versión nueva arranca SIEMPRE desde el inicio (o desde
            la entrada si no hay sesión), no desde la vista donde estaba la
            persona: recargar una vista pesada (una cuenta con sus documentos
@@ -116,6 +165,28 @@
         return true;
       });
     })['catch'](function () { comprobando = false; return false; });
+  }
+
+  /*
+   * 25/09 · LA PUERTA DEL ARRANQUE.
+   *
+   * La causa de "Cargando tus datos" eterno después de publicar: la
+   * comprobación salía 1,2 s DESPUÉS de arrancar y recargaba la página
+   * justo con la llamada 'inicio' a medio camino. La llamada se cortaba
+   * (la redirección de Apps Script quedaba colgada: el 404 de
+   * googleusercontent) y todo empezaba de cero.
+   *
+   * Ahora la comprobación sale de primera y KIT.pedir la espera antes de
+   * hablar con el CORE: si hay versión nueva se recarga con NADA en vuelo.
+   * Tope de 3 s para que una red lenta no frene la entrada.
+   */
+  var PUERTA = null;
+  var TOPE_PUERTA = 3000;
+  var RECARGANDO = false;   /* ya se decidió recargar: la puerta no se abre */
+
+  function listo() {
+    if (!PUERTA) return Promise.resolve(false);
+    return PUERTA;
   }
 
   /**
@@ -132,9 +203,23 @@
     opciones = opciones || {};
     if (!CARGADA) return;
 
-    if (opciones.alArrancar !== false) {
-      /* Un respiro para no pelear con la primera pintada. */
-      setTimeout(function () { if (!ocupado()) comprobar(); }, 1200);
+    if (opciones.alArrancar !== false && !PUERTA) {
+      /* 25/09 · De primera y sin mirar si hay ventanas abiertas: al arrancar
+         nadie ha escrito nada todavía. Si hay versión nueva la promesa no se
+         resuelve (la página se va) y lo que esperaba no llega a salir. */
+      var comprobacion = comprobar();
+      PUERTA = new Promise(function (seguir) {
+        /* El tope cubre solo la pregunta a la red. Si la respuesta ya dijo
+           "hay nueva", la puerta se queda cerrada hasta que la página se
+           vaya: abrirla ahí sería volver a cortar 'inicio'. */
+        var t = setTimeout(function () { if (!RECARGANDO) seguir(false); }, TOPE_PUERTA);
+        /* Seguro final: si por lo que sea la página no llegó a irse, la app
+           no se queda muda para siempre. */
+        setTimeout(function () { seguir(false); }, 12000);
+        comprobacion.then(function (recarga) {
+          if (!recarga) { clearTimeout(t); seguir(false); }
+        });
+      });
     }
 
     document.addEventListener('visibilitychange', function () {
@@ -161,6 +246,7 @@
     comprobar: comprobar,
     vigilar: vigilar,
     limpiarCaches: limpiarCaches,
+    listo: listo,
     /* Para las pruebas: deja fingir otro número cargado. */
     _fijar: function (v) { CARGADA = String(v || ''); }
   };

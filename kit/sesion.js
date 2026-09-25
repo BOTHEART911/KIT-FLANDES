@@ -177,7 +177,7 @@
     var c = (e && e.codigo) || '';
     if (c === 'SIN_RED') return 'No hay internet. Es tu conexión, no la aplicación.';
     if (c === 'TIEMPO') return 'El servidor tardó demasiado. Inténtalo otra vez.';
-    if (c === 'RESPUESTA_NO_JSON') return 'La aplicación no pudo hablar con el servidor. Avísale a soporte.';
+    if (c === 'RESPUESTA_NO_JSON') return 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.';
     return (e && e.message) || 'No se pudo entrar.';
   }
 
@@ -355,6 +355,53 @@
 
   /* ── entrada y salida ── */
 
+  /*
+   * 25/09 · UN TROPIEZO DE RED YA NO CIERRA LA SESIÓN.
+   *
+   * Antes, cualquier fallo al comprobar (sin señal, el servidor tardó, la
+   * redirección de Google que llega rota) borraba el token y mandaba a la
+   * puerta: la persona creía que la habían sacado. Ahora solo se cierra la
+   * sesión cuando el CORE dice que no vale (SESION_VENCIDA, SIN_SESION,
+   * SIN_PERMISO...). Si es la red, se reintenta una vez solo y, si sigue,
+   * se ofrece reintentar sin perder la sesión.
+   */
+  var DE_RED = { SIN_RED: 1, TIEMPO: 1, RESPUESTA_NO_JSON: 1 };
+
+  function comprobarSesion(intento) {
+    var comprobacion = (typeof cfg.comprobar === 'function')
+      ? Promise.resolve().then(function () { return cfg.comprobar(); })
+      : K.pedir('yo', {}, { app: 'CORE' });
+
+    return comprobacion
+      .then(function (d) {
+        guardarYo(d && (d.usuario || d) || null);
+        K.disparar('kit:sesion', { entro: true, yo: yo() });
+        if (typeof cfg.alEntrar === 'function') cfg.alEntrar(yo());
+        return yo();
+      }, function (e) {
+        var c = (e && e.codigo) || '';
+        if (DE_RED[c] && K.token()) {
+          if (intento < 1) return comprobarSesion(intento + 1);
+          return ofrecerReintento(e);
+        }
+        K.ponerToken(''); guardarYo(null);
+        pintarPuerta();
+        return null;
+      });
+  }
+
+  function ofrecerReintento(e) {
+    var con = K.piezas.conexion;
+    var reintentar = function () { comprobarSesion(0); };
+    if (con && con.explicar) {
+      con.explicar(e, [{ texto: 'Reintentar', al: reintentar }], { alCerrar: reintentar });
+    } else {
+      K.aviso(mensajeDe(e), 'malo', 6000);
+      setTimeout(reintentar, 4000);
+    }
+    return null;
+  }
+
   function entrar(opciones) {
     cfg = opciones || {};
 
@@ -373,22 +420,7 @@
        * y devuelve el usuario; si no lo pasa, se sigue pidiendo 'yo' como
        * siempre, que es lo que hacen las otras seis apps.
        */
-      var comprobacion = (typeof cfg.comprobar === 'function')
-        ? Promise.resolve(cfg.comprobar())
-        : K.pedir('yo', {}, { app: 'CORE' });
-
-      return comprobacion
-        .then(function (d) {
-          guardarYo(d && (d.usuario || d) || null);
-          K.disparar('kit:sesion', { entro: true, yo: yo() });
-          if (typeof cfg.alEntrar === 'function') cfg.alEntrar(yo());
-          return yo();
-        })
-        .catch(function () {
-          K.ponerToken(''); guardarYo(null);
-          pintarPuerta();
-          return null;
-        });
+      return comprobarSesion(0);
     }
     pintarPuerta();
     return Promise.resolve(null);

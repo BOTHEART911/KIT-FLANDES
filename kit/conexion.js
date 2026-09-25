@@ -135,6 +135,10 @@
       capa.classList.remove('kit-capa--on');
       setTimeout(function () { if (capa.parentNode) capa.remove(); }, 220);
     }
+    /* 25/09 · o.alCerrar: lo que pasa si la persona cierra sin escoger
+       atajo (la sesión lo usa para reintentar en vez de dejar la pantalla
+       vacía). */
+    function cerrar() { fuera(); if (typeof o.alCerrar === 'function') o.alCerrar(); }
 
     var cajaAtajos = capa.querySelector('.kit-resc__atajos');
     (o.atajos || []).forEach(function (a) {
@@ -143,8 +147,8 @@
       cajaAtajos.appendChild(b);
     });
 
-    capa.querySelector('.kit-resc__salir').addEventListener('click', fuera);
-    capa.querySelector('.kit-capa__velo').addEventListener('click', fuera);
+    capa.querySelector('.kit-resc__salir').addEventListener('click', cerrar);
+    capa.querySelector('.kit-capa__velo').addEventListener('click', cerrar);
     return { cerrar: fuera };
   }
 
@@ -152,18 +156,19 @@
    * Traduce el código de error del CORE a algo que una persona entienda,
    * con las salidas que tiene a mano. Es el atajo más usado de la pieza.
    */
-  function explicar(error, atajos) {
+  function explicar(error, atajos, extra) {
     var c = (error && error.codigo) || 'ERROR';
     var mapa = {
       SIN_RED:            { icono: K.icono('sin-red', 34), titulo: 'No hay internet', texto: 'Revisa tus datos o el wifi y vuelve a intentarlo. Lo que escribiste no se perdió.' },
       TIEMPO:             { icono: K.icono('reloj', 34), titulo: 'El servidor tardó demasiado', texto: 'Suele ser la conexión. Inténtalo otra vez en un momento.' },
-      RESPUESTA_NO_JSON:  { icono: K.icono('herramienta', 34), titulo: 'La app no pudo hablar con el servidor', texto: 'Esto es del lado de la aplicación, no tuyo. Avísale a soporte.' },
+      RESPUESTA_NO_JSON:  { icono: K.icono('sin-red', 34), titulo: 'La conexión se interrumpió', texto: 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.' },
       SESION_VENCIDA:     { icono: K.icono('candado', 34), titulo: 'Tu sesión venció', texto: 'Por seguridad la sesión dura 12 horas. Vuelve a entrar.' },
       SIN_SESION:         { icono: K.icono('candado', 34), titulo: 'Necesitas entrar de nuevo', texto: 'Vuelve a iniciar sesión para continuar.' },
       SIN_PERMISO:        { icono: K.icono('prohibido', 34), titulo: 'Tu usuario no tiene permiso para esto', texto: 'Si crees que sí deberías tenerlo, pídeselo al administrador.' }
     };
     var d = mapa[c] || { icono: K.icono('aviso', 34), titulo: 'No se pudo completar', texto: (error && error.message) || 'Inténtalo de nuevo.' };
     d.atajos = atajos || [];
+    if (extra && typeof extra.alCerrar === 'function') d.alCerrar = extra.alCerrar;
     return rescate(d);
   }
 

@@ -156,6 +156,21 @@
     if (datos) for (k in datos) if (Object.prototype.hasOwnProperty.call(datos, k)) cuerpo[k] = datos[k];
     if (!cuerpo.token && token() && opciones.sinToken !== true) cuerpo.token = token();
 
+    /* 25/09 · Antes de hablar con el CORE se espera a la pieza de versión:
+       si acaba de publicarse algo nuevo la página se recarga ANTES de
+       mandar nada, en vez de cortar esta llamada a medio camino. */
+    var pv = raiz.KIT && raiz.KIT.piezas && raiz.KIT.piezas.version;
+    var puerta = (pv && pv.listo) ? pv.listo() : Promise.resolve(false);
+
+    return puerta.then(function () { return enviar(cuerpo, opciones); });
+  }
+
+  /* El mensaje que ve la persona cuando la respuesta llega rota. Nunca se le
+     habla de JSON ni de despliegues: casi siempre es la red del teléfono o
+     la redirección de Google que se quedó a medias. */
+  var TXT_INTERMITENCIA = 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.';
+
+  function enviar(cuerpo, opciones) {
     var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
     var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, opciones.ms || 60000);
 
@@ -174,8 +189,8 @@
         catch (e) {
           /* Apps Script devuelve HTML cuando la sesión de Google caducó o
              el despliegue no es público: ese es el famoso "Unexpected token '<'". */
-          throw problema('RESPUESTA_NO_JSON',
-            'El servidor respondió algo que no es JSON. Suele ser el despliegue mal publicado.');
+          try { console.warn('[kit] respuesta que no es JSON en ' + cuerpo.action + ':', String(txt || '').slice(0, 120)); } catch (e2) {}
+          throw problema('RESPUESTA_NO_JSON', TXT_INTERMITENCIA);
         }
         if (j && j.ok) {
           /* 10.4 · el CORE pega '_soporte' a 'inicio' (y al login) cuando la
