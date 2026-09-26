@@ -221,7 +221,15 @@
         }
         var p = problema((j && j.codigo) || 'ERROR', (j && j.error) || 'El servidor no pudo atender la solicitud.');
         if (p.codigo === 'REPETIR' || /^Faltan "app" y "action"/.test(p.message)) { p.codigo = 'REPETIR'; p.message = TXT_INTERMITENCIA; }
-        if (p.codigo === 'SESION_VENCIDA' || p.codigo === 'SIN_SESION') ponerToken('');
+        /* F11 (26/09) · SESIÓN CAÍDA → A LA PUERTA. El CORE no manda código,
+           manda el texto ('Tu sesion se venció…', 'Sesion no valida…'). Antes
+           solo se borraba el token y la vista mostraba "Reintentar", que con
+           la sesión vencida vuelve a fallar siempre. Ahora se avisa y se
+           vuelve a abrir la app sin sesión: sale el inicio de sesión. */
+        if (cuerpo.token && (p.codigo === 'SESION_VENCIDA' || p.codigo === 'SIN_SESION' || SESION_CAIDA.test(p.message))) {
+          p.codigo = 'SESION_VENCIDA';
+          sesionCaida(p.message);
+        }
         throw p;
       })
       .catch(function (e) {
@@ -230,6 +238,21 @@
         if (e && e.name === 'AbortError') throw problema('TIEMPO', 'El servidor tardó demasiado en responder.');
         throw problema('SIN_RED', 'No se pudo hablar con el servidor.');
       });
+  }
+
+  var SESION_CAIDA = /^(sesi[oó]n no v[aá]lida|tu sesi[oó]n se venci|tu sesi[oó]n es de )/i;
+  var saliendo = false;
+  function sesionCaida(mensaje) {
+    ponerToken('');
+    try { guardar.borrar('sesion.yo'); } catch (e) {}
+    if (saliendo) return;
+    saliendo = true;
+    disparar('kit:sesionCaida', { mensaje: mensaje });
+    try { aviso(/venci/i.test(mensaje || '') ? 'Tu sesión se venció. Vuelve a iniciar sesión.' : 'Tu sesión ya no es válida. Vuelve a iniciar sesión.', 'info', 3000); } catch (e) {}
+    /* si la app ya pintó el inicio de sesión (al abrir con un token viejo), no se recarga */
+    setTimeout(function () {
+      try { if (!document.querySelector('.kit-sesion')) raiz.location.reload(); else saliendo = false; } catch (e) {}
+    }, 1600);
   }
 
   function problema(codigo, mensaje) {
