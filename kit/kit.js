@@ -220,6 +220,8 @@
           return j.data;
         }
         var p = problema((j && j.codigo) || 'ERROR', (j && j.error) || 'El servidor no pudo atender la solicitud.');
+        /* 26/09 · el CORE puede mandar datos con el error (el login sin acceso trae el caso: SolicitudesContratacion.gs) */
+        if (j && j.datos) p.datos = j.datos;
         if (p.codigo === 'REPETIR' || /^Faltan "app" y "action"/.test(p.message)) { p.codigo = 'REPETIR'; p.message = TXT_INTERMITENCIA; }
         /* F11 (26/09) · SESIÓN CAÍDA → A LA PUERTA. El CORE no manda código,
            manda el texto ('Tu sesion se venció…', 'Sesion no valida…'). Antes

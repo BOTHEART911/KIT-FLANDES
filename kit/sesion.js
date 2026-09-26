@@ -36,6 +36,11 @@
      NINGUNA de las siete. Por eso van con { app: 'CORE' } y llevan
      appDestino, que es lo que le dice al CORE a qué app se entra.
 
+   26/09 · sinAcceso(datos, documento): opcional. Si el CORE responde al
+   login con codigo SIN_ACCESO (contratista sin contrato activo o sin
+   registro), la app recibe el caso para ofrecer la solicitud a
+   Contratación. Las demás apps no lo pasan y todo sigue igual.
+
    Pareja: kit/sesion.css
    ============================================================ */
 (function () {
@@ -170,6 +175,13 @@
       .catch(function (e) {
         ocupado(false);
         error(mensajeDe(e));
+        /* 26/09 · SIN ACCESO (solo CONTRATISTA): el login fallido trae en la
+           MISMA respuesta si la persona tiene el contrato INACTIVO o no tiene
+           registro. La app decide qué mostrar (confirmaciones del SECOP II y
+           la solicitud a Contratación); aquí no se hace ningún viaje más. */
+        if (e && e.codigo === 'SIN_ACCESO' && typeof cfg.sinAcceso === 'function') {
+          try { cfg.sinAcceso(e.datos || {}, doc); } catch (x) { try { console.warn('[kit/sesion] sinAcceso', x); } catch (y) {} }
+        }
       });
   }
 
