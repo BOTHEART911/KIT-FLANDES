@@ -236,8 +236,25 @@
   function ocupado() {
     /* 5.4.1 · tampoco con una ventana abierta (alguien escribiendo un
        requerimiento o un comunicado): se comprueba la próxima vez */
-    if (document.querySelector('[aria-modal="true"]')) return true;
+    /* 25/09 · SOLO si está A LA VISTA. El cohete de guardado y el carrusel
+       se crean una vez y se quedan escondidos en la página con
+       aria-modal="true": tras el primer guardado la app creía tener siempre
+       una ventana abierta y NUNCA volvía a buscar versión nueva (la app
+       instalada y abierta se quedaba en la vieja). */
+    var ms = document.querySelectorAll('[aria-modal="true"]');
+    for (var i = 0; i < ms.length; i++) if (aLaVista(ms[i])) return true;
     return raiz.KIT && raiz.KIT.ocupado === true;
+  }
+
+  function aLaVista(el) {
+    if (!el || el.hidden || !el.getClientRects().length) return false;
+    try {
+      var cs = raiz.getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+    } catch (e) {}
+    /* las capas del kit se abren con '--on'; sin ella están saliendo o cerradas */
+    if (/(^|\s)kit-capa(\s|$)/.test(el.className) && !/kit-capa--on/.test(el.className)) return false;
+    return true;
   }
 
   K.piezas.version = {
