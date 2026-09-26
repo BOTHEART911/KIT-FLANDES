@@ -138,7 +138,7 @@
   var TOKEN_K = 'sesion.token';
 
   function token() { return guardar.leer(TOKEN_K, '') || ''; }
-  function ponerToken(t) { if (t) guardar.escribir(TOKEN_K, t); else guardar.borrar(TOKEN_K); }
+  function ponerToken(t) { if (t) guardar.escribir(TOKEN_K, t); else { guardar.borrar(TOKEN_K); guardar.borrar('recuerdo.arranque'); } }
 
   /**
    * pedir('cuentaListar', {desde:'...'}) → Promise con data
@@ -162,7 +162,24 @@
     var pv = raiz.KIT && raiz.KIT.piezas && raiz.KIT.piezas.version;
     var puerta = (pv && pv.listo) ? pv.listo() : Promise.resolve(false);
 
-    return puerta.then(function () { return enviar(cuerpo, opciones); });
+    /* 25/09 · cada petición lleva su 'rid': si hay que repetirla, el CORE
+       devuelve la respuesta ya dada en vez de hacerla dos veces. */
+    if (!cuerpo.rid) cuerpo.rid = rid();
+    return puerta.then(function () { return enviar(cuerpo, opciones); })['catch'](function (e) {
+      /* La redirección de Google se quedó a medias (el CORE lo marca REPETIR):
+         se repite UNA vez sola, sin molestar a la persona. */
+      if (e && e.codigo === 'REPETIR' && !opciones.__repetida) {
+        opciones.__repetida = true;
+        return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return enviar(cuerpo, opciones); });
+      }
+      throw e;
+    });
+  }
+
+  function rid() {
+    var s = Date.now().toString(36);
+    for (var i = 0; i < 3; i++) s += Math.random().toString(36).slice(2, 7);
+    return s.slice(0, 40);
   }
 
   /* El mensaje que ve la persona cuando la respuesta llega rota. Nunca se le
@@ -203,6 +220,7 @@
           return j.data;
         }
         var p = problema((j && j.codigo) || 'ERROR', (j && j.error) || 'El servidor no pudo atender la solicitud.');
+        if (p.codigo === 'REPETIR' || /^Faltan "app" y "action"/.test(p.message)) { p.codigo = 'REPETIR'; p.message = TXT_INTERMITENCIA; }
         if (p.codigo === 'SESION_VENCIDA' || p.codigo === 'SIN_SESION') ponerToken('');
         throw p;
       })
@@ -443,6 +461,36 @@
     ponerTema(t || 'claro', false);
   }());
 
+  /* ══════════════ 8b) EL ÚLTIMO ARRANQUE (25/09) ══════════════
+
+     Abrir la app con la sesión ya iniciada costaba un viaje entero a Apps
+     Script (2 a 3 s de transporte + lo del servidor) con la pantalla en
+     esqueleto. Ahora el inicio se pinta AL INSTANTE con lo último que se
+     vio y el viaje se hace por detrás: cuando llega, la vista se refresca.
+     Va atado al token: otra sesión (o salir) no lo ve.                    */
+
+  var RECUERDO_K = 'recuerdo.arranque';
+  var RECUERDO_MAX = 12 * 3600 * 1000;
+  function huellaToken() { var t = token(); return t ? t.slice(-24) : ''; }
+  var recuerdo = {
+    leer: function () {
+      try {
+        var r = guardar.leer(RECUERDO_K, null), h = huellaToken();
+        if (!r || !h || r.h !== h || !r.d || (Date.now() - (r.t || 0)) > RECUERDO_MAX) return null;
+        return r.d;
+      } catch (e) { return null; }
+    },
+    guardar: function (d) {
+      try {
+        var h = huellaToken(); if (!h || !d) return;
+        var txt = JSON.stringify({ h: h, t: Date.now(), d: d });
+        if (txt.length > 450000) { guardar.borrar(RECUERDO_K); return; }   /* no se llena el almacén compartido */
+        localStorage.setItem(clave(RECUERDO_K), txt);
+      } catch (e) { try { guardar.borrar(RECUERDO_K); } catch (e2) {} }
+    },
+    borrar: function () { guardar.borrar(RECUERDO_K); }
+  };
+
   /* ══════════════ 9) EVENTOS PROPIOS ══════════════ */
 
   function disparar(nombre, detalle) {
@@ -462,6 +510,7 @@
     guardar: guardar,
     token: token, ponerToken: ponerToken,
     pedir: pedir, problema: problema,
+    recuerdo: recuerdo,
 
     medio: medio, precargar: precargar, sonar: sonar, vibrar: vibrar,
     pesos: pesos, numero: numero, aNumero: aNumero, pesosEnVivo: pesosEnVivo, fecha: fecha,
