@@ -156,10 +156,15 @@
 }
 .kit-banner__mi:hover { background: var(--k-papel-2); }
 .kit-banner__mi--peligro { color: var(--k-malo); }
+/* 25/09 · el cambio de tema dentro del menú solo aparece en el celular */
+.kit-banner__mi--tema { display: none; align-items: center; gap: 8px; }
 
 @media (max-width: 420px) {
   .kit-banner__titulo { font-size: 15px; }
   .kit-banner__tema { display: none; }   /* el tema queda en el menú de perfil */
+  .kit-banner__mi--tema { display: flex; }
+  /* sin menú de perfil (antes de entrar) el botón luna/sol se queda a la vista */
+  .kit-banner__dcha:has(.kit-banner__perfil[hidden]) .kit-banner__tema { display: inline-flex; }
 }
 
 @media (prefers-reduced-motion: reduce) {

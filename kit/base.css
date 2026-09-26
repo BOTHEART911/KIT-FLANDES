@@ -30,6 +30,12 @@
    desplaza en horizontal. No sustituye a arreglar la causa. */
 html { overflow-x: hidden; }
 body { max-width: 100%; overflow-x: hidden; }
+/* 25/09 · 'hidden' en html y body convierte al body en una caja con scroll
+   propio y las barras fijas (position: sticky) de revisión y requerimientos
+   se iban con el contenido. 'clip' recorta igual sin crear esa caja. */
+@supports (overflow-x: clip) {
+  html, body { overflow-x: clip; }
+}
 /* 5.1 · LA LETRA DE LA APP. Nadie le ponía fuente al body: todo lo que no
    declaraba la suya (los datos de las fichas, los textos de los accesos)
    salía en la letra por defecto del navegador, que en iPhone y en el

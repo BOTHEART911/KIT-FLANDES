@@ -98,6 +98,14 @@
       });
       m.appendChild(b);
     });
+    /* 25/09 · en el celular el botón luna/sol del banner se esconde para dar
+       aire al título: el cambio de tema pasa aquí, antes de "Cerrar sesión". */
+    if (cfg.menu && cfg.menu.length) {
+      var bt = K.nodo('<button type="button" class="kit-banner__mi kit-banner__mi--tema"></button>');
+      bt.addEventListener('click', function () { cerrarMenu(); K.alternarTema(); pintarTema(); });
+      var peligro = m.querySelector('.kit-banner__mi--peligro');
+      m.insertBefore(bt, peligro || null);
+    }
     if (cfg.nombre) {
       var cab = K.nodo('<div class="kit-banner__quien"><b>' + K.esc(cfg.nombre) + '</b>' +
         (cfg.rol ? '<span>' + K.esc(cfg.rol) + '</span>' : '') + '</div>');
@@ -173,6 +181,8 @@
     var oscuro = K.temaActual() === 'oscuro';
     b.innerHTML = K.icono(oscuro ? 'sol' : 'luna', 18);
     b.setAttribute('title', oscuro ? 'Modo claro' : 'Modo oscuro');
+    var mi = barra.querySelector('.kit-banner__mi--tema');
+    if (mi) mi.innerHTML = K.icono(oscuro ? 'sol' : 'luna', 15) + ' ' + (oscuro ? 'Modo claro' : 'Modo oscuro');
   }
 
   function vista(titulo) {
