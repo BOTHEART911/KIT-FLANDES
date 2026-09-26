@@ -138,7 +138,7 @@
   var TOKEN_K = 'sesion.token';
 
   function token() { return guardar.leer(TOKEN_K, '') || ''; }
-  function ponerToken(t) { if (t) guardar.escribir(TOKEN_K, t); else { guardar.borrar(TOKEN_K); guardar.borrar('recuerdo.arranque'); } }
+  function ponerToken(t) { if (t) guardar.escribir(TOKEN_K, t); else { guardar.borrar(TOKEN_K); guardar.borrar('recuerdo.arranque'); if (raiz.KIT && raiz.KIT.recordado) raiz.KIT.recordado.olvidarTodo(); } }
 
   /**
    * pedir('cuentaListar', {desde:'...'}) → Promise con data
@@ -491,6 +491,51 @@
     borrar: function () { guardar.borrar(RECUERDO_K); }
   };
 
+  /* ══════════════ 8c) LO ÚLTIMO QUE SE VIO DE UNA VISTA (F11 · 25/09) ══════════════
+
+     El mismo patrón del arranque, para las vistas que ni con el CORE
+     acelerado bajan de un segundo (el informe de cuentas de un contrato):
+     se pinta YA con lo último que se vio y el viaje se hace por detrás.
+       K.recordado.leer('informe.<id>')      → datos o null
+       K.recordado.guardar('informe.<id>', d)
+     Atado al token (otra sesión no lo ve), 12 h como mucho, 250 KB por
+     vista y 12 vistas por app (se van las más viejas): el almacén lo
+     comparten las siete apps.                                            */
+
+  var RV_PRE = 'recordado.', RV_MAX = 12 * 3600 * 1000, RV_TOPE = 250000, RV_CUANTAS = 12;
+  var recordado = {
+    leer: function (k) {
+      try {
+        var r = guardar.leer(RV_PRE + k, null), h = huellaToken();
+        if (!r || !h || r.h !== h || (Date.now() - (r.t || 0)) > RV_MAX) return null;
+        return r.d;
+      } catch (e) { return null; }
+    },
+    guardar: function (k, d) {
+      try {
+        var h = huellaToken(); if (!h || !d) return;
+        var txt = JSON.stringify({ h: h, t: Date.now(), d: d });
+        if (txt.length > RV_TOPE) { guardar.borrar(RV_PRE + k); return; }
+        localStorage.setItem(clave(RV_PRE + k), txt);
+        /* no más de RV_CUANTAS: se borran las más viejas */
+        var mias = [], i, kk;
+        for (i = 0; i < localStorage.length; i++) { kk = localStorage.key(i); if (kk && kk.indexOf(clave(RV_PRE)) === 0) mias.push(kk); }
+        if (mias.length > RV_CUANTAS) {
+          mias.map(function (x) { var t = 0; try { t = JSON.parse(localStorage.getItem(x)).t || 0; } catch (e) {} return [t, x]; })
+            .sort(function (a, b) { return a[0] - b[0]; }).slice(0, mias.length - RV_CUANTAS)
+            .forEach(function (x) { localStorage.removeItem(x[1]); });
+        }
+      } catch (e) { try { guardar.borrar(RV_PRE + k); } catch (e2) {} }
+    },
+    olvidarTodo: function () {
+      try {
+        var fuera = [], i, kk;
+        for (i = 0; i < localStorage.length; i++) { kk = localStorage.key(i); if (kk && kk.indexOf(clave(RV_PRE)) === 0) fuera.push(kk); }
+        fuera.forEach(function (x) { localStorage.removeItem(x); });
+      } catch (e) {}
+    }
+  };
+
   /* ══════════════ 9) EVENTOS PROPIOS ══════════════ */
 
   function disparar(nombre, detalle) {
@@ -511,6 +556,7 @@
     token: token, ponerToken: ponerToken,
     pedir: pedir, problema: problema,
     recuerdo: recuerdo,
+    recordado: recordado,
 
     medio: medio, precargar: precargar, sonar: sonar, vibrar: vibrar,
     pesos: pesos, numero: numero, aNumero: aNumero, pesosEnVivo: pesosEnVivo, fecha: fecha,

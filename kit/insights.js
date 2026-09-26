@@ -360,6 +360,10 @@
 
   function vozDisponible() {
     if (vozCfg) return Promise.resolve(vozCfg);
+    /* F11 · la página de demostración del kit (app KIT) no tiene voz en el
+       CORE: preguntarle dejaba un error en FC_ERRORES cada vez que alguien
+       la abría. Sin viaje: la demo va sin voz. */
+    if (String(K.app || '').toUpperCase() === 'KIT') return Promise.resolve(vozCfg = { configurada: false });
     if (pidiendoVoz) return pidiendoVoz;
     pidiendoVoz = K.pedir('vozEstado')
       .then(function (r) { vozCfg = r || { configurada: false }; return vozCfg; })
