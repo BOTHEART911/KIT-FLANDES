@@ -1609,6 +1609,75 @@ ${js}
       falso(txt.indexOf('3103230712') > 0, 'NO debía enseñar el número completo');
     });
 
+    /* 27/09 · ojo de ver/ocultar en todos los campos de contraseña */
+    await prueba('login: el ojo muestra y vuelve a ocultar la clave', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-resc, .kit-capa').forEach(n => n.remove()); });
+      const ojo = page.locator('.kit-sesion .kit-sesion__ojo');
+      igual(await page.locator('.kit-sesion [name="clave"]').getAttribute('type'), 'password');
+      await ojo.click();
+      igual(await page.locator('.kit-sesion [name="clave"]').getAttribute('type'), 'text');
+      igual(await ojo.getAttribute('aria-pressed'), 'true');
+      igual(await ojo.getAttribute('aria-label'), 'Ocultar la contraseña');
+      await ojo.click();
+      igual(await page.locator('.kit-sesion [name="clave"]').getAttribute('type'), 'password');
+      igual(await ojo.getAttribute('aria-label'), 'Mostrar la contraseña');
+    });
+
+    await prueba('login: tocar el ojo NO envía el formulario', async () => {
+      await page.evaluate(() => { window.__pedidos = []; });
+      await page.locator('.kit-sesion .kit-sesion__ojo').click();
+      await page.waitForTimeout(120);
+      igual(await page.evaluate(() => window.__pedidos.length), 0);
+      await page.locator('.kit-sesion .kit-sesion__ojo').click();
+    });
+
+    await prueba('cambiar clave: los TRES campos tienen su ojo y cada uno va solo', async () => {
+      await page.evaluate(() => KIT.piezas.sesion.cambiarClave());
+      const hoja = page.locator('.kit-capa').last();
+      igual(await hoja.locator('.kit-sesion__ojo').count(), 3);
+      for (const n of ['actual', 'nueva', 'otra']) {
+        igual(await hoja.locator('[name="' + n + '"]').getAttribute('type'), 'password', n + ' oculto al abrir');
+      }
+      await hoja.locator('[name="nueva"]').fill('secreta9');
+      await hoja.locator('[name="nueva"] + .kit-sesion__ojo').click();
+      igual(await hoja.locator('[name="nueva"]').getAttribute('type'), 'text');
+      igual(await hoja.locator('[name="actual"]').getAttribute('type'), 'password', 'la actual no se toca');
+      igual(await hoja.locator('[name="otra"]').getAttribute('type'), 'password', 'la repetida no se toca');
+      igual(await hoja.locator('[name="nueva"]').inputValue(), 'secreta9', 'no pierde lo escrito');
+      await hoja.locator('[name="nueva"] + .kit-sesion__ojo').click();
+      igual(await hoja.locator('[name="nueva"]').getAttribute('type'), 'password');
+    });
+
+    await prueba('cambiar clave: con el ojo abierto sigue validando y enviando', async () => {
+      await page.evaluate(() => {
+        window.__pedidos = [];
+        window.KIT.pedir = (a, d) => { window.__pedidos.push({ a, d }); return Promise.resolve({}); };
+      });
+      const hoja = page.locator('.kit-capa').last();
+      await hoja.locator('[name="actual"]').fill('vieja12');
+      await hoja.locator('[name="otra"]').fill('secreta9');
+      await hoja.locator('[name="otra"] + .kit-sesion__ojo').click();
+      await hoja.locator('.kit-sesion__si').click();
+      await page.waitForTimeout(200);
+      igual(await page.evaluate(() => window.__pedidos[0] && window.__pedidos[0].a), 'cambiarClave');
+      igual(await page.evaluate(() => window.__pedidos[0].d), { actual: 'vieja12', nueva: 'secreta9' });
+    });
+
+    await prueba('ponerOjo() sirve para un campo ya pintado y no se duplica', async () => {
+      const n = await page.evaluate(() => {
+        const d = document.createElement('div');
+        d.innerHTML = '<label><input id="xx" type="password" value="abc"></label>';
+        document.body.appendChild(d);
+        const i = d.querySelector('#xx');
+        KIT.piezas.sesion.ponerOjo(i); KIT.piezas.sesion.ponerOjo(i);
+        d.querySelector('.kit-sesion__ojo').click();
+        const r = [d.querySelectorAll('.kit-sesion__ojo').length, i.type, i.value];
+        d.remove();
+        return r;
+      });
+      igual(n, [1, 'text', 'abc']);
+    });
+
     await ctx.close();
   }
 

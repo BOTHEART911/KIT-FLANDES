@@ -96,6 +96,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 .kit-sesion__ojo:hover { background: var(--k-papel); }
+/* 27/09 · el ojo va en todos los campos de clave (también en el modal de
+   cambiar): color de la tinta suave, centrado, y un anillo al enfocarlo
+   con el teclado. */
+.kit-sesion__ojo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-tinta-2, var(--k-tinta));
+}
+.kit-sesion__ojo[aria-pressed="true"] { color: var(--k-marca); }
+.kit-sesion__ojo:focus-visible { outline: 2px solid var(--k-marca); outline-offset: 1px; }
+.kit-sesion__clave input { width: 100%; box-sizing: border-box; }
 
 .kit-sesion__error {
   margin: 0;

@@ -41,6 +41,10 @@
    registro), la app recibe el caso para ofrecer la solicitud a
    Contratación. Las demás apps no lo pasan y todo sigue igual.
 
+   27/09 · ojo de ver/ocultar en TODOS los campos de contraseña: entrar y
+   cambiar (actual, nueva y repetida). "Olvidé mi contraseña" no tiene
+   campo: la clave llega por WhatsApp y se escribe en el login, con ojo.
+
    Pareja: kit/sesion.css
    ============================================================ */
 (function () {
@@ -55,6 +59,41 @@
 
   function yo() { return K.guardar.leer(YO_K, null); }
   function guardarYo(d) { if (d) K.guardar.escribir(YO_K, d); else K.guardar.borrar(YO_K); }
+
+  /* 27/09 · VER / OCULTAR LA CONTRASEÑA en todos los campos de clave
+     (entrar y cambiar). Antes solo el login tenía el ojo y al cambiar la
+     clave se escribía a ciegas. Un solo ayudante para todos:
+       ojoHtml(input)          envuelve el <input> con el botón del ojo
+       enchufarOjo(btn, campo) le da vida al botón
+       ponerOjo(campo)         para un <input> ya pintado (lo usan otras
+                               piezas o apps: K.piezas.sesion.ponerOjo) */
+  function ojoHtml(input) {
+    return '<div class="kit-sesion__clave">' + input +
+      '<button type="button" class="kit-sesion__ojo" aria-label="Mostrar la contraseña" aria-pressed="false">' +
+      K.icono('ojo', 18) + '</button></div>';
+  }
+
+  function enchufarOjo(btn, campo) {
+    if (!btn || !campo) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var ver = campo.type === 'password';
+      campo.type = ver ? 'text' : 'password';
+      btn.innerHTML = K.icono(ver ? 'ojo-tapado' : 'ojo', 18);
+      btn.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
+      btn.setAttribute('aria-pressed', ver ? 'true' : 'false');
+      /* el cursor sigue donde estaba: se sigue escribiendo sin tocar otra vez */
+      try { var n = campo.value.length; campo.focus(); campo.setSelectionRange(n, n); } catch (x) {}
+    });
+  }
+
+  function ponerOjo(campo) {
+    if (!campo || !campo.parentNode || campo.closest('.kit-sesion__clave')) return;
+    var caja = K.nodo(ojoHtml(''));
+    campo.parentNode.insertBefore(caja, campo);
+    caja.insertBefore(campo, caja.firstChild);
+    enchufarOjo(caja.querySelector('.kit-sesion__ojo'), campo);
+  }
 
   function pintarPuerta() {
     capa = K.nodo(
@@ -77,10 +116,7 @@
       '      </label>' +
       '      <label class="kit-sesion__campo">' +
       '        <span>Contraseña</span>' +
-      '        <div class="kit-sesion__clave">' +
-      '          <input name="clave" type="password" autocomplete="current-password" required>' +
-      '          <button type="button" class="kit-sesion__ojo" aria-label="Mostrar la contraseña">' + K.icono('ojo', 18) + '</button>' +
-      '        </div>' +
+      '        ' + ojoHtml('<input name="clave" type="password" autocomplete="current-password" required>') +
       '      </label>' +
       '      <p class="kit-sesion__error" role="alert"></p>' +
       '      <button type="submit" class="kit-btn kit-btn--marca kit-sesion__entrar">Entrar</button>' +
@@ -103,12 +139,7 @@
     var ojo = capa.querySelector('.kit-sesion__ojo');
     var campoClave = capa.querySelector('[name="clave"]');
 
-    ojo.addEventListener('click', function () {
-      var ver = campoClave.type === 'password';
-      campoClave.type = ver ? 'text' : 'password';
-      ojo.innerHTML = K.icono(ver ? 'ojo-tapado' : 'ojo', 18);
-      ojo.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
-    });
+    enchufarOjo(ojo, campoClave);
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -315,11 +346,11 @@
       '    <header class="kit-capa__h">Cambiar mi contraseña<button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <form class="kit-capa__cuerpo kit-sesion__form kit-sesion__form--modal">' +
       '      <label class="kit-sesion__campo"><span>Contraseña actual</span>' +
-      '        <input name="actual" type="password" autocomplete="current-password" required></label>' +
+      '        ' + ojoHtml('<input name="actual" type="password" autocomplete="current-password" required>') + '</label>' +
       '      <label class="kit-sesion__campo"><span>Contraseña nueva</span>' +
-      '        <input name="nueva" type="password" autocomplete="new-password" required minlength="6"></label>' +
+      '        ' + ojoHtml('<input name="nueva" type="password" autocomplete="new-password" required minlength="6">') + '</label>' +
       '      <label class="kit-sesion__campo"><span>Repite la nueva</span>' +
-      '        <input name="otra" type="password" autocomplete="new-password" required minlength="6"></label>' +
+      '        ' + ojoHtml('<input name="otra" type="password" autocomplete="new-password" required minlength="6">') + '</label>' +
       '      <p class="kit-sesion__error" role="alert"></p>' +
       '    </form>' +
       '    <footer class="kit-capa__pie">' +
@@ -333,6 +364,9 @@
 
     var form = hoja.querySelector('form');
     var err = hoja.querySelector('.kit-sesion__error');
+    Array.prototype.forEach.call(hoja.querySelectorAll('.kit-sesion__clave'), function (c) {
+      enchufarOjo(c.querySelector('.kit-sesion__ojo'), c.querySelector('input'));
+    });
     function fuera() { hoja.remove(); }
     function marcar(t) {
       err.textContent = t || '';
@@ -449,7 +483,7 @@
 
   K.piezas.sesion = {
     entrar: entrar, salir: salir, yo: yo,
-    cambiarClave: cambiarClave, olvide: olvide,
+    cambiarClave: cambiarClave, olvide: olvide, ponerOjo: ponerOjo,
     puertaAbierta: function () { return !!capa; }
   };
 }());
