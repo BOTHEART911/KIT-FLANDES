@@ -215,6 +215,11 @@
       '<circle cx="12" cy="13" r="3.6"/>',
     'girar':
       '<path d="M20 11.5A8 8 0 1 1 17.6 6"/><path d="M20 3.5v5h-5"/>',
+    /* 28/09 · ver en grande y ajustar la foto de perfil */
+    'lupa':
+      '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4L20.5 20.5"/><path d="M10.5 7.8v5.4M7.8 10.5h5.4"/>',
+    'recortar':
+      '<path d="M6.5 2.5v14a1 1 0 0 0 1 1h14"/><path d="M2.5 6.5h14a1 1 0 0 1 1 1v14"/>',
     'persona':
       '<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.2c.9-3.7 3.9-5.9 7.5-5.9s6.6 2.2 7.5 5.9"/>',
     'info':

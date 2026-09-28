@@ -77,6 +77,19 @@
 .kit-perfil__acciones { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
 .kit-perfil__acciones .kit-btn { flex: 1 1 140px; justify-content: center; }
 .kit-perfil__archivo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+/* 28/09 · lupa sobre la foto (verla en grande) y espera al traerla para ajustar */
+.kit-perfil__lupa {
+  position: absolute; right: 2px; bottom: 2px;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer; padding: 0;
+  background: var(--k-marca); color: #fff;
+  box-shadow: 0 0 0 3px var(--k-papel), 0 4px 12px rgba(0, 0, 0, .2);
+  -webkit-tap-highlight-color: transparent;
+}
+.kit-perfil__lupa:focus-visible { outline: 2px solid var(--k-marca); outline-offset: 3px; }
+.kit-perfil__cargando { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0; }
+.kit-perfil__esq { display: block; width: 240px; height: 240px; border-radius: 50%; }
 
 /* el recorte */
 .kit-recorte { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }

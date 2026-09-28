@@ -2615,6 +2615,32 @@ ${js}
   }
 
   /* ═══════════ PERFIL (pieza 26) ═══════════ */
+  /* 28/09 · la foto de un contratista se recuerda por nombre */
+  grupo('personas-recuerdo');
+  {
+    const { page, ctx } = await pagina(browser, ['visor', 'personas']);
+    await prueba('una cara pintada con foto se recuerda para las fichas sin foto', async () => {
+      const r = await page.evaluate(() => {
+        const P = KIT.piezas.personas;
+        const antes = P.foto('JUAN PÉREZ GÓMEZ');
+        P.avatar('JUAN PÉREZ GÓMEZ', { foto: 'https://drive.google.com/thumbnail?id=abc&sz=w200' });
+        const a = P.avatar('juan perez gomez', { tam: 44 });
+        return [antes, !!a.querySelector('img'), a.classList.contains('kit-av--toca')];
+      });
+      igual(r, ['', true, true]);
+    });
+    await prueba('foto: null fuerza las iniciales aunque se recuerde una', async () => {
+      igual(await page.evaluate(() => !!KIT.piezas.personas.avatar('JUAN PÉREZ GÓMEZ', { foto: null }).querySelector('img')), false);
+    });
+    await prueba('tocar la cara de otro abre el visor con zoom', async () => {
+      await page.evaluate(() => { const a = KIT.piezas.personas.avatar('JUAN PÉREZ GÓMEZ', { tam: 44 }); a.id = 'cx'; document.body.appendChild(a); });
+      await page.locator('#cx').click();
+      await page.waitForTimeout(250);
+      cierto(await page.locator('.kit-visor').count() > 0, 'debía abrir el visor');
+    });
+    await ctx.close();
+  }
+
   grupo('perfil');
   {
     const { page, ctx } = await pagina(browser, ['guardado', 'confirmar', 'visor', 'personas', 'perfil']);
@@ -2649,7 +2675,7 @@ ${js}
         KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: 'https://x/o.jpg' });
       });
       await page.waitForTimeout(300);
-      await page.locator('.kit-perfil__acciones .kit-btn--plano').click();
+      await page.locator('.kit-perfil__acciones .kit-perfil__quitar').click();
       await page.waitForTimeout(80);
       cierto(await page.locator('.kit-conf').isVisible(), 'debía preguntar');
       await page.locator('.kit-conf__no').click();
@@ -2659,13 +2685,129 @@ ${js}
 
     await prueba('si confirma, quita la foto y avisa a las demás vistas', async () => {
       await page.evaluate(() => { window.__foto = null; KIT.al ? 0 : 0; document.addEventListener('kit:foto', e => { window.__foto = e.detail; }); });
-      await page.locator('.kit-perfil__acciones .kit-btn--plano').click();
+      await page.locator('.kit-perfil__acciones .kit-perfil__quitar').click();
       await page.waitForTimeout(80);
       await page.locator('.kit-conf__si').click();
       await page.waitForTimeout(1500);
       igual(await page.evaluate(() => window.__pedidos), ['fotoPerfilQuitar']);
       cierto(await page.evaluate(() => window.__foto !== null || true), 'evento');
       cierto(/Subir foto/.test(await page.locator('.kit-perfil__acciones').last().innerText()), 'debía volver a ofrecer subir');
+    });
+
+    /* ── 28/09 · ajustar, lupa, original e invitar ── */
+    const ROJA = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+      const g = c.getContext('2d'); g.fillStyle = '#c00'; g.fillRect(0, 0, 900, 600); return c.toDataURL('image/jpeg', .8); });
+
+    await prueba('con foto: Ajustar · Cambiar · Quitar y la lupa', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa').forEach(n => n.remove());
+        window.__h = KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: 'https://x/o.jpg' }); });
+      await page.waitForTimeout(120);
+      const t = await page.locator('.kit-perfil__acciones').last().innerText();
+      cierto(/Ajustar/.test(t) && /Cambiar/.test(t) && /Quitar/.test(t), 'tres botones: ' + t);
+      igual(await page.locator('.kit-perfil__lupa').count(), 1);
+    });
+
+    await prueba('la lupa abre el visor con la foto en grande', async () => {
+      await page.locator('.kit-perfil__lupa').click();
+      await page.waitForTimeout(250);
+      cierto(await page.locator('.kit-visor').count() > 0, 'debía abrir el visor');
+      await page.evaluate(() => { document.querySelectorAll('.kit-visor').forEach(n => n.remove()); });
+    });
+
+    await prueba('Ajustar trae la foto del CORE, recorta y guarda SIN original', async () => {
+      await page.evaluate((roja) => {
+        window.__pedidos = [];
+        KIT.pedir = (a, d) => { window.__pedidos.push({ a, d }); return Promise.resolve(a === 'fotoPerfilOriginal' ? { imagen: roja, original: true } : { foto: 'https://x/n.jpg', url: 'https://x/n.jpg' }); };
+      }, ROJA);
+      await page.locator('.kit-perfil__ajustar').click();
+      await page.waitForTimeout(400);
+      cierto(await page.locator('.kit-recorte__marco').isVisible(), 'debía abrir el recorte');
+      igual(await page.locator('.kit-recorte__otra').innerText(), 'Cancelar');
+      await page.locator('.kit-recorte__listo').click();
+      await page.waitForTimeout(1500);
+      const p = await page.evaluate(() => window.__pedidos.map(x => [x.a, !!(x.d && x.d.imagen), !!(x.d && x.d.original)]));
+      igual(p, [['fotoPerfilOriginal', false, false], ['fotoPerfilGuardar', true, false]]);
+    });
+
+    await prueba('Ajustar · Cancelar vuelve sin guardar', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa, .kit-guardado').forEach(n => n.remove()); window.__pedidos = [];
+        KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: 'https://x/o.jpg' }); });
+      await page.waitForTimeout(120);
+      await page.locator('.kit-perfil__ajustar').last().click();
+      await page.waitForTimeout(400);
+      await page.locator('.kit-recorte__otra').last().click();
+      await page.waitForTimeout(100);
+      igual(await page.evaluate(() => window.__pedidos.map(x => x.a)), ['fotoPerfilOriginal']);
+      cierto(await page.locator('.kit-perfil__ajustar').last().isVisible(), 'debía volver al inicio del modal');
+    });
+
+    await prueba('Ajustar sin foto en el CORE avisa y no se traba', async () => {
+      await page.evaluate(() => { KIT.pedir = () => Promise.resolve({ imagen: '' }); });
+      await page.locator('.kit-perfil__ajustar').last().click();
+      await page.waitForTimeout(300);
+      cierto(await page.locator('.kit-perfil__ajustar').last().isVisible(), 'vuelve al inicio');
+    });
+
+    await prueba('el original sale en JPEG de máximo 1600 px', async () => {
+      const r = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 4000; c.height = 3000;
+        const u = KIT.piezas.perfil._original(c);
+        return new Promise(res => { const i = new Image(); i.onload = () => res([u.slice(0, 15), i.width, i.height]); i.src = u; }); });
+      igual(r, ['data:image/jpeg', 1600, 1200]);
+    });
+
+    await prueba('foto nueva: viaja el recorte Y el original', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa, .kit-guardado').forEach(n => n.remove()); window.__pedidos = [];
+        KIT.pedir = (a, d) => { window.__pedidos.push({ a, d }); return Promise.resolve({ foto: 'https://x/n.jpg' }); };
+        KIT.piezas.perfil.abrir({ nombre: 'OSCAR POLANIA', foto: '' }); });
+      await page.waitForTimeout(120);
+      const b64 = ROJA.split(',')[1];
+      await page.locator('.kit-perfil__archivo').last().setInputFiles({ name: 'yo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(b64, 'base64') });
+      await page.waitForTimeout(500);
+      await page.locator('.kit-recorte__listo').last().click();
+      await page.waitForTimeout(1500);
+      const p = await page.evaluate(() => window.__pedidos.map(x => [x.a, /^data:image\/jpeg/.test(x.d.imagen || ''), /^data:image\/jpeg/.test(x.d.original || '')]));
+      igual(p, [['fotoPerfilGuardar', true, true]]);
+    });
+
+    await prueba('invitar: con foto no abre nada', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa, .kit-guardado').forEach(n => n.remove()); KIT.guardar.borrar('perfil.invitado'); });
+      igual(await page.evaluate(() => KIT.piezas.perfil.invitar({ nombre: 'ANA', foto: 'https://x/a.jpg' })), false);
+      await page.waitForTimeout(150);
+      igual(await page.locator('.kit-perfil').count(), 0);
+    });
+
+    await prueba('invitar: sin foto abre el modal con "Ahora no" y título propio', async () => {
+      igual(await page.evaluate(() => KIT.piezas.perfil.invitar({ nombre: 'ANA', foto: '' })), true);
+      await page.waitForTimeout(250);
+      igual(await page.locator('.kit-perfil .kit-capa__h span').innerText(), 'Agrega tu foto de perfil');
+      cierto(await page.locator('.kit-perfil__luego').isVisible(), 'debía ofrecer Ahora no');
+      await page.locator('.kit-perfil__luego').click();
+      await page.waitForTimeout(300);
+      igual(await page.locator('.kit-perfil.kit-capa--on').count(), 0);
+    });
+
+    await prueba('invitar: no vuelve a salir antes de 7 días', async () => {
+      igual(await page.evaluate(() => KIT.piezas.perfil.invitar({ nombre: 'ANA', foto: '' })), false);
+    });
+
+    await prueba('invitar: a los 7 días vuelve a salir', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa').forEach(n => n.remove());
+        KIT.guardar.escribir('perfil.invitado', Date.now() - 7 * 24 * 3600 * 1000 - 1000); });
+      igual(await page.evaluate(() => KIT.piezas.perfil.invitar({ nombre: 'ANA', foto: '' })), true);
+      await page.waitForTimeout(250);
+      igual(await page.locator('.kit-perfil.kit-capa--on').count(), 1);
+    });
+
+    await prueba('invitar: espera a que se cierre otro modal', async () => {
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa').forEach(n => n.remove()); KIT.guardar.borrar('perfil.invitado');
+        const o = document.createElement('div'); o.className = 'kit-capa kit-capa--on otro'; document.body.appendChild(o);
+        KIT.piezas.perfil.invitar({ nombre: 'ANA', foto: '' }); });
+      await page.waitForTimeout(400);
+      igual(await page.locator('.kit-perfil').count(), 0, 'no se monta encima');
+      await page.evaluate(() => document.querySelector('.otro').remove());
+      await page.waitForTimeout(1800);
+      igual(await page.locator('.kit-perfil').count(), 1, 'sale al quedar libre');
+      await page.evaluate(() => { document.querySelectorAll('.kit-capa').forEach(n => n.remove()); });
     });
 
     await ctx.close();

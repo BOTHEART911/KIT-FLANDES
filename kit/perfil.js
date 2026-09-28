@@ -15,8 +15,20 @@
      (CONTRATISTAS, USUARIOS y SUPERVISORES). Por eso esta pieza no
      sabe de apps: la usa igual Contratista que Supervision o Admin.
 
+   28/09 · AJUSTAR, VER EN GRANDE E INVITAR
+     · "Ajustar" reencuadra la foto que ya está (mover, acercar, alejar,
+       girar) sin volver a elegirla. Con cada foto nueva viaja también el
+       ORIGINAL reducido (1600 px): así se puede alejar después. Las fotos
+       de antes solo tienen el recorte: se ajustan dentro de él.
+     · La foto del modal lleva una lupa: tocarla abre el visor con zoom.
+     · invitar(): a quien no tiene foto se le abre UNA vez el modal
+       pidiéndola, con "Ahora no". Si la pospone, se vuelve a pedir a los
+       7 días (Oss, 28/09: no ser invasivos). Espera a que no haya otro
+       modal abierto.
+
    Cómo se usa
      KIT.piezas.perfil.abrir({ nombre, foto, alCambiar: function (r) {} })
+     KIT.piezas.perfil.invitar({ nombre, foto })   al entrar a la app
        r = { url, foto, mini }   (foto vacia si la quito)
      KIT.piezas.perfil.cara(nombre, foto, { tam: 72 })  → boton con camarita
 
@@ -33,6 +45,9 @@
   var CALIDAD = 0.88;
   var LADO_MAX = 2048;       /* lo que se guarda en memoria para recortar */
   var ZOOM_MAX = 4;
+  var ORIGINAL_LADO = 1600;  /* el original que se guarda para ajustar despues */
+  var INVITAR_CADA = 7 * 24 * 3600 * 1000;
+  var INVITAR_K = 'perfil.invitado';
 
   function P() { return K.piezas.personas; }
 
@@ -40,13 +55,13 @@
 
   function abrir(o) {
     o = o || {};
-    var estado = { foto: o.foto || '' };
+    var estado = { foto: o.foto || '', fuente: null, ajuste: false };
 
     var capa = K.nodo(
       '<div class="kit-capa kit-perfil" role="dialog" aria-modal="true" aria-label="Foto de perfil">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-perfil__hoja">' +
-      '    <header class="kit-capa__h"><span>Foto de perfil</span>' +
+      '    <header class="kit-capa__h"><span>' + (o.invitacion ? 'Agrega tu foto de perfil' : 'Foto de perfil') + '</span>' +
       '      <button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <div class="kit-capa__cuerpo kit-perfil__cuerpo"></div>' +
       '  </section>' +
@@ -68,24 +83,44 @@
 
     function inicio() {
       cuerpo.innerHTML = '';
-      var cara = P().avatar(o.nombre, { tam: 132, foto: estado.foto, sinZoom: !estado.foto });
+      var cara = P().avatar(o.nombre, { tam: 148, foto: estado.foto || null, sinZoom: !estado.foto });   /* null: sin foto, iniciales (no la del mapa) */
       var envol = K.nodo('<div class="kit-perfil__cara"></div>');
       envol.appendChild(cara);
+      /* 28/09 · la lupa dice que se puede ver en grande (el toque ya abría el visor) */
+      if (estado.foto) {
+        var lupa = K.nodo('<button type="button" class="kit-perfil__lupa" aria-label="Ver la foto en grande">' + K.icono('lupa', 16) + '</button>');
+        lupa.addEventListener('click', function () { cara.click(); });
+        envol.appendChild(lupa);
+      }
       cuerpo.appendChild(envol);
       cuerpo.appendChild(K.nodo('<p class="kit-perfil__nombre">' + K.esc(P().nombrePropio(o.nombre)) + '</p>'));
       cuerpo.appendChild(K.nodo('<p class="kit-perfil__nota">' + (estado.foto
         ? 'Tócala para verla en grande. Es la misma en todas las apps de la Alcaldía.'
+        : o.invitacion
+        ? 'Aún no tienes foto. Con ella, las personas con las que trabajas te reconocen al instante. Es la misma en todas las apps de la Alcaldía.'
         : 'Sin foto, se ven tus iniciales. La foto que subas la ven en Supervisión, Contratación, Contabilidad, Tesorería, Comunicaciones y Administración.') +
         '</p>'));
 
       var acc = K.nodo('<div class="kit-perfil__acciones"></div>');
-      var subir = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('camara', 17) + ' ' +
-        (estado.foto ? 'Cambiar foto' : 'Subir foto') + '</button>');
+      /* 28/09 · con foto: Ajustar · Cambiar · Quitar */
+      if (estado.foto) {
+        var ajustar = K.nodo('<button type="button" class="kit-btn kit-btn--marca kit-perfil__ajustar">' + K.icono('recortar', 17) + ' Ajustar</button>');
+        ajustar.addEventListener('click', function () { traerParaAjustar(); });
+        acc.appendChild(ajustar);
+      }
+      var subir = K.nodo('<button type="button" class="kit-btn ' + (estado.foto ? 'kit-btn--plano' : 'kit-btn--marca') + ' kit-perfil__subir">' + K.icono('camara', 17) + ' ' +
+        (estado.foto ? 'Cambiar' : 'Subir foto') + '</button>');
       subir.addEventListener('click', function () { input.value = ''; input.click(); });
       acc.appendChild(subir);
 
+      if (o.invitacion && !estado.foto) {
+        var luego = K.nodo('<button type="button" class="kit-btn kit-btn--plano kit-perfil__luego">Ahora no</button>');
+        luego.addEventListener('click', cerrar);
+        acc.appendChild(luego);
+      }
+
       if (estado.foto) {
-        var quitar = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('basura', 17) + ' Quitar</button>');
+        var quitar = K.nodo('<button type="button" class="kit-btn kit-btn--plano kit-perfil__quitar">' + K.icono('basura', 17) + ' Quitar</button>');
         quitar.addEventListener('click', function () { pedirQuitar(); });
         acc.appendChild(quitar);
       }
@@ -99,11 +134,28 @@
         K.aviso('Elige una imagen (JPG, PNG o WebP).', 'malo', 4000);
         return;
       }
-      leer(f).then(function (fuente) { recortar(fuente); })
+      leer(f).then(function (fuente) { estado.ajuste = false; recortar(fuente); })
         ['catch'](function () {
           K.aviso('No pudimos abrir esa imagen. Si es de iPhone (HEIC), tómale captura o elige otra.', 'malo', 6000);
         });
     });
+
+    /* ---------- 28/09 · ajustar la que ya está ---------- */
+
+    function traerParaAjustar() {
+      cuerpo.innerHTML = '<div class="kit-perfil__cargando" role="status">' +
+        '<span class="kit-esq kit-perfil__esq"></span><p class="kit-perfil__nota">Trayendo tu foto…</p></div>';
+      K.pedir('fotoPerfilOriginal', {})
+        .then(function (r) {
+          if (!r || !r.imagen) throw new Error('Aún no tienes una foto guardada para ajustar.');
+          return leerUrl(r.imagen);
+        })
+        .then(function (fuente) { estado.ajuste = true; recortar(fuente); })
+        ['catch'](function (e) {
+          inicio();
+          K.aviso(e && e.message ? e.message : 'No pudimos traer tu foto. Inténtalo de nuevo.', 'malo', 5000);
+        });
+    }
 
     /* ---------- el recorte ---------- */
 
@@ -121,7 +173,7 @@
         '  <p class="kit-recorte__pista">Arrastra para centrar tu cara. Acerca con dos dedos, con la rueda o con la barra.</p>' +
         '  <div class="kit-recorte__botones">' +
         '    <button type="button" class="kit-btn kit-btn--plano kit-recorte__girar">' + K.icono('girar', 16) + ' Girar</button>' +
-        '    <button type="button" class="kit-btn kit-btn--plano kit-recorte__otra">Elegir otra</button>' +
+        '    <button type="button" class="kit-btn kit-btn--plano kit-recorte__otra">' + (estado.ajuste ? 'Cancelar' : 'Elegir otra') + '</button>' +
         '    <button type="button" class="kit-btn kit-btn--marca kit-recorte__listo">' + K.icono('check', 16) + ' Guardar foto</button>' +
         '  </div>' +
         '</div>'
@@ -135,20 +187,28 @@
 
       barra.addEventListener('input', function () { E.zoomA(parseFloat(barra.value) || 1); });
       r.querySelector('.kit-recorte__girar').addEventListener('click', function () { E.girar(); barra.value = '1'; });
-      r.querySelector('.kit-recorte__otra').addEventListener('click', function () { input.value = ''; input.click(); });
+      r.querySelector('.kit-recorte__otra').addEventListener('click', function () {
+        if (estado.ajuste) { inicio(); return; }
+        input.value = ''; input.click();
+      });
       r.querySelector('.kit-recorte__listo').addEventListener('click', function () {
         var dataUrl = E.exportar();
-        guardar(dataUrl);
+        /* foto nueva: viaja también el original (ya girado si se giró) para
+           poder ajustarla después; al ajustar se conserva el que ya estaba */
+        guardar(dataUrl, estado.ajuste ? '' : original(E.fuente));
       });
     }
 
-    function guardar(dataUrl) {
+    function guardar(dataUrl, orig) {
       var G = K.piezas.guardado;
-      if (G) G.abrir({ titulo: 'Guardando tu foto', sub: 'La vas a ver en todas las apps de la Alcaldía.' });
-      K.pedir('fotoPerfilGuardar', { imagen: dataUrl })
+      if (G) G.abrir({ titulo: estado.ajuste ? 'Guardando el ajuste' : 'Guardando tu foto', sub: 'La vas a ver en todas las apps de la Alcaldía.' });
+      var cuerpoPedido = { imagen: dataUrl };
+      if (orig) cuerpoPedido.original = orig;
+      K.pedir('fotoPerfilGuardar', cuerpoPedido)
         .then(function (res) {
           estado.foto = res.foto || res.mini || '';
-          if (G) G.listo({ sub: 'Tu foto quedó puesta.' });
+          if (G) G.listo({ sub: estado.ajuste ? 'Tu foto quedó ajustada.' : 'Tu foto quedó puesta.' });
+          estado.ajuste = false;
           avisar(res);
           inicio();
         })
@@ -215,6 +275,56 @@
       img.onerror = function () { URL.revokeObjectURL(url); mal(new Error('no carga')); };
       img.src = url;
     });
+  }
+
+  /* 28/09 · un data URL (lo que manda el CORE al ajustar) → canvas */
+  function leerUrl(dataUrl) {
+    return new Promise(function (ok, mal) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          ok(c);
+        } catch (e) { mal(e); }
+      };
+      img.onerror = function () { mal(new Error('No pudimos abrir tu foto.')); };
+      img.src = dataUrl;
+    });
+  }
+
+  /* 28/09 · el original reducido a 1600 px de lado (~200-400 KB) */
+  function original(fuente) {
+    try {
+      var f = Math.min(1, ORIGINAL_LADO / Math.max(fuente.width, fuente.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(fuente.width * f));
+      c.height = Math.max(1, Math.round(fuente.height * f));
+      var g = c.getContext('2d');
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(fuente, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.85);
+    } catch (e) { return ''; }
+  }
+
+  /* ══════════════ 28/09 · invitar a quien no tiene foto ══════════════ */
+
+  function invitar(o) {
+    o = o || {};
+    if (o.foto) return false;
+    var ultima = Number(K.guardar.leer(INVITAR_K, 0)) || 0;
+    if (Date.now() - ultima < INVITAR_CADA) return false;
+    var intentos = 0;
+    (function esperar() {
+      /* no se monta encima de otro modal (bienvenida, avisos, instalar…) */
+      var ocupado = document.querySelector('.kit-capa--on, .kit-sesion, .kit-resc');
+      if (ocupado && intentos++ < 40) { setTimeout(esperar, 1500); return; }
+      if (ocupado) return;
+      K.guardar.escribir(INVITAR_K, Date.now());
+      abrir({ nombre: o.nombre, foto: '', invitacion: true, alCambiar: o.alCambiar });
+    }());
+    return true;
   }
 
   /* ══════════════ el encuadre ══════════════
@@ -353,7 +463,7 @@
   function cara(nombre, foto, o) {
     o = o || {};
     var b = K.nodo('<button type="button" class="kit-perfil-cara" aria-label="Tu foto de perfil"></button>');
-    b.appendChild(P().avatar(nombre, { tam: o.tam || 64, foto: foto, sinZoom: true }));
+    b.appendChild(P().avatar(nombre, { tam: o.tam || 64, foto: foto || null, sinZoom: true }));
     b.appendChild(K.nodo('<span class="kit-perfil-cara__cam" aria-hidden="true">' + K.icono('camara', 14) + '</span>'));
     b.addEventListener('click', function () {
       K.vibrar(8);
@@ -362,5 +472,5 @@
     return b;
   }
 
-  K.piezas.perfil = { abrir: abrir, cara: cara, _Encuadre: Encuadre, _leer: leer };
+  K.piezas.perfil = { abrir: abrir, cara: cara, invitar: invitar, _Encuadre: Encuadre, _leer: leer, _leerUrl: leerUrl, _original: original };
 }());

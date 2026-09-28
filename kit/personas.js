@@ -27,6 +27,13 @@
 
    Tocar una cara con foto la abre en grande (visor del kit, con zoom).
 
+   28/09 · LA FOTO DEL CONTRATISTA SE RECUERDA POR NOMBRE.
+     El mapa del arranque trae a los funcionarios, no a los contratistas.
+     Cada vez que una lista pinta a alguien CON su foto (f.img), la pieza
+     la recuerda en memoria; así las fichas que solo traen el nombre
+     (gestiones, soportes, contratos en ADMIN) también muestran la cara y
+     se abren en grande. Cero viajes al servidor.
+
    Pareja: kit/personas.css
    ============================================================ */
 (function () {
@@ -70,7 +77,12 @@
   }
 
   function de(nombre) { return MAPA[clave(nombre)] || null; }
-  function foto(nombre) { var p = de(nombre); return p && p.f ? p.f : ''; }
+  var VISTAS = {};   /* 28/09 · fotos vistas en esta sesión (contratistas) */
+  function recordar(nombre, url) {
+    var k = clave(nombre);
+    if (k && url && /^https?:/.test(String(url))) VISTAS[k] = String(url);
+  }
+  function foto(nombre) { var p = de(nombre); return p && p.f ? p.f : (VISTAS[clave(nombre)] || ''); }
 
   function iniciales(nombre) {
     var p = String(nombre || '').trim().split(/\s+/).filter(function (x) { return /[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(x); });
@@ -97,7 +109,10 @@
   function avatar(nombre, o) {
     o = o || {};
     var tam = o.tam || 36;
-    var url = miniDrive(o.foto !== undefined ? o.foto : foto(nombre), tam > 96 ? 512 : 200);
+    if (o.foto) recordar(nombre, o.foto);
+    /* sin foto propia (vacía o sin pasar) se busca en el mapa y en las vistas;
+       o.foto === null fuerza las iniciales */
+    var url = miniDrive(o.foto === null ? '' : (o.foto || foto(nombre)), tam > 96 ? 512 : 200);
     var el = K.nodo('<span class="kit-av' + (o.clase ? ' ' + o.clase : '') + '" role="img"></span>');
     el.setAttribute('aria-label', String(nombre || 'Sin nombre'));
     el.style.setProperty('--kit-av-tam', tam + 'px');
@@ -154,7 +169,7 @@
   cargar(null);   /* lo guardado en el teléfono, hasta que llegue el arranque */
 
   K.piezas.personas = {
-    cargar: cargar, avatar: avatar, chip: chip, foto: foto, de: de,
+    cargar: cargar, avatar: avatar, chip: chip, foto: foto, de: de, recordar: recordar,
     iniciales: iniciales, nombrePropio: nombrePropio,
     _mapa: function () { return MAPA; }
   };
