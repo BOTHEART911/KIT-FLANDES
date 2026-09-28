@@ -45,6 +45,12 @@
    cambiar (actual, nueva y repetida). "Olvidé mi contraseña" no tiene
    campo: la clave llega por WhatsApp y se escribe en el login, con ojo.
 
+   28/09 · EL COHETE AL ENTRAR (como Sec. Hacienda). Al tocar "Entrar" se
+   abre la pieza de guardado con "Validando tus credenciales" y sus pasos;
+   si entra, se pone verde con "¡Hola, <nombre>!" mientras la app se arma
+   detrás; si falla, se cierra y el error sale en la puerta como siempre.
+   Sin kit/guardado.js cargado, sigue el botón "Entrando…" de antes.
+
    Pareja: kit/sesion.css
    ============================================================ */
 (function () {
@@ -171,6 +177,25 @@
     if (txt) { K.sonar('sound/pay_fail.mp3'); K.vibrar([10, 50, 10]); }
   }
 
+  /* 28/09 · el cohete de entrada (pieza de guardado del kit) */
+  function G() { return K.piezas.guardado || null; }
+  function coheteAbrir(pasos) {
+    if (!G()) return;
+    G().abrir({
+      titulo: 'Entrando',
+      sub: 'Estamos validando tus credenciales.',
+      pasos: pasos || ['Validando tus credenciales…', 'Cargando tus permisos…', 'Preparando tu inicio…']
+    });
+  }
+  function coheteListo(d) {
+    if (!G()) return;
+    var u = (d && (d.usuario || d.yo)) || {};
+    var nombre = String(u.nombre || '').trim().split(/\s+/)[0] || '';
+    nombre = nombre ? nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase() : '';
+    G().listo({ titulo: nombre ? '¡Hola, ' + nombre + '!' : '¡Bienvenido(a)!', sub: 'Tus credenciales son correctas.', paso: 'Acceso concedido', espera: 1200 });
+  }
+  function coheteCerrar() { if (G()) G().cerrar(); }
+
   function ocupado(si) {
     if (!capa) return;
     var b = capa.querySelector('.kit-sesion__entrar');
@@ -191,12 +216,14 @@
        este mismo viaje (un viaje a Apps Script cuesta ~2 s de transporte). */
     var pide = { documento: doc, clave: clave, appDestino: K.app };
     if (cfg.arranqueEnLogin) pide.conArranque = true;
+    coheteAbrir();
     K.pedir('login', pide, { sinToken: true, app: 'CORE' })
       .then(function (d) {
         K.guardar.escribir('sesion.ultimoDocumento', doc);
 
         /* varios contratos: el CORE devuelve la lista y hay que elegir */
         if (d && d.contratos && d.contratos.length > 1) {
+          coheteCerrar();
           ocupado(false);
           elegirContrato(d);
           return;
@@ -204,6 +231,7 @@
         terminar(d);
       })
       .catch(function (e) {
+        coheteCerrar();
         ocupado(false);
         error(mensajeDe(e));
         /* 26/09 · SIN ACCESO (solo CONTRATISTA): el login fallido trae en la
@@ -253,12 +281,14 @@
         var b = li.querySelector('button');
         b.disabled = true;
         b.classList.add('kit-ocupado');
+        coheteAbrir(['Abriendo tu contrato…', 'Cargando tus permisos…', 'Preparando tu inicio…']);
         K.pedir('elegirContrato', { token: d.token, idContrato: c.idContrato }, { sinToken: true, app: 'CORE' })
           .then(function (dd) {
             hoja.remove();
             terminar(dd);
           })
           .catch(function (e) {
+            coheteCerrar();
             b.disabled = false;
             b.classList.remove('kit-ocupado');
             K.aviso(mensajeDe(e), 'malo', 5000);
@@ -269,11 +299,13 @@
   }
 
   function terminar(d) {
-    if (!d || !d.token) { error('El servidor no devolvió una sesión válida.'); return; }
+    if (!d || !d.token) { coheteCerrar(); ocupado(false); error('El servidor no devolvió una sesión válida.'); return; }
     K.ponerToken(d.token);
     guardarYo(d.usuario || d.yo || d);
-    K.sonar('sound/pay_success.mp3');
-    K.vibrar(12);
+    /* 28/09 · con cohete, el verde y el sonido los pone él (sin doble sonido);
+       la app se arma detrás mientras se ve el "¡Hola!" */
+    if (G()) coheteListo(d);
+    else { K.sonar('sound/pay_success.mp3'); K.vibrar(12); }
     cerrarPuerta();
     K.disparar('kit:sesion', { entro: true, yo: yo() });
 

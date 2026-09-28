@@ -1681,6 +1681,69 @@ ${js}
     await ctx.close();
   }
 
+  /* 28/09 · el cohete al entrar (como Sec. Hacienda) */
+  grupo('sesion-cohete');
+  {
+    const { page, ctx } = await pagina(browser, ['guardado', 'sesion', 'conexion']);
+    const fingir = async (r, lento) => page.evaluate(([r, lento]) => {
+      window.KIT.pedir = (accion) => new Promise((ok, mal) => setTimeout(() => {
+        const p = r[accion];
+        if (!p) return mal(Object.assign(new Error('no'), { codigo: 'ERROR' }));
+        if (p.error) return mal(Object.assign(new Error(p.error.msg), { codigo: p.error.codigo }));
+        ok(p);
+      }, lento || 600));
+    }, [r, lento]);
+    const entrar = async () => {
+      await page.evaluate(() => { KIT.ponerToken(''); document.querySelectorAll('.kit-sesion, .kit-capa').forEach(n => n.remove());
+        KIT.piezas.sesion.entrar({ titulo: 'CONTRATISTA' }); });
+      await page.fill('[name="documento"]', '1070590350');
+      await page.fill('[name="clave"]', 'abc123');
+      await page.locator('.kit-sesion__entrar').click();
+    };
+
+    await prueba('al tocar Entrar sale el cohete "Validando tus credenciales"', async () => {
+      await fingir({ login: { token: 't1', usuario: { nombre: 'ANA MARIA RUIZ' } } }, 900);
+      await entrar();
+      await page.waitForTimeout(150);
+      cierto(await page.locator('.kit-guard.kit-guard--on').isVisible(), 'debía verse el cohete');
+      igual(await page.locator('.kit-guard__t').innerText(), 'Entrando');
+      igual(await page.locator('.kit-guard__paso').innerText(), 'Validando tus credenciales…');
+    });
+
+    await prueba('si entra, se pone verde con el nombre y la puerta se va', async () => {
+      await page.waitForTimeout(1000);
+      cierto(await page.locator('.kit-guard--listo').isVisible(), 'debía ponerse verde');
+      igual(await page.locator('.kit-guard__t').innerText(), '¡Hola, Ana!');
+      await page.waitForTimeout(1500);
+      igual(await page.locator('.kit-guard--on').count(), 0, 'el cohete se cierra solo');
+      igual(await page.locator('.kit-sesion').count(), 0, 'la puerta se fue');
+    });
+
+    await prueba('clave mala: el cohete se cierra y el error sale en la puerta', async () => {
+      await fingir({ login: { error: { msg: 'Contraseña incorrecta. Te quedan 4 intentos.', codigo: 'CLAVE' } } }, 300);
+      await entrar();
+      await page.waitForTimeout(700);
+      igual(await page.locator('.kit-guard--on').count(), 0);
+      igual(await page.locator('.kit-sesion__error').innerText(), 'Contraseña incorrecta. Te quedan 4 intentos.');
+      falso(await page.locator('.kit-sesion__entrar').isDisabled(), 'el botón se suelta');
+    });
+
+    await prueba('varios contratos: el cohete se cierra y sale la lista; al elegir vuelve', async () => {
+      await fingir({ login: { token: 't', contratos: [{ idContrato: 'A-1' }, { idContrato: 'B-2' }] },
+        elegirContrato: { token: 't2', usuario: { nombre: 'ANA' } } }, 300);
+      await entrar();
+      await page.waitForTimeout(600);
+      igual(await page.locator('.kit-guard--on').count(), 0);
+      igual(await page.locator('.kit-sesion__contrato').count(), 2);
+      await page.locator('.kit-sesion__contrato').first().click();
+      await page.waitForTimeout(120);
+      igual(await page.locator('.kit-guard__paso').innerText(), 'Abriendo tu contrato…');
+      await page.waitForTimeout(500);
+      cierto(await page.locator('.kit-guard--listo').isVisible(), 'debía entrar');
+    });
+    await ctx.close();
+  }
+
   /* ═══════════ INSTALAR ═══════════ */
   grupo('instalar');
   {
