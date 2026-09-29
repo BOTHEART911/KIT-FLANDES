@@ -204,6 +204,10 @@
   function enviar(cuerpo, opciones) {
     var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
     var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, opciones.ms || 60000);
+    /* 29/09 · quien pidio puede cancelar (opciones.senal): los documentos que se
+       bajaban por detras de una cuenta que ya se cerro seguian ocupando la red */
+    var sn = opciones.senal;
+    if (sn && ctrl) { if (sn.aborted) ctrl.abort(); else sn.addEventListener('abort', function () { ctrl.abort(); }); }
 
     return fetch(API, {
       method: 'POST',
@@ -256,6 +260,7 @@
       .catch(function (e) {
         clearTimeout(corte);
         if (e && e.codigo) throw e;
+        if (e && e.name === 'AbortError' && sn && sn.aborted) throw problema('CANCELADA', 'Se canceló.');
         if (e && e.name === 'AbortError') throw problema('TIEMPO', 'El servidor tardó demasiado en responder.');
         throw problema('SIN_RED', 'No se pudo hablar con el servidor.');
       });
