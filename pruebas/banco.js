@@ -1220,7 +1220,7 @@ ${js}
       const m = await caja();
       cierto(m.w <= 381, 'minimizada debía ser chica: ' + m.w);
       cierto(await page.locator('.kit-visor__asa--se').isVisible(), 'minimizada también tiene asas');
-      cierto(await page.locator('.kit-visor__zoom').isHidden(), 'sin zoom minimizada');
+      cierto(await page.locator('.kit-visor__zoom').isVisible(), 'minimizada también tiene zoom');
       await page.locator('.kit-visor__b[data-a="encoger"]').click();
       const b = await caja();
       igual([Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)], [Math.round(a.x), Math.round(a.y), Math.round(a.w), Math.round(a.h)]);
@@ -1237,6 +1237,24 @@ ${js}
       cierto(b.x + b.w <= 1193 && b.y + b.h <= 893, 'no se sale de la pantalla');
       cierto(await page.evaluate(() => document.querySelector('.kit-visor').classList.contains('kit-visor--chico')), 'sigue minimizada');
       chicaAjustada = b;
+    });
+    await prueba('minimizada el zoom funciona: botón, tecla, doble clic y Ctrl + rueda', async () => {
+      igual(await pct(), '100%');
+      await page.locator('.kit-visor__zb[data-z="mas"]').click();
+      igual(await pct(), '125%');
+      await page.keyboard.press('0');
+      igual(await pct(), '100%');
+      const r = await page.evaluate(() => JSON.parse(JSON.stringify(document.querySelector('.kit-visor__hojas').getBoundingClientRect())));
+      await page.mouse.dblclick(r.left + 60, r.top + 60);
+      igual(await pct(), '250%');
+      await page.mouse.dblclick(r.left + 60, r.top + 60);
+      igual(await pct(), '100%');
+      await page.mouse.move(r.left + r.width / 2, r.top + r.height / 2);
+      await page.keyboard.down('Control'); await page.mouse.wheel(0, -240); await page.keyboard.up('Control');
+      cierto(parseInt(await pct()) > 100, 'Ctrl + rueda debía acercar');
+      const pz = await page.evaluate(() => { const z = document.querySelector('.kit-visor__zoom').getBoundingClientRect(), c = document.querySelector('.kit-visor__caja').getBoundingClientRect(); return z.right <= c.right && z.bottom <= c.bottom && z.left >= c.left; });
+      cierto(pz, 'la pastilla debía quedar dentro de la ventana');
+      await page.locator('.kit-visor__zp').click();
     });
     await prueba('minimizada también se achica, sin bajar del mínimo', async () => {
       await arrastrar('.kit-visor__asa--se', -2000, -2000);

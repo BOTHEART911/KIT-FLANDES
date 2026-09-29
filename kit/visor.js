@@ -307,7 +307,7 @@
     if (!capa || !capa.classList.contains('kit-visor--on')) return;
     var t = e.target && e.target.tagName;
     var escribiendo = t === 'INPUT' || t === 'TEXTAREA' || (e.target && e.target.isContentEditable);
-    if (!escribiendo && Z.sc && !capa.classList.contains('kit-visor--chico')) {
+    if (!escribiendo && Z.sc) {
       if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomA(Z.z * 1.25); return; }
       if (e.key === '-') { e.preventDefault(); zoomA(Z.z / 1.25); return; }
       if (e.key === '0') { e.preventDefault(); zoomA(1); return; }

@@ -326,7 +326,9 @@
 .kit-visor__zp:hover { background: rgba(var(--k-marca-rgb), .12); color: var(--k-marca); }
 .kit-visor__zb:disabled { opacity: .35; cursor: default; background: transparent; color: inherit; }
 .kit-visor__zb:active:not(:disabled) { transform: scale(.9); }
-.kit-visor--chico .kit-visor__zoom { display: none; }
+/* el zoom va en cualquier tamaño, también minimizada (29/09): ahí la pastilla
+   se pega más a la esquina para no tapar el documento */
+.kit-visor--chico .kit-visor__zoom { right: 8px; bottom: 8px; }
 
 @media (max-width: 560px) {
   .kit-visor__asa { display: none; }
