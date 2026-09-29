@@ -16,6 +16,30 @@ const KIT = path.resolve(__dirname, '..', 'salida', 'KIT-FLANDES', 'kit');
 
 /* [archivo, grupo del banco, qué se rompe, texto original, texto mutado] */
 const MUTACIONES = [
+  /* 29/09 · visor: tamaño al gusto y zoom (grupo visor-zoom: necesita VISOR_DATOS y VISOR_PDFJS) */
+  ['visor.js', 'visor-zoom', 'el cambio de tamaño deja de ser proporcional',
+    "if (lado === 's') return fs;", "if (lado === 's') return fs * 1.3;"],
+  ['visor.js', 'visor-zoom', 'el borde izquierdo ya no deja fijo el lado derecho',
+    "var l = (lado === 'w' || lado === 'sw') ? l0 + w0 - w : l0;", "var l = l0;"],
+  ['visor.js', 'visor-zoom', 'la ventana se puede estirar fuera de la pantalla',
+    "var fMax = Math.min((W - 2 * MARGEN) / w0, (H - 2 * MARGEN) / h0);", "var fMax = 99;"],
+  ['visor.js', 'visor-zoom', 'el zoom ya no crece hacia el puntero',
+    "sc.scrollLeft += (rp2.left + fx * rp2.width) - cx;", ""],
+  ['visor.js', 'visor-zoom', 'el zoom no tiene tope',
+    "nz = Math.min(Z_MAX, Math.max(Z_MIN, nz));", ""],
+  ['visor.js', 'visor-zoom', 'con zoom no se redibuja nítido',
+    "var meta = visible ? Math.max(quiere, p.pxBase) : p.pxBase;", "var meta = p.pxBase;"],
+  ['visor.js', 'visor-zoom', 'minimizar pierde el tamaño elegido',
+    "caja.style.cssText = caja.__normal ? caja.__normal.css : '';", "caja.style.cssText = '';"],
+  ['visor.js', 'visor-zoom', 'cerrar no olvida el tamaño elegido',
+    "['left', 'top', 'width', 'height', 'transform'].forEach(function (k) { caja.style[k] = ''; });", ""],
+  ['visor.js', 'visor-zoom', 'al cambiar de documento se queda el zoom anterior',
+    "    sinZoom();\n    lienzo.innerHTML = '<div class=\"kit-visor__cargando\">", "    lienzo.innerHTML = '<div class=\"kit-visor__cargando\">"],
+  ['visor.js', 'visor-zoom', 'el doble clic ya no acerca',
+    "zoomA(Z.z > 1.05 ? 1 : 2.5, e.clientX, e.clientY);", ""],
+  ['visor.js', 'visor-zoom', 'en un marco de Drive sale la pastilla que no sirve',
+    "Z.sc = null; Z.pliego = null; Z.tipo = ''; Z.z = 1; Z.aspecto = 0; Z.paginas = [];\n    clearTimeout(Z.t);\n    if (capa) capa.querySelector('.kit-visor__zoom').classList.add('kit-oculto');",
+    "Z.sc = null; Z.pliego = null; Z.tipo = ''; Z.z = 1; Z.aspecto = 0; Z.paginas = [];\n    clearTimeout(Z.t);"],
   /* 10.4 · soporte profesional */
   ['kit.js', 'soporte104', 'K.pedir ya no avisa de los soportes por calificar',
     "setTimeout(function () { disparar('kit:soporte', sop); }, 1200);", ''],
@@ -380,9 +404,11 @@ function correrBanco(grupo) {
   let cazadas = 0;
   const vivas = [];
 
-  console.log(`\n  Probando ${MUTACIONES.length} mutaciones…\n`);
+  console.log(`\n  Probando ${(process.env.MUT_GRUPO ? MUTACIONES.filter(m => m[1] === process.env.MUT_GRUPO) : MUTACIONES).length} mutaciones…\n`);
 
-  MUTACIONES.forEach(([archivo, grupo, que, antes, despues], n) => {
+  /* MUT_GRUPO=visor-zoom corre solo las de ese grupo */
+  const LISTA = process.env.MUT_GRUPO ? MUTACIONES.filter(m => m[1] === process.env.MUT_GRUPO) : MUTACIONES;
+  LISTA.forEach(([archivo, grupo, que, antes, despues], n) => {
     /* la del escudo visible toca el CSS */
     const f = (que.indexOf('escudo se hace visible') >= 0)
       ? rutaDe('antidoble.css') : rutaDe(archivo);
@@ -402,7 +428,7 @@ function correrBanco(grupo) {
     if ((n + 1) % 40 === 0) process.stdout.write('\n');
   });
 
-  console.log(`\n\n  CAZADAS ${cazadas} de ${MUTACIONES.length}\n`);
+  console.log(`\n\n  CAZADAS ${cazadas} de ${(process.env.MUT_GRUPO ? MUTACIONES.filter(m => m[1] === process.env.MUT_GRUPO) : MUTACIONES).length}\n`);
   if (vivas.length) {
     console.log('  ── mutaciones que SOBREVIVIERON (huecos en las pruebas) ──');
     vivas.forEach(v => console.log('   ' + v));

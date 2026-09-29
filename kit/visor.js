@@ -44,6 +44,21 @@
      · Los enlaces de Drive se convierten a /preview, que es el único que
        se deja incrustar. Un /view dentro de un iframe sale en blanco.
 
+   29/09 · TAMAÑO AL GUSTO Y ZOOM
+     · La ventana se agranda o se achica desde el borde derecho, el
+       izquierdo, el de abajo o las dos esquinas de abajo. Crece en
+       PROPORCIÓN (conserva la forma) y nunca se sale de la pantalla.
+       Al cerrar se olvida: la próxima abre en su tamaño normal.
+     · Zoom sobre el documento (PDF dibujado e imágenes): botones − / + y
+       el porcentaje (tocarlo vuelve a "ajustado"), Ctrl + rueda (en la
+       imagen basta la rueda), pellizco en el teléfono, doble clic o doble
+       toque sobre la parte que se quiere ver, y las teclas + − 0. El zoom
+       crece hacia donde está el puntero; con zoom, se arrastra para
+       moverse por la hoja. Las páginas visibles se vuelven a dibujar a
+       la resolución del zoom para que la letra no se vea borrosa.
+     · Los documentos de Drive que se ven en un marco (/preview) traen su
+       propio zoom: ahí los botones no se muestran.
+
    Pareja: kit/visor.css
    ============================================================ */
 (function () {
@@ -146,11 +161,8 @@
       return lib.getDocument({ data: d._bytes.slice() }).promise;
     }).then(function (pdf) {
       if (actual() !== d) return;
-      var hojas = document.createElement('div');
-      hojas.className = 'kit-visor__hojas';
-      lienzo.innerHTML = '';
-      lienzo.appendChild(hojas);
-      var ancho = Math.max(280, Math.min(lienzo.clientWidth - 24, 1100));
+      var esc = escena(lienzo, 'pdf');
+      var ancho = anchoBase();
       var escalaPantalla = Math.min(window.devicePixelRatio || 1, 2);
       var cadena = Promise.resolve();
       for (var p = 1; p <= pdf.numPages; p++) {
@@ -159,20 +171,27 @@
             if (actual() !== d) return;
             return pdf.getPage(n).then(function (pag) {
               var base = pag.getViewport({ scale: 1 });
-              var vista = pag.getViewport({ scale: (ancho / base.width) * escalaPantalla });
-              var c = document.createElement('canvas');
-              c.className = 'kit-visor__hoja';
-              c.width = Math.floor(vista.width);
-              c.height = Math.floor(vista.height);
-              c.style.width = Math.floor(vista.width / escalaPantalla) + 'px';
-              hojas.appendChild(c);
-              return pag.render({ canvasContext: c.getContext('2d'), viewport: vista }).promise;
+              var pxAncho = Math.floor(ancho * escalaPantalla);
+              var c = lienzoDe(pag, pxAncho);
+              Z.paginas.push({ pag: pag, c: c, px: pxAncho, pxBase: pxAncho, w1: base.width, h1: base.height });
+              if (Z.paginas.length === 1) { Z.aspecto = base.width / base.height; ajustar(); }
+              esc.pliego.appendChild(c);
+              return pag.render({ canvasContext: c.getContext('2d'), viewport: pag.getViewport({ scale: pxAncho / base.width }) }).promise;
             });
           });
         })(p);
       }
-      return cadena;
+      return cadena.then(function () { if (actual() === d) nitidez(); });
     });
+  }
+
+  function lienzoDe(pag, pxAncho) {
+    var vista = pag.getViewport({ scale: pxAncho / pag.getViewport({ scale: 1 }).width });
+    var c = document.createElement('canvas');
+    c.className = 'kit-visor__hoja';
+    c.width = Math.floor(vista.width);
+    c.height = Math.floor(vista.height);
+    return c;
   }
 
   /** Lo que se ve de un documento que llegó con bytes. */
@@ -181,12 +200,7 @@
     traer(d).then(function () {
       if (actual() !== d) return;
       if (d._tipo === 'imagen') {
-        var img = new Image();
-        img.className = 'kit-visor__img';
-        img.alt = d.titulo || '';
-        img.src = d._url;
-        lienzo.innerHTML = '';
-        lienzo.appendChild(img);
+        montarImagen(lienzo, d._url, d.titulo);
         return;
       }
       if (d._tipo === 'pdf') {
@@ -194,6 +208,7 @@
           /* sin pdf.js (sin red hacia el CDN): el iframe, y si el teléfono
              no lo pinta, la persona igual tiene el botón de descargar */
           if (actual() !== d) return;
+          sinZoom();
           lienzo.innerHTML = '';
           var f = document.createElement('iframe');
           f.className = 'kit-visor__marco';
@@ -239,12 +254,24 @@
       '        <button type="button" class="kit-visor__b kit-visor__b--x" data-a="cerrar" title="Cerrar">' + K.icono('cerrar', 18) + '</button>' +
       '      </div>' +
       '    </header>' +
-      '    <div class="kit-visor__lienzo"></div>' +
+      '    <div class="kit-visor__cuerpo">' +
+      '      <div class="kit-visor__lienzo"></div>' +
+      '      <div class="kit-visor__zoom kit-oculto" role="group" aria-label="Zoom del documento">' +
+      '        <button type="button" class="kit-visor__zb" data-z="menos" title="Alejar (tecla −)" aria-label="Alejar">' + K.icono('menos', 16) + '</button>' +
+      '        <button type="button" class="kit-visor__zp" data-z="ajustar" title="Ajustar a la ventana (tecla 0)">100%</button>' +
+      '        <button type="button" class="kit-visor__zb" data-z="mas" title="Acercar (tecla +). También: Ctrl + rueda, pellizco o doble clic sobre la parte que quieres ver" aria-label="Acercar">' + K.icono('mas', 16) + '</button>' +
+      '      </div>' +
+      '    </div>' +
       '    <footer class="kit-visor__pie">' +
       '      <button type="button" class="kit-btn kit-visor__nav" data-p="-1">‹ Anterior</button>' +
       '      <span class="kit-visor__puntos"></span>' +
       '      <button type="button" class="kit-btn kit-visor__nav" data-p="1">Siguiente ›</button>' +
       '    </footer>' +
+      '    <span class="kit-visor__asa kit-visor__asa--e"  data-lado="e"  aria-hidden="true"></span>' +
+      '    <span class="kit-visor__asa kit-visor__asa--w"  data-lado="w"  aria-hidden="true"></span>' +
+      '    <span class="kit-visor__asa kit-visor__asa--s"  data-lado="s"  aria-hidden="true"></span>' +
+      '    <span class="kit-visor__asa kit-visor__asa--se" data-lado="se" aria-hidden="true" title="Arrastra para cambiar el tamaño"></span>' +
+      '    <span class="kit-visor__asa kit-visor__asa--sw" data-lado="sw" aria-hidden="true" title="Arrastra para cambiar el tamaño"></span>' +
       '  </section>' +
       '</div>'
     );
@@ -257,52 +284,368 @@
     capa.querySelectorAll('.kit-visor__nav').forEach(function (b) {
       b.addEventListener('click', function () { ir(i + (+b.dataset.p)); });
     });
+    capa.querySelectorAll('.kit-visor__zb, .kit-visor__zp').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.z === 'mas') zoomA(Z.z * 1.25);
+        else if (b.dataset.z === 'menos') zoomA(Z.z / 1.25);
+        else zoomA(1);
+      });
+    });
     document.addEventListener('keydown', teclas);
-    arrastrable(capa.querySelector('.kit-visor__caja'), capa.querySelector('.kit-visor__barra'));
+    var caja = capa.querySelector('.kit-visor__caja');
+    arrastrable(caja, capa.querySelector('.kit-visor__barra'));
+    redimensionable(caja);
+    window.addEventListener('resize', function () { if (capa.classList.contains('kit-visor--on')) dentro(caja); });
+    if (window.ResizeObserver) {
+      new ResizeObserver(function () { if (Z.sc) requestAnimationFrame(ajustar); }).observe(capa.querySelector('.kit-visor__lienzo'));
+    }
   }
 
   function teclas(e) {
-    if (!capa) return;
+    if (!capa || !capa.classList.contains('kit-visor--on')) return;
+    var t = e.target && e.target.tagName;
+    var escribiendo = t === 'INPUT' || t === 'TEXTAREA' || (e.target && e.target.isContentEditable);
+    if (!escribiendo && Z.sc && !capa.classList.contains('kit-visor--chico')) {
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomA(Z.z * 1.25); return; }
+      if (e.key === '-') { e.preventDefault(); zoomA(Z.z / 1.25); return; }
+      if (e.key === '0') { e.preventDefault(); zoomA(1); return; }
+    }
     if (e.key === 'Escape') cerrar();
     else if (e.key === 'ArrowRight') ir(i + 1);
     else if (e.key === 'ArrowLeft') ir(i - 1);
   }
 
+  /* ── posición y tamaño libres ──
+     La caja nace centrada por la capa. Al primer arrastre o cambio de
+     tamaño pasa a posición fija con su sitio y su tamaño actuales, y desde
+     ahí se mueve con left/top y crece con width/height. */
+
+  var MARGEN = 8, VISIBLE = 60, MIN_W = 320, MIN_H = 220;
+
+  function libre(caja) {
+    if (caja.classList.contains('kit-visor__caja--libre')) return;
+    var r = caja.getBoundingClientRect();
+    caja.classList.add('kit-visor__caja--libre', 'kit-visor__caja--movida');
+    caja.style.left = r.left + 'px';
+    caja.style.top = r.top + 'px';
+    caja.style.width = r.width + 'px';
+    caja.style.height = r.height + 'px';
+  }
+
+  /** Que la ventana no se quede por fuera (al girar el teléfono o achicar el navegador). */
+  function dentro(caja) {
+    if (!caja.classList.contains('kit-visor__caja--libre')) return;
+    var W = window.innerWidth, H = window.innerHeight;
+    var w = caja.offsetWidth, h = caja.offsetHeight;
+    if (!capa.classList.contains('kit-visor--chico') && (w > W - 2 * MARGEN || h > H - 2 * MARGEN)) {
+      var f = Math.min((W - 2 * MARGEN) / w, (H - 2 * MARGEN) / h);
+      w = Math.round(w * f); h = Math.round(h * f);
+      caja.style.width = w + 'px'; caja.style.height = h + 'px';
+    }
+    var l = parseFloat(caja.style.left) || 0, t = parseFloat(caja.style.top) || 0;
+    caja.style.left = Math.min(Math.max(l, -w + VISIBLE), W - VISIBLE) + 'px';
+    caja.style.top = Math.min(Math.max(t, 0), H - VISIBLE) + 'px';
+  }
+
   /** Mover la ventana por la barra, con dedo o con ratón. */
   function arrastrable(caja, asa) {
-    var moviendo = false, x0 = 0, y0 = 0, dx = 0, dy = 0, ax = 0, ay = 0;
+    var moviendo = false, x0 = 0, y0 = 0, l0 = 0, t0 = 0;
 
     function baja(e) {
       if (e.target.closest('.kit-visor__b')) return;   /* los botones no arrastran */
+      if (e.button !== undefined && e.button !== 0) return;
+      libre(caja);
       moviendo = true;
-      var p = punto(e);
-      x0 = p.x; y0 = p.y; ax = dx; ay = dy;
-      caja.classList.add('kit-visor__caja--movida');
+      x0 = e.clientX; y0 = e.clientY;
+      l0 = parseFloat(caja.style.left) || 0; t0 = parseFloat(caja.style.top) || 0;
       document.addEventListener('pointermove', mueve);
       document.addEventListener('pointerup', sube, { once: true });
+      document.addEventListener('pointercancel', sube, { once: true });
     }
     function mueve(e) {
       if (!moviendo) return;
-      var p = punto(e);
-      dx = ax + (p.x - x0);
-      dy = ay + (p.y - y0);
-      /* no dejar que se escape de la pantalla */
-      var r = caja.getBoundingClientRect();
-      var margen = 60;
-      if (r.left < -r.width + margen && p.x < x0) dx = ax;
-      if (r.top < 0 && p.y < y0) dy = ay;
-      if (r.top > window.innerHeight - margen && p.y > y0) dy = ay;
-      caja.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      var w = caja.offsetWidth;
+      /* no dejar que se escape de la pantalla: siempre queda un trozo de barra a la vista */
+      var l = Math.min(Math.max(l0 + (e.clientX - x0), -w + VISIBLE), window.innerWidth - VISIBLE);
+      var t = Math.min(Math.max(t0 + (e.clientY - y0), 0), window.innerHeight - VISIBLE);
+      caja.style.left = l + 'px';
+      caja.style.top = t + 'px';
     }
     function sube() {
       moviendo = false;
       document.removeEventListener('pointermove', mueve);
     }
-    function punto(e) { return { x: e.clientX, y: e.clientY }; }
 
     asa.addEventListener('pointerdown', baja);
-    /* al cerrar se olvida dónde estaba: la próxima abre centrada */
-    capa.__resetPos = function () { dx = dy = ax = ay = 0; caja.style.transform = ''; caja.classList.remove('kit-visor__caja--movida'); };
+    /* al cerrar se olvida dónde estaba y qué tamaño tenía: la próxima abre centrada */
+    capa.__resetPos = function () {
+      ['left', 'top', 'width', 'height', 'transform'].forEach(function (k) { caja.style[k] = ''; });
+      caja.classList.remove('kit-visor__caja--movida', 'kit-visor__caja--libre');
+      caja.__normal = null;
+    };
+  }
+
+  /**
+   * Cambiar el tamaño desde un borde o esquina, EN PROPORCIÓN: el ancho y el
+   * alto crecen por el mismo factor, así la ventana conserva su forma.
+   * Borde derecho/esquina derecha: queda fija la izquierda. Borde izquierdo/
+   * esquina izquierda: queda fija la derecha. Arriba no hay asa: la barra es
+   * para mover.
+   */
+  function redimensionable(caja) {
+    var lado = '', x0 = 0, y0 = 0, w0 = 0, h0 = 0, l0 = 0, t0 = 0, activo = null;
+
+    function factor(e) {
+      var dx = e.clientX - x0, dy = e.clientY - y0;
+      var fe = (w0 + dx) / w0, fw = (w0 - dx) / w0, fs = (h0 + dy) / h0;
+      if (lado === 'e') return fe;
+      if (lado === 'w') return fw;
+      if (lado === 's') return fs;
+      if (lado === 'se') return (fe + fs) / 2;
+      return (fw + fs) / 2;                                   /* sw */
+    }
+    function baja(e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      libre(caja);
+      activo = e.currentTarget;
+      lado = activo.dataset.lado;
+      x0 = e.clientX; y0 = e.clientY;
+      w0 = caja.offsetWidth; h0 = caja.offsetHeight;
+      l0 = parseFloat(caja.style.left) || 0; t0 = parseFloat(caja.style.top) || 0;
+      caja.classList.add('kit-visor__caja--cambiando');
+      try { activo.setPointerCapture(e.pointerId); } catch (x) {}
+      activo.addEventListener('pointermove', mueve);
+      activo.addEventListener('pointerup', sube);
+      activo.addEventListener('pointercancel', sube);
+    }
+    function mueve(e) {
+      var W = window.innerWidth, H = window.innerHeight;
+      var fMin = Math.max(Math.min(MIN_W, W - 2 * MARGEN) / w0, Math.min(MIN_H, H - 2 * MARGEN) / h0);
+      var fMax = Math.min((W - 2 * MARGEN) / w0, (H - 2 * MARGEN) / h0);
+      var f = Math.min(Math.max(factor(e), fMin), Math.max(fMax, fMin));
+      var w = Math.round(w0 * f), h = Math.round(h0 * f);
+      var l = (lado === 'w' || lado === 'sw') ? l0 + w0 - w : l0;
+      var t = t0;
+      /* si al crecer se sale por un lado, se corre hacia adentro */
+      l = Math.min(Math.max(l, MARGEN), W - w - MARGEN);
+      t = Math.min(Math.max(t, MARGEN), H - h - MARGEN);
+      caja.style.width = w + 'px';
+      caja.style.height = h + 'px';
+      caja.style.left = l + 'px';
+      caja.style.top = t + 'px';
+    }
+    function sube(e) {
+      caja.classList.remove('kit-visor__caja--cambiando');
+      if (activo) {
+        try { activo.releasePointerCapture(e.pointerId); } catch (x) {}
+        activo.removeEventListener('pointermove', mueve);
+        activo.removeEventListener('pointerup', sube);
+        activo.removeEventListener('pointercancel', sube);
+      }
+      activo = null;
+      if (Z.sc) { ajustar(); nitidezLuego(); }
+    }
+    caja.querySelectorAll('.kit-visor__asa').forEach(function (a) { a.addEventListener('pointerdown', baja); });
+  }
+
+  /* ══════════════ ZOOM ══════════════
+     El documento va en una ESCENA (la que tiene el scroll) con un PLIEGO
+     adentro. Ajustado (100 %) el pliego mide lo que cabe; con zoom mide
+     ancho × zoom y la escena deja moverse por él. Las páginas del PDF y la
+     imagen ocupan el ancho del pliego. */
+
+  var Z_MIN = 0.5, Z_MAX = 5;
+  var Z = { z: 1, sc: null, pliego: null, tipo: '', aspecto: 0, paginas: [], t: 0 };
+
+  function sinZoom() {
+    Z.sc = null; Z.pliego = null; Z.tipo = ''; Z.z = 1; Z.aspecto = 0; Z.paginas = [];
+    clearTimeout(Z.t);
+    if (capa) capa.querySelector('.kit-visor__zoom').classList.add('kit-oculto');
+  }
+
+  /** Arma la escena dentro del lienzo y la deja lista para el zoom. */
+  function escena(lienzo, tipo) {
+    sinZoom();
+    var sc = document.createElement('div');
+    sc.className = 'kit-visor__hojas' + (tipo === 'imagen' ? ' kit-visor__hojas--img' : '');
+    var pl = document.createElement('div');
+    pl.className = 'kit-visor__pliego';
+    sc.appendChild(pl);
+    lienzo.innerHTML = '';
+    lienzo.appendChild(sc);
+    Z.sc = sc; Z.pliego = pl; Z.tipo = tipo;
+    gestos(sc);
+    capa.querySelector('.kit-visor__zoom').classList.remove('kit-oculto');
+    pintarPorcentaje();
+    return { sc: sc, pliego: pl };
+  }
+
+  function montarImagen(lienzo, src, alt) {
+    var esc = escena(lienzo, 'imagen');
+    var img = new Image();
+    img.className = 'kit-visor__img';
+    img.alt = alt || '';
+    img.draggable = false;
+    img.addEventListener('load', function () {
+      if (Z.pliego !== esc.pliego) return;
+      Z.aspecto = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+      ajustar();
+      var c = lienzo.querySelector('.kit-visor__cargando');
+      if (c) c.remove();
+    });
+    img.addEventListener('error', function () {
+      if (Z.pliego !== esc.pliego) return;
+      sinZoom();
+      lienzo.innerHTML = '<div class="kit-visor__malo">No se pudo abrir el documento.<br>' +
+        '<button type="button" class="kit-btn kit-btn--marca">Abrir en una pestaña</button></div>';
+      lienzo.querySelector('button').addEventListener('click', function () { accion('abrir'); });
+    });
+    img.src = src;
+    esc.pliego.appendChild(img);
+  }
+
+  /** El ancho "ajustado" del pliego (zoom 100 %). */
+  function anchoBase() {
+    var sc = Z.sc || (capa && capa.querySelector('.kit-visor__lienzo'));
+    var w = Math.max(120, (sc ? sc.clientWidth : 600) - 24);
+    if (Z.tipo === 'imagen') {
+      var h = Math.max(120, (sc ? sc.clientHeight : 400) - 24);
+      return Z.aspecto ? Math.min(w, h * Z.aspecto) : w;
+    }
+    return Math.max(280, Math.min(w, 1100));
+  }
+
+  /** Pone el pliego al ancho que toca (base × zoom). */
+  function ajustar() {
+    if (!Z.pliego) return;
+    if (Z.tipo === 'imagen' && !Z.aspecto) return;
+    Z.pliego.style.width = Math.round(anchoBase() * Z.z) + 'px';
+    Z.sc.classList.toggle('kit-visor__hojas--zoom', Z.z > 1.001);
+  }
+
+  function pintarPorcentaje() {
+    if (!capa) return;
+    capa.querySelector('.kit-visor__zp').textContent = Math.round(Z.z * 100) + '%';
+    capa.querySelector('[data-z="menos"]').disabled = Z.z <= Z_MIN + 0.001;
+    capa.querySelector('[data-z="mas"]').disabled = Z.z >= Z_MAX - 0.001;
+  }
+
+  /**
+   * Cambia el zoom dejando QUIETO el punto (cx, cy) de la pantalla: lo que
+   * estaba bajo el puntero sigue bajo el puntero. Sin punto, el centro.
+   */
+  function zoomA(nz, cx, cy) {
+    if (!Z.sc || !Z.pliego) return;
+    nz = Math.min(Z_MAX, Math.max(Z_MIN, nz));
+    if (Math.abs(nz - 1) < 0.04) nz = 1;
+    var sc = Z.sc, rs = sc.getBoundingClientRect();
+    if (cx === undefined) { cx = rs.left + sc.clientWidth / 2; cy = rs.top + sc.clientHeight / 2; }
+    var rp = Z.pliego.getBoundingClientRect();
+    var fx = rp.width ? (cx - rp.left) / rp.width : 0.5;
+    var fy = rp.height ? (cy - rp.top) / rp.height : 0.5;
+    Z.z = nz;
+    ajustar();
+    var rp2 = Z.pliego.getBoundingClientRect();
+    sc.scrollLeft += (rp2.left + fx * rp2.width) - cx;
+    sc.scrollTop += (rp2.top + fy * rp2.height) - cy;
+    pintarPorcentaje();
+    nitidezLuego();
+  }
+
+  /* Las páginas del PDF que se ven se vuelven a dibujar a la resolución del
+     zoom (si no, la letra sale borrosa). Las que se van de la vista vuelven a
+     su resolución de base para no llenar la memoria del teléfono. */
+  var TOPE_PX = 3200;
+
+  function nitidezLuego() { clearTimeout(Z.t); Z.t = setTimeout(nitidez, 220); }
+
+  function nitidez() {
+    if (Z.tipo !== 'pdf' || !Z.sc || !Z.paginas.length) return;
+    var d = actual(), sc = Z.sc, rs = sc.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var quiere = Math.min(TOPE_PX, Math.floor(Z.pliego.clientWidth * dpr));
+    var cadena = Promise.resolve();
+    Z.paginas.forEach(function (p) {
+      var r = p.c.getBoundingClientRect();
+      var visible = r.bottom > rs.top - 200 && r.top < rs.bottom + 200;
+      var meta = visible ? Math.max(quiere, p.pxBase) : p.pxBase;
+      if (Math.abs(meta - p.px) / p.px < 0.12) return;
+      cadena = cadena.then(function () {
+        if (actual() !== d || !p.c.parentNode) return;
+        var nuevo = lienzoDe(p.pag, meta);
+        return p.pag.render({ canvasContext: nuevo.getContext('2d'), viewport: p.pag.getViewport({ scale: meta / p.w1 }) }).promise
+          .then(function () {
+            if (actual() !== d || !p.c.parentNode) return;
+            p.c.parentNode.replaceChild(nuevo, p.c);
+            p.c = nuevo; p.px = meta;
+          });
+      })['catch'](function () {});
+    });
+    return cadena;
+  }
+
+  /** Rueda, arrastrar con zoom, doble clic/toque y pellizco. */
+  function gestos(sc) {
+    sc.addEventListener('wheel', function (e) {
+      /* en el PDF la rueda sola baja por las páginas; con Ctrl (o el
+         pellizco del touchpad, que llega como Ctrl + rueda) es zoom */
+      if (!(e.ctrlKey || e.metaKey || Z.tipo === 'imagen')) { nitidezLuego(); return; }
+      e.preventDefault();
+      var f = Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.0022);
+      zoomA(Z.z * f, e.clientX, e.clientY);
+    }, { passive: false });
+    sc.addEventListener('scroll', function () { if (Z.z > 1.001) nitidezLuego(); }, { passive: true });
+
+    /* con zoom, el ratón arrastra la hoja (en el teléfono ya se mueve con el dedo) */
+    var mov = false, x0 = 0, y0 = 0, sl = 0, st = 0;
+    sc.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      if (sc.scrollWidth <= sc.clientWidth && sc.scrollHeight <= sc.clientHeight) return;
+      mov = true; x0 = e.clientX; y0 = e.clientY; sl = sc.scrollLeft; st = sc.scrollTop;
+      sc.classList.add('kit-visor__hojas--agarrada');
+      try { sc.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    sc.addEventListener('pointermove', function (e) {
+      if (!mov) return;
+      sc.scrollLeft = sl - (e.clientX - x0);
+      sc.scrollTop = st - (e.clientY - y0);
+    });
+    function suelta() { mov = false; sc.classList.remove('kit-visor__hojas--agarrada'); }
+    sc.addEventListener('pointerup', suelta);
+    sc.addEventListener('pointercancel', suelta);
+
+    /* doble clic: acerca a la parte señalada; otra vez, vuelve a ajustado */
+    sc.addEventListener('dblclick', function (e) {
+      e.preventDefault();
+      zoomA(Z.z > 1.05 ? 1 : 2.5, e.clientX, e.clientY);
+      K.vibrar(8);
+    });
+
+    /* teléfono: doble toque y pellizco con touch (el navegador no se queda
+       con el pellizco porque la escena lleva touch-action: pan-x pan-y) */
+    var ultimo = 0, d0 = 0, z0 = 1;
+    function sep(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+    sc.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) { d0 = sep(e.touches); z0 = Z.z; }
+      else if (e.touches.length === 1) {
+        var ahora = Date.now();
+        if (ahora - ultimo < 300) {
+          e.preventDefault();
+          zoomA(Z.z > 1.05 ? 1 : 2.5, e.touches[0].clientX, e.touches[0].clientY);
+          K.vibrar(8);
+          ultimo = 0;
+        } else ultimo = ahora;
+      }
+    }, { passive: false });
+    sc.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 2 || !d0) return;
+      e.preventDefault();
+      var t = e.touches;
+      zoomA(z0 * (sep(t) / d0), (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);
+    }, { passive: false });
+    sc.addEventListener('touchend', function (e) { if (e.touches.length < 2) d0 = 0; });
   }
 
   function actual() { return docs[i] || null; }
@@ -312,6 +655,20 @@
     if (!d && a !== 'cerrar' && a !== 'encoger') return;
     if (a === 'cerrar') return cerrar();
     if (a === 'encoger') {
+      var caja = capa.querySelector('.kit-visor__caja');
+      var yaChico = capa.classList.contains('kit-visor--chico');
+      /* 29/09 · el tamaño y el sitio elegidos se guardan al minimizar y
+         vuelven al restaurar; minimizada, la esquina manda */
+      if (!yaChico) {
+        caja.__normal = { css: caja.style.cssText, libre: caja.classList.contains('kit-visor__caja--libre') };
+        caja.style.cssText = '';
+        caja.classList.remove('kit-visor__caja--libre', 'kit-visor__caja--movida');
+      } else {
+        caja.style.cssText = caja.__normal ? caja.__normal.css : '';
+        caja.classList.remove('kit-visor__caja--libre', 'kit-visor__caja--movida');
+        if (caja.__normal && caja.__normal.libre) { caja.classList.add('kit-visor__caja--libre', 'kit-visor__caja--movida'); dentro(caja); }
+        caja.__normal = null;
+      }
       capa.classList.toggle('kit-visor--chico');
       var b = capa.querySelector('[data-a="encoger"]');
       var chico = capa.classList.contains('kit-visor--chico');
@@ -374,6 +731,7 @@
     capa.querySelector('.kit-visor__t').textContent = d ? (d.titulo || 'Documento') : '';
     capa.querySelector('.kit-visor__cuenta').textContent = docs.length > 1 ? (i + 1) + ' de ' + docs.length : '';
 
+    sinZoom();
     lienzo.innerHTML = '<div class="kit-visor__cargando">Abriendo el documento…</div>';
     if (!d) return;
 
@@ -383,19 +741,20 @@
       return;
     }
 
-    var marco;
     if (tipoDe(d) === 'imagen') {
-      marco = new Image();
-      marco.className = 'kit-visor__img';
-      marco.alt = d.titulo || '';
-      marco.src = d.url;
-    } else {
-      marco = document.createElement('iframe');
-      marco.className = 'kit-visor__marco';
-      marco.setAttribute('allow', 'autoplay');
-      marco.setAttribute('referrerpolicy', 'no-referrer');
-      marco.src = paraVer(d.url);
+      /* la imagen también lleva zoom: el aviso de "abriendo" se queda hasta que carga */
+      var espera = lienzo.innerHTML;
+      montarImagen(lienzo, d.url, d.titulo);
+      lienzo.insertAdjacentHTML('afterbegin', espera);
+      puntos();
+      return;
     }
+    /* el /preview de Drive trae su propio zoom: aquí no hay pastilla */
+    var marco = document.createElement('iframe');
+    marco.className = 'kit-visor__marco';
+    marco.setAttribute('allow', 'autoplay');
+    marco.setAttribute('referrerpolicy', 'no-referrer');
+    marco.src = paraVer(d.url);
     marco.addEventListener('load', function () {
       var c = lienzo.querySelector('.kit-visor__cargando');
       if (c) c.remove();
@@ -454,6 +813,7 @@
     if (!capa) return;
     capa.classList.remove('kit-visor--on');
     capa.querySelector('.kit-visor__lienzo').innerHTML = '';   /* suelta el iframe */
+    sinZoom();
     soltar(docs);
     docs = [];
     i = 0;
@@ -461,6 +821,8 @@
 
   K.piezas.visor = {
     abrir: abrir, cerrar: cerrar, ir: ir,
+    /* 29/09 · zoom del documento que se está viendo (1 = ajustado) */
+    zoom: function (n) { if (n !== undefined) zoomA(n); return Z.z; },
     abierto: function () { return !!(capa && capa.classList.contains('kit-visor--on')); },
     idDrive: idDrive, paraVer: paraVer, paraAbrir: paraAbrir, paraBajar: paraBajar,
     /* 5.4 · bajar pdf.js y su trabajador ANTES del primer documento */

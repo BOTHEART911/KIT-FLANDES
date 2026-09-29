@@ -973,6 +973,282 @@ ${js}
     await ctx.close();
   }
 
+  /* ═══════════ VISOR · TAMAÑO Y ZOOM (29/09) ═══════════
+     Con documentos REALES de una cuenta (PDF y evidencia). No van en el
+     repo: son datos de un contratista. Se pasan por la variable
+     VISOR_DATOS=<carpeta con cert.pdf y evid.jpg>, y pdf.js se sirve desde
+     VISOR_PDFJS=<carpeta build de pdfjs-dist 3.11.174>. Sin ellas, el
+     grupo se salta y lo dice. */
+  grupo('visor-zoom');
+  if (!process.env.VISOR_DATOS || !process.env.VISOR_PDFJS) {
+    console.log('  (visor-zoom saltado: faltan VISOR_DATOS y VISOR_PDFJS)');
+  } else {
+    const DAT = process.env.VISOR_DATOS, PJS = process.env.VISOR_PDFJS;
+    const { page, ctx } = await pagina(browser, ['visor']);
+    await ctx.route('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/**', r => {
+      const f = r.request().url().split('/build/')[1];
+      r.fulfill({ path: path.join(PJS, f), contentType: 'application/javascript' });
+    });
+    await ctx.route('https://ejemplo.com/evid.jpg', r => r.fulfill({ path: path.join(DAT, 'evid.jpg'), contentType: 'image/jpeg' }));
+    await page.evaluate(() => { window.__nav = []; });
+    const b64 = n => fs.readFileSync(path.join(DAT, n)).toString('base64');
+    await page.evaluate(([pdf, jpg]) => {
+      window.__docs = function () {
+        return [
+          { titulo: 'Certificación bancaria', tipo: 'pdf', cargar: function () { return Promise.resolve({ nombre: 'cert.pdf', mime: 'application/pdf', base64: pdf }); } },
+          { titulo: 'Evidencia', cargar: function () { return Promise.resolve({ nombre: 'evid.jpg', mime: 'image/jpeg', base64: jpg }); } },
+          { titulo: 'Evidencia por enlace', url: 'https://ejemplo.com/evid.jpg', tipo: 'imagen' },
+          { titulo: 'En Drive', url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQ/view' }
+        ];
+      };
+    }, [b64('cert.pdf'), b64('evid.jpg')]);
+
+    const caja = () => page.evaluate(() => { const r = document.querySelector('.kit-visor__caja').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+    const pliegoW = () => page.evaluate(() => document.querySelector('.kit-visor__pliego').getBoundingClientRect().width);
+    const pct = () => page.locator('.kit-visor__zp').innerText();
+    const esperarHoja = () => page.waitForSelector('.kit-visor__pliego canvas.kit-visor__hoja', { timeout: 15000 });
+
+    await page.evaluate(() => KIT.piezas.visor.abrir(window.__docs()));
+    await esperarHoja();
+    await page.waitForTimeout(300);
+
+    await prueba('el PDF real se dibuja con pdf.js dentro del pliego', async () => {
+      igual(await page.locator('.kit-visor__pliego canvas').count(), 1);
+    });
+    await prueba('la pastilla de zoom aparece y arranca en 100%', async () => {
+      cierto(await page.locator('.kit-visor__zoom').isVisible(), 'debía verse');
+      igual(await pct(), '100%');
+    });
+    await prueba('siguen todos los botones de antes (abrir, descargar, imprimir, minimizar, cerrar)', async () => {
+      for (const a of ['abrir', 'bajar', 'imprimir', 'encoger', 'cerrar']) igual(await page.locator(`.kit-visor__b[data-a="${a}"]`).count(), 1, a);
+    });
+    await prueba('ajustado, la hoja cabe a lo ancho (sin scroll horizontal)', async () => {
+      const r = await page.evaluate(() => { const s = document.querySelector('.kit-visor__hojas'); return s.scrollWidth <= s.clientWidth + 1; });
+      cierto(r, 'no debía haber scroll horizontal');
+    });
+
+    let w100;
+    await prueba('+ acerca 25 % y el pliego crece en esa proporción', async () => {
+      w100 = await pliegoW();
+      await page.locator('.kit-visor__zb[data-z="mas"]').click();
+      igual(await pct(), '125%');
+      const w = await pliegoW();
+      cierto(Math.abs(w / w100 - 1.25) < 0.01, `proporción ${w / w100}`);
+    });
+    await prueba('− aleja y el porcentaje vuelve', async () => {
+      await page.locator('.kit-visor__zb[data-z="menos"]').click();
+      igual(await pct(), '100%');
+    });
+
+    await prueba('el zoom crece hacia el puntero: lo que está debajo no se mueve', async () => {
+      const antes = await page.evaluate(() => {
+        const p = document.querySelector('.kit-visor__pliego').getBoundingClientRect();
+        return { cx: p.left + p.width * 0.8, cy: p.top + Math.min(p.height, 600) * 0.3, fx: 0.8, fy: (Math.min(p.height, 600) * 0.3) / p.height };
+      });
+      await page.evaluate(([cx, cy]) => KIT.piezas.visor.zoom(3), [antes.cx, antes.cy]); /* centro */
+      await page.evaluate(() => KIT.piezas.visor.zoom(1));
+      await page.mouse.move(antes.cx, antes.cy);
+      await page.keyboard.down('Control');
+      await page.mouse.wheel(0, -240);
+      await page.keyboard.up('Control');
+      await page.waitForTimeout(100);
+      const r = await page.evaluate(([fx, fy]) => {
+        const p = document.querySelector('.kit-visor__pliego').getBoundingClientRect();
+        return { x: p.left + fx * p.width, y: p.top + fy * p.height };
+      }, [antes.fx, antes.fy]);
+      cierto(Math.abs(r.x - antes.cx) < 3 && Math.abs(r.y - antes.cy) < 3, `se corrió a ${JSON.stringify(r)} desde ${antes.cx},${antes.cy}`);
+      cierto(parseInt(await pct()) > 100, 'Ctrl + rueda debía acercar');
+    });
+    await prueba('en el PDF, la rueda SIN Ctrl baja por la hoja y no cambia el zoom', async () => {
+      const z0 = await pct();
+      await page.mouse.wheel(0, 200);
+      await page.waitForTimeout(150);
+      igual(await pct(), z0);
+    });
+    await prueba('con zoom, las páginas visibles se redibujan más nítidas', async () => {
+      const base = await page.evaluate(() => document.querySelector('.kit-visor__hoja').width);
+      await page.evaluate(() => KIT.piezas.visor.zoom(3));
+      await page.waitForFunction(b => document.querySelector('.kit-visor__hoja').width > b * 1.3, base, { timeout: 8000 });
+      const r = await page.evaluate(() => document.querySelector('.kit-visor__hoja').width);
+      cierto(r <= 3200, 'no pasa del tope de memoria: ' + r);
+    });
+    await prueba('con zoom, el ratón arrastra la hoja', async () => {
+      const s0 = await page.evaluate(() => { const s = document.querySelector('.kit-visor__hojas'); s.scrollLeft = 200; s.scrollTop = 200; return [s.scrollLeft, s.scrollTop]; });
+      const r = await page.evaluate(() => document.querySelector('.kit-visor__hojas').getBoundingClientRect());
+      await page.mouse.move(r.left + r.width / 2, r.top + r.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(r.left + r.width / 2 + 80, r.top + r.height / 2 + 60, { steps: 4 });
+      await page.mouse.up();
+      const s1 = await page.evaluate(() => { const s = document.querySelector('.kit-visor__hojas'); return [s.scrollLeft, s.scrollTop]; });
+      cierto(s0[0] - s1[0] > 60 && s0[1] - s1[1] > 40, `se movió ${s0} → ${s1}`);
+    });
+    await prueba('el zoom no pasa de 500 % ni baja de 50 %', async () => {
+      await page.evaluate(() => { for (let k = 0; k < 30; k++) KIT.piezas.visor.zoom(KIT.piezas.visor.zoom() * 2); });
+      igual(await pct(), '500%');
+      cierto(await page.locator('.kit-visor__zb[data-z="mas"]').isDisabled(), '+ apagado en el tope');
+      await page.evaluate(() => { for (let k = 0; k < 30; k++) KIT.piezas.visor.zoom(KIT.piezas.visor.zoom() / 2); });
+      igual(await pct(), '50%');
+    });
+    await prueba('tocar el porcentaje vuelve a ajustado', async () => {
+      await page.locator('.kit-visor__zp').click();
+      igual(await pct(), '100%');
+    });
+    await prueba('doble clic acerca a 250 % y otro doble clic vuelve', async () => {
+      const r = await page.evaluate(() => document.querySelector('.kit-visor__hojas').getBoundingClientRect());
+      await page.mouse.dblclick(r.left + 100, r.top + 100);
+      igual(await pct(), '250%');
+      const r2 = await page.evaluate(() => document.querySelector('.kit-visor__hojas').getBoundingClientRect());
+      await page.mouse.dblclick(r2.left + 100, r2.top + 100);
+      igual(await pct(), '100%');
+    });
+    await prueba('teclas + − 0', async () => {
+      await page.keyboard.press('+');
+      igual(await pct(), '125%');
+      await page.keyboard.press('-');
+      igual(await pct(), '100%');
+      await page.keyboard.press('+'); await page.keyboard.press('+');
+      await page.keyboard.press('0');
+      igual(await pct(), '100%');
+    });
+
+    await prueba('al pasar al siguiente documento el zoom vuelve a 100 %', async () => {
+      await page.evaluate(() => KIT.piezas.visor.zoom(2));
+      await page.keyboard.press('ArrowRight');
+      await page.waitForSelector('.kit-visor__pliego img', { timeout: 8000 });
+      await page.waitForTimeout(200);
+      igual(await pct(), '100%');
+      igual(await page.locator('.kit-visor__t').innerText(), 'Evidencia');
+    });
+    await prueba('la evidencia real cabe entera ajustada (ni ancho ni alto se salen)', async () => {
+      const r = await page.evaluate(() => { const s = document.querySelector('.kit-visor__hojas'); return [s.scrollWidth <= s.clientWidth + 1, s.scrollHeight <= s.clientHeight + 1]; });
+      igual(r, [true, true]);
+    });
+    await prueba('en la imagen basta la rueda para acercar', async () => {
+      const r = await page.evaluate(() => document.querySelector('.kit-visor__hojas').getBoundingClientRect());
+      await page.mouse.move(r.left + r.width / 2, r.top + r.height / 2);
+      await page.mouse.wheel(0, -200);
+      await page.waitForTimeout(100);
+      cierto(parseInt(await pct()) > 100, 'debía acercar');
+    });
+    await prueba('una imagen por enlace también tiene zoom', async () => {
+      await page.keyboard.press('ArrowRight');
+      await page.waitForFunction(() => { const i = document.querySelector('.kit-visor__pliego img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
+      cierto(await page.locator('.kit-visor__zoom').isVisible(), 'debía verse la pastilla');
+      await page.locator('.kit-visor__zb[data-z="mas"]').click();
+      igual(await pct(), '125%');
+    });
+    await prueba('imprimir sigue encontrando la imagen dentro del pliego', async () => {
+      igual(await page.evaluate(() => !!document.querySelector('.kit-visor__lienzo iframe, .kit-visor__lienzo img')), true);
+    });
+    await prueba('en un documento de Drive (marco /preview) no sale la pastilla', async () => {
+      await page.keyboard.press('ArrowRight');
+      igual(await page.locator('.kit-visor__lienzo iframe').count(), 1);
+      cierto(await page.locator('.kit-visor__zoom').isHidden(), 'no debía verse');
+    });
+
+    /* ── tamaño ── */
+    await page.evaluate(() => KIT.piezas.visor.ir(0));
+    await esperarHoja();
+    const arrastrar = async (sel, dx, dy) => {
+      const b = await page.locator(sel).boundingBox();
+      const x = b.x + b.width / 2, y = b.y + b.height / 2;
+      await page.mouse.move(x, y); await page.mouse.down();
+      await page.mouse.move(x + dx, y + dy, { steps: 6 }); await page.mouse.up();
+    };
+
+    await prueba('achicar desde la esquina derecha conserva la forma y la esquina izquierda', async () => {
+      const a = await caja();
+      await arrastrar('.kit-visor__asa--se', -300, -150);
+      const b = await caja();
+      cierto(b.w < a.w - 100, 'debía achicarse: ' + b.w);
+      cierto(Math.abs(b.w / b.h - a.w / a.h) < 0.01, `forma ${a.w / a.h} → ${b.w / b.h}`);
+      cierto(Math.abs(b.x - a.x) < 1 && Math.abs(b.y - a.y) < 1, 'la esquina de arriba a la izquierda no debía moverse');
+    });
+    await prueba('agrandar desde el borde derecho crece en proporción', async () => {
+      const a = await caja();
+      await arrastrar('.kit-visor__asa--e', 120, 0);
+      const b = await caja();
+      cierto(b.w > a.w + 80, 'debía crecer: ' + b.w);
+      cierto(Math.abs(b.w / b.h - a.w / a.h) < 0.01, 'forma distinta');
+    });
+    await prueba('desde el borde izquierdo queda fijo el lado derecho', async () => {
+      const a = await caja();
+      await arrastrar('.kit-visor__asa--w', 60, 0);
+      const b = await caja();
+      cierto(b.w < a.w - 30, 'debía achicarse');
+      cierto(Math.abs((b.x + b.w) - (a.x + a.w)) < 1.5, 'el lado derecho se movió');
+      cierto(Math.abs(b.w / b.h - a.w / a.h) < 0.01, 'forma distinta');
+    });
+    await prueba('desde abajo y la esquina izquierda también', async () => {
+      const a = await caja();
+      await arrastrar('.kit-visor__asa--s', 0, -40);
+      const b = await caja();
+      cierto(b.h < a.h - 20 && Math.abs(b.w / b.h - a.w / a.h) < 0.01, 'borde de abajo');
+      await arrastrar('.kit-visor__asa--sw', -50, 30);
+      const c = await caja();
+      cierto(c.w > b.w + 20 && Math.abs(c.w / c.h - a.w / a.h) < 0.01, 'esquina izquierda');
+    });
+    await prueba('por más que se estire, no se sale de la pantalla', async () => {
+      await arrastrar('.kit-visor__asa--se', 2000, 2000);
+      const b = await caja();
+      cierto(b.x >= 7 && b.y >= 7 && b.x + b.w <= 1193 && b.y + b.h <= 893, JSON.stringify(b));
+    });
+    await prueba('por más que se encoja, queda un mínimo usable', async () => {
+      await arrastrar('.kit-visor__asa--se', -3000, -3000);
+      const b = await caja();
+      cierto(b.w >= 319 && b.h >= 219, JSON.stringify(b));
+    });
+    await prueba('al cambiar el tamaño, el documento se reajusta al nuevo ancho', async () => {
+      await page.evaluate(() => KIT.piezas.visor.zoom(1));
+      await arrastrar('.kit-visor__asa--se', 400, 400);
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => { const s = document.querySelector('.kit-visor__hojas'); const p = document.querySelector('.kit-visor__pliego'); return [s.clientWidth, p.getBoundingClientRect().width]; });
+      cierto(Math.abs(r[1] - Math.min(r[0] - 24, 1100)) < 3, 'pliego ' + r);
+    });
+    await prueba('mover por la barra conserva el tamaño elegido', async () => {
+      const a = await caja();
+      const bar = await page.locator('.kit-visor__t').boundingBox();
+      await page.mouse.move(bar.x + 20, bar.y + 5); await page.mouse.down();
+      await page.mouse.move(bar.x - 40, bar.y + 35, { steps: 5 }); await page.mouse.up();
+      const b = await caja();
+      cierto(Math.abs(b.w - a.w) < 1 && Math.abs(b.h - a.h) < 1, 'cambió el tamaño');
+      cierto(Math.abs(b.x - (a.x - 60)) < 2 && Math.abs(b.y - (a.y + 30)) < 2, 'no se movió lo que se arrastró: ' + JSON.stringify([a, b]));
+    });
+    await prueba('minimizar y restaurar devuelve el tamaño y el sitio elegidos', async () => {
+      const a = await caja();
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
+      const m = await caja();
+      cierto(m.w <= 381, 'minimizada debía ser chica: ' + m.w);
+      cierto(await page.locator('.kit-visor__asa--se').isHidden(), 'sin asas minimizada');
+      cierto(await page.locator('.kit-visor__zoom').isHidden(), 'sin zoom minimizada');
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
+      const b = await caja();
+      igual([Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)], [Math.round(a.x), Math.round(a.y), Math.round(a.w), Math.round(a.h)]);
+    });
+    await prueba('cerrar y volver a abrir: tamaño normal y centrada', async () => {
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => KIT.piezas.visor.abrir(window.__docs()));
+      await page.waitForTimeout(300);
+      const b = await caja();
+      cierto(Math.abs(b.w - 1168) < 2, 'ancho normal: ' + b.w);
+      cierto(Math.abs((b.x + b.w / 2) - 600) < 2, 'centrada');
+      igual(await pct(), '100%');
+    });
+    await prueba('en el teléfono no hay asas y la ventana ocupa la pantalla', async () => {
+      await page.setViewportSize({ width: 375, height: 760 });
+      await page.waitForTimeout(150);
+      cierto(await page.locator('.kit-visor__asa--se').isHidden(), 'asas ocultas');
+      const b = await caja();
+      igual([Math.round(b.w), Math.round(b.h)], [375, 760]);
+      await page.setViewportSize({ width: 1200, height: 900 });
+    });
+    await prueba('modo oscuro: la pastilla de zoom no queda blanca', async () => {
+      const c = await page.evaluate(() => { document.documentElement.setAttribute('data-tema', 'oscuro'); const v = getComputedStyle(document.querySelector('.kit-visor__zoom')).backgroundColor; document.documentElement.setAttribute('data-tema', 'claro'); return v; });
+      cierto(c !== 'rgb(255, 255, 255)', c);
+    });
+    await ctx.close();
+  }
+
   /* ═══════════ CARRUSEL ═══════════ */
   grupo('carrusel');
   {
