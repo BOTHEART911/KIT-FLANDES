@@ -224,7 +224,13 @@
     opciones = opciones || {};
     abrir(opciones);
     return Promise.resolve(promesa).then(
-      function (v) { return listo(opciones.listo || {}).then(function () { return v; }); },
+      function (v) {
+        /* 29/09 · se guardo algo: lo ultimo que se vio (el arranque y las vistas
+           recordadas) ya no es lo de ahora. Al volver a abrir la app se trae
+           fresco en vez de pintar lo de antes del guardado. */
+        try { if (K.recuerdo) K.recuerdo.borrar(); if (K.recordado) K.recordado.olvidarTodo(); } catch (e) {}
+        return listo(opciones.listo || {}).then(function () { return v; });
+      },
       function (e) { fallo(); throw e; }
     );
   }

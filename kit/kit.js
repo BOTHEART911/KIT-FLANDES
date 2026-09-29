@@ -155,6 +155,7 @@
     var k;
     if (datos) for (k in datos) if (Object.prototype.hasOwnProperty.call(datos, k)) cuerpo[k] = datos[k];
     if (!cuerpo.token && token() && opciones.sinToken !== true) cuerpo.token = token();
+    var tokenPropio = !!(datos && datos.token);   /* la app mando su propio token (elegirContrato) */
 
     /* 25/09 · Antes de hablar con el CORE se espera a la pieza de versión:
        si acaba de publicarse algo nuevo la página se recarga ANTES de
@@ -165,12 +166,25 @@
     /* 25/09 · cada petición lleva su 'rid': si hay que repetirla, el CORE
        devuelve la respuesta ya dada en vez de hacerla dos veces. */
     if (!cuerpo.rid) cuerpo.rid = rid();
-    return puerta.then(function () { return enviar(cuerpo, opciones); })['catch'](function (e) {
+    return puerta.then(function () {
+      /* 29/09 · el token se toma AL SALIR, no al pedir: una llamada que se
+         pidio antes de entrar (o con la sesion anterior) sale con la sesion
+         que hay ahora. */
+      if (!tokenPropio && opciones.sinToken !== true && token()) cuerpo.token = token();
+      return enviar(cuerpo, opciones);
+    })['catch'](function (e) {
       /* La redirección de Google se quedó a medias (el CORE lo marca REPETIR):
          se repite UNA vez sola, sin molestar a la persona. */
       if (e && e.codigo === 'REPETIR' && !opciones.__repetida) {
         opciones.__repetida = true;
         return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return enviar(cuerpo, opciones); });
+      }
+      /* 29/09 · la llamada salio con una sesion vieja y mientras tanto la
+         persona ya entro de nuevo: se repite con la sesion nueva, sin error. */
+      if (e && e.sesionVieja && !opciones.__conNueva && token()) {
+        opciones.__conNueva = true;
+        cuerpo.token = token();
+        return enviar(cuerpo, opciones);
       }
       throw e;
     });
@@ -230,7 +244,12 @@
            vuelve a abrir la app sin sesión: sale el inicio de sesión. */
         if (cuerpo.token && (p.codigo === 'SESION_VENCIDA' || p.codigo === 'SIN_SESION' || SESION_CAIDA.test(p.message))) {
           p.codigo = 'SESION_VENCIDA';
-          sesionCaida(p.message);
+          /* 29/09 · SOLO si la sesion que fallo es la que hay ahora. Una
+             respuesta atrasada de la sesion anterior borraba el token recien
+             ganado: la persona entraba, le salia error y tenia que entrar dos
+             veces. Ahora esa llamada se repite con la sesion nueva. */
+          if (cuerpo.token === token()) sesionCaida(p.message);
+          else if (token()) p.sesionVieja = true;
         }
         throw p;
       })
