@@ -272,7 +272,9 @@
   border-radius: 0 0 4px 0;
 }
 .kit-visor__asa--se:hover::after { opacity: 1; }
-.kit-visor--chico .kit-visor__asa { display: none; }
+/* minimizada también cambia de tamaño (29/09): se ven las asas; la esquina
+   manda la posición solo hasta que se mueve o se ajusta */
+.kit-visor--chico .kit-visor__caja--libre { position: fixed; right: auto; bottom: auto; }
 
 /* escena del zoom: se mueve por dentro, el pliego se centra sin cortarse */
 .kit-visor__hojas {

@@ -1219,11 +1219,41 @@ ${js}
       await page.locator('.kit-visor__b[data-a="encoger"]').click();
       const m = await caja();
       cierto(m.w <= 381, 'minimizada debía ser chica: ' + m.w);
-      cierto(await page.locator('.kit-visor__asa--se').isHidden(), 'sin asas minimizada');
+      cierto(await page.locator('.kit-visor__asa--se').isVisible(), 'minimizada también tiene asas');
       cierto(await page.locator('.kit-visor__zoom').isHidden(), 'sin zoom minimizada');
       await page.locator('.kit-visor__b[data-a="encoger"]').click();
       const b = await caja();
       igual([Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)], [Math.round(a.x), Math.round(a.y), Math.round(a.w), Math.round(a.h)]);
+    });
+    let chicaAjustada;
+    await prueba('minimizada se agranda en proporción desde la esquina', async () => {
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
+      const a = await caja();
+      await arrastrar('.kit-visor__asa--sw', -150, 90);
+      const b = await caja();
+      cierto(b.w > a.w + 80, 'debía crecer: ' + JSON.stringify([a, b]));
+      cierto(Math.abs(b.w / b.h - a.w / a.h) < 0.01, `forma ${a.w / a.h} → ${b.w / b.h}`);
+      cierto(Math.abs((b.x + b.w) - (a.x + a.w)) < 1.5, 'el lado derecho debía quedar fijo');
+      cierto(b.x + b.w <= 1193 && b.y + b.h <= 893, 'no se sale de la pantalla');
+      cierto(await page.evaluate(() => document.querySelector('.kit-visor').classList.contains('kit-visor--chico')), 'sigue minimizada');
+      chicaAjustada = b;
+    });
+    await prueba('minimizada también se achica, sin bajar del mínimo', async () => {
+      await arrastrar('.kit-visor__asa--se', -2000, -2000);
+      const b = await caja();
+      cierto(b.w >= 319 && b.h >= 219, JSON.stringify(b));
+      await arrastrar('.kit-visor__asa--se', chicaAjustada.w - b.w, chicaAjustada.h - b.h);
+      chicaAjustada = await caja();
+    });
+    await prueba('cada modo recuerda su tamaño: normal al restaurar, el ajustado al volver a minimizar', async () => {
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
+      const n = await caja();
+      cierto(n.w > chicaAjustada.w + 100, 'restaurada debía volver a la grande: ' + n.w);
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
+      const c = await caja();
+      igual([Math.round(c.x), Math.round(c.y), Math.round(c.w), Math.round(c.h)],
+        [Math.round(chicaAjustada.x), Math.round(chicaAjustada.y), Math.round(chicaAjustada.w), Math.round(chicaAjustada.h)]);
+      await page.locator('.kit-visor__b[data-a="encoger"]').click();
     });
     await prueba('cerrar y volver a abrir: tamaño normal y centrada', async () => {
       await page.keyboard.press('Escape');

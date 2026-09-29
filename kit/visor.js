@@ -48,7 +48,9 @@
      · La ventana se agranda o se achica desde el borde derecho, el
        izquierdo, el de abajo o las dos esquinas de abajo. Crece en
        PROPORCIÓN (conserva la forma) y nunca se sale de la pantalla.
-       Al cerrar se olvida: la próxima abre en su tamaño normal.
+       Minimizada también se agranda, se achica y se mueve, y cada modo
+       recuerda su tamaño y su sitio al ir y volver. Al cerrar se olvida:
+       la próxima abre en su tamaño normal.
      · Zoom sobre el documento (PDF dibujado e imágenes): botones − / + y
        el porcentaje (tocarlo vuelve a "ajustado"), Ctrl + rueda (en la
        imagen basta la rueda), pellizco en el teléfono, doble clic o doble
@@ -382,6 +384,7 @@
       ['left', 'top', 'width', 'height', 'transform'].forEach(function (k) { caja.style[k] = ''; });
       caja.classList.remove('kit-visor__caja--movida', 'kit-visor__caja--libre');
       caja.__normal = null;
+      caja.__chico = null;
     };
   }
 
@@ -663,7 +666,11 @@
         caja.__normal = { css: caja.style.cssText, libre: caja.classList.contains('kit-visor__caja--libre') };
         caja.style.cssText = '';
         caja.classList.remove('kit-visor__caja--libre', 'kit-visor__caja--movida');
+        /* 29/09 · minimizada también se agranda o se mueve; si ya se había
+           ajustado antes, vuelve con ese tamaño y en ese sitio */
+        if (caja.__chico) { caja.style.cssText = caja.__chico; caja.classList.add('kit-visor__caja--libre', 'kit-visor__caja--movida'); dentro(caja); }
       } else {
+        caja.__chico = caja.classList.contains('kit-visor__caja--libre') ? caja.style.cssText : null;
         caja.style.cssText = caja.__normal ? caja.__normal.css : '';
         caja.classList.remove('kit-visor__caja--libre', 'kit-visor__caja--movida');
         if (caja.__normal && caja.__normal.libre) { caja.classList.add('kit-visor__caja--libre', 'kit-visor__caja--movida'); dentro(caja); }
