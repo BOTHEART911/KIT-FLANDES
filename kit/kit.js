@@ -396,6 +396,17 @@
         opciones.__repetida = true;
         return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return enviar(cuerpo, opciones); });
       }
+      /* 30/09 · EL 404 DEL ECHO DE GOOGLE (medido hoy: 1 de cada 7-8 viajes).
+         La ejecución SÍ terminó (Google solo redirige al echo cuando ya
+         respondió), pero la página donde deja la respuesta devuelve 404. Se
+         repite UNA vez con el MISMO 'rid': el CORE tiene guardada esa
+         respuesta y la devuelve sin volver a ejecutar nada (un guardado no se
+         duplica). Antes la persona veía el error y volvía a tocar el botón,
+         esta vez SIN 'rid'. */
+      if (e && e.codigo === 'RESPUESTA_NO_JSON' && !opciones.__sinJson && !(opciones.senal && opciones.senal.aborted)) {
+        opciones.__sinJson = true;
+        return new Promise(function (r) { setTimeout(r, 400); }).then(function () { return enviar(cuerpo, opciones); });
+      }
       /* 29/09 · la llamada salio con una sesion vieja y mientras tanto la
          persona ya entro de nuevo: se repite con la sesion nueva, sin error. */
       if (e && e.sesionVieja && !opciones.__conNueva && token()) {
