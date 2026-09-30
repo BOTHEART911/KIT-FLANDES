@@ -246,6 +246,15 @@
       PUERTA = Promise.resolve(false);
     }
 
+    /* 30/09 · el service worker preguntó y la red NO contestó a tiempo (tope
+       corto en sw.js): con esa misma red, preguntar otra vez aquí frenaba la
+       llamada 'inicio' hasta 3 s. Se abre la puerta ya; la versión se vuelve
+       a revisar cuando la persona regrese a la app. */
+    if (opciones.alArrancar !== false && !PUERTA && raiz.SW_FRESCO && !raiz.SW_RED &&
+        raiz.navigator.serviceWorker && raiz.navigator.serviceWorker.controller) {
+      PUERTA = Promise.resolve(false);
+    }
+
     if (opciones.alArrancar !== false && !PUERTA) {
       /* 25/09 · De primera y sin mirar si hay ventanas abiertas: al arrancar
          nadie ha escrito nada todavía. Si hay versión nueva la promesa no se

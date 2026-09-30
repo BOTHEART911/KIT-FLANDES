@@ -49,6 +49,7 @@
   var M = window.MARCA || {};
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
   var TOKEN_K = 'avisos.token';       /* el token ya registrado en este aparato */
+  var CFG_K = 'avisos.cfg';           /* 30/09 · configPush guardada 12 h */
   var AHORA_NO_K = 'avisos.ahoraNo';  /* 4.9: ya no se usa; se borra al cerrar sesión por si quedó */
   var SW_SCOPE = './firebase-cloud-messaging-push-scope';
 
@@ -139,6 +140,11 @@
    */
   function config() {
     if (cfgRemota) return Promise.resolve(cfgRemota);
+    /* 30/09 · guardada 12 h en el teléfono: seis de las siete apps pedían
+       'configPush' en CADA apertura con los avisos ya permitidos, y cada
+       viaje ocupa la fila de Apps Script de todos los usuarios. */
+    var g = K.guardar.leer(CFG_K, null);
+    if (g && g.cfg && Date.now() - (g.t || 0) < 43200000) return Promise.resolve(cfgRemota = g.cfg);
     return K.pedir('configPush')
       .then(function (d) {
         cfgRemota = {
@@ -146,6 +152,7 @@
           firebase: (d && d.firebase && d.firebase.apiKey) ? d.firebase : (M.FIREBASE || {}),
           vapid: (d && d.vapid) || M.FIREBASE_VAPID || ''
         };
+        K.guardar.escribir(CFG_K, { t: Date.now(), cfg: cfgRemota });
         return cfgRemota;
       })
       ['catch'](function () {

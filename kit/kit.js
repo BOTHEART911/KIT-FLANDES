@@ -137,8 +137,35 @@
 
   var TOKEN_K = 'sesion.token';
 
-  function token() { return guardar.leer(TOKEN_K, '') || ''; }
-  function ponerToken(t) { if (t) guardar.escribir(TOKEN_K, t); else { guardar.borrar(TOKEN_K); guardar.borrar('recuerdo.arranque'); if (raiz.KIT && raiz.KIT.recordado) raiz.KIT.recordado.olvidarTodo(); } }
+  /* 30/09 · LA SESIÓN VENCIDA SE VE EN EL TELÉFONO, SIN VIAJAR.
+     El token del CORE es base64(documento|app|rol|vence|idContrato).firma y
+     el vencimiento viaja a la vista. Medido en producción: abrir la app con
+     la sesión de ayer gastaba un viaje entero a Apps Script (2 a 25 s) solo
+     para oír "Tu sesión se venció", y luego recargaba la página. Ahora el
+     token vencido se descarta al leerlo y sale el inicio de sesión al
+     instante. El servidor sigue siendo el que manda: esto solo evita
+     preguntar lo que ya se sabe. Un token recién recibido (menos de 10 min)
+     se respeta siempre, por si el reloj del teléfono está adelantado. */
+  var RECIBIDO_K = 'sesion.recibido';
+  function venceDe(t) {
+    try {
+      var b = String(t).split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      var v = Number(atob(b).split('|')[3]);
+      return isFinite(v) && v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
+  function token() {
+    var t = guardar.leer(TOKEN_K, '') || '';
+    if (!t) return '';
+    var vence = venceDe(t);
+    if (vence && Date.now() > vence) {
+      var rec = Number(guardar.leer(RECIBIDO_K, 0)) || 0;
+      if (!(rec && Date.now() - rec < 600000)) { ponerToken(''); return ''; }
+    }
+    return t;
+  }
+  function ponerToken(t) { if (t) { guardar.escribir(TOKEN_K, t); guardar.escribir(RECIBIDO_K, Date.now()); } else { guardar.borrar(TOKEN_K); guardar.borrar(RECIBIDO_K); guardar.borrar('recuerdo.arranque'); if (raiz.KIT && raiz.KIT.recordado) raiz.KIT.recordado.olvidarTodo(); } }
 
   /**
    * pedir('cuentaListar', {desde:'...'}) → Promise con data

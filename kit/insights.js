@@ -356,10 +356,16 @@
 
   var SILENCIO = 'data:audio/wav;base64,UklGRqQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
 
-  var vozCfg = null, pidiendoVoz = null;
+  var vozCfg = null, pidiendoVoz = null, VOZ_K = 'insights.voz';
 
   function vozDisponible(fondo) {
     if (vozCfg) return Promise.resolve(vozCfg);
+    /* 30/09 · se guarda en el teléfono 12 h: cada viaje a Apps Script ocupa
+       la fila de TODOS los usuarios (medido: 8 a la vez tardan hasta 33 s),
+       y este dato casi nunca cambia. Antes salía uno por sesión y por vista
+       cortada. */
+    var gv = K.guardar.leer(VOZ_K, null);
+    if (gv && gv.cfg && Date.now() - (gv.t || 0) < 43200000) return Promise.resolve(vozCfg = gv.cfg);
     if (pidiendoVoz && !fondo && K.vista) K.vista.adoptar('vozEstado');
     /* F11 · la página de demostración del kit (app KIT) no tiene voz en el
        CORE: preguntarle dejaba un error en FC_ERRORES cada vez que alguien
@@ -367,7 +373,7 @@
     if (String(K.app || '').toUpperCase() === 'KIT') return Promise.resolve(vozCfg = { configurada: false });
     if (pidiendoVoz) return pidiendoVoz;
     pidiendoVoz = K.pedir('vozEstado', null, { fondo: !!fondo })
-      .then(function (r) { vozCfg = r || { configurada: false }; return vozCfg; })
+      .then(function (r) { vozCfg = r || { configurada: false }; K.guardar.escribir(VOZ_K, { t: Date.now(), cfg: vozCfg }); return vozCfg; })
       ['catch'](function () { pidiendoVoz = null; return { configurada: false }; });
     return pidiendoVoz;
   }
