@@ -186,6 +186,10 @@
   }
 
   function vista(titulo) {
+    /* 29/09 · cambiar de vista corta lo de fondo de la vista anterior (kit.js,
+       K.vista). Cuenta el primer tramo del hash: una subruta o repintar la
+       misma vista no corta nada. */
+    if (K.vista) K.vista.cambio(String(location.hash || '').replace(/^#\/?/, '').split('/')[0] || 'inicio');
     if (!barra) return;
     barra.querySelector('.kit-banner__titulo').textContent = String(titulo || '');
     document.title = (titulo ? titulo + ' · ' : '') + (cfg.titulo || K.app || 'Flandes');

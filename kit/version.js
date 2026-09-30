@@ -150,9 +150,7 @@
       try { sessionStorage.setItem(K.ns + MARCA_RECARGA, enLaRed); } catch (e) {}
       RECARGANDO = true;
 
-      return esperarServiceWorker(4000).then(function () {
-        return limpiarCaches(enLaRed);
-      }).then(function () {
+      return prepararRecarga(enLaRed).then(function () {
         /* 5.4.1 · La versión nueva arranca SIEMPRE desde el inicio (o desde
            la entrada si no hay sesión), no desde la vista donde estaba la
            persona: recargar una vista pesada (una cuenta con sus documentos
@@ -165,6 +163,43 @@
         return true;
       });
     })['catch'](function () { comprobando = false; return false; });
+  }
+
+  /*
+   * 29/09 · CÓMO SE PREPARA LA RECARGA, SEGÚN QUIÉN SIRVE LA APP
+   *
+   *   · Service worker de la versión 29/09 (SW_FRESCO): al recargar él mismo
+   *     ve que hay publicación nueva y sirve TODO de la red. No hay que
+   *     esperarlo ni borrar cachés: se recarga ya.
+   *   · Service worker anterior: como el 25/09 (esperar al nuevo, tope 4 s,
+   *     y borrar las cachés viejas).
+   *   · SIN service worker al mando (recarga forzada, navegador que lo
+   *     desalojó): los scripts salían de la caché del navegador, que GitHub
+   *     deja 10 minutos, y la app recargaba para volver a abrir la vieja
+   *     creyéndose nueva. Ahora antes se le pide a GitHub cada archivo de
+   *     la página ('reload' reescribe esa caché) y después se recarga.
+   */
+  function prepararRecarga(enLaRed) {
+    var sw = raiz.navigator && raiz.navigator.serviceWorker;
+    if (sw && sw.controller && raiz.SW_FRESCO) return Promise.resolve();
+    if (sw && sw.controller) {
+      return esperarServiceWorker(4000).then(function () { return limpiarCaches(enLaRed); });
+    }
+    return refrescarArchivos(6000);
+  }
+
+  function refrescarArchivos(tope) {
+    var urls = [raiz.location.pathname], i, u;
+    var nodos = document.querySelectorAll('script[src], link[rel="stylesheet"][href], link[rel="manifest"][href]');
+    for (i = 0; i < nodos.length; i++) {
+      u = nodos[i].src || nodos[i].href;
+      try { u = new URL(u, raiz.location.href); } catch (e) { continue; }
+      if (u.origin === raiz.location.origin && u.pathname.indexOf('/version.js') < 0) urls.push(u.pathname);
+    }
+    var todo = Promise.all(urls.map(function (x) {
+      return fetch(x, { cache: 'reload', credentials: 'same-origin' })['catch'](function () {});
+    }));
+    return Promise.race([todo, new Promise(function (r) { setTimeout(r, tope || 6000); })]);
   }
 
   /*
@@ -202,6 +237,14 @@
   function vigilar(opciones) {
     opciones = opciones || {};
     if (!CARGADA) return;
+
+    /* 29/09 · El service worker ya le preguntó a GitHub al abrir la página
+       y lo que sirvió ES lo publicado (SW_RED = el número de la red): no
+       hace falta otra pregunta antes de hablar con el CORE. Eso le quita a
+       CADA apertura un viaje entero en serie antes de 'inicio'. */
+    if (opciones.alArrancar !== false && !PUERTA && raiz.SW_RED && String(raiz.SW_RED) === CARGADA) {
+      PUERTA = Promise.resolve(false);
+    }
 
     if (opciones.alArrancar !== false && !PUERTA) {
       /* 25/09 · De primera y sin mirar si hay ventanas abiertas: al arrancar

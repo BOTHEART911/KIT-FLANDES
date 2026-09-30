@@ -67,7 +67,7 @@
     fab.setAttribute('aria-label', 'Ayuda: ' + (cfg.vista || 'esta vista'));
     /* la voz se consulta una vez por sesión y ANTES del primer toque, para
        que el botón de escuchar ya sepa si sale cuando se abra el panel */
-    vozDisponible();
+    vozDisponible(true);   /* 29/09 · de fondo: no compite con los datos de la vista */
     if (abierto) abierto.cerrar();
     return fab;
   }
@@ -358,14 +358,15 @@
 
   var vozCfg = null, pidiendoVoz = null;
 
-  function vozDisponible() {
+  function vozDisponible(fondo) {
     if (vozCfg) return Promise.resolve(vozCfg);
+    if (pidiendoVoz && !fondo && K.vista) K.vista.adoptar('vozEstado');
     /* F11 · la página de demostración del kit (app KIT) no tiene voz en el
        CORE: preguntarle dejaba un error en FC_ERRORES cada vez que alguien
        la abría. Sin viaje: la demo va sin voz. */
     if (String(K.app || '').toUpperCase() === 'KIT') return Promise.resolve(vozCfg = { configurada: false });
     if (pidiendoVoz) return pidiendoVoz;
-    pidiendoVoz = K.pedir('vozEstado')
+    pidiendoVoz = K.pedir('vozEstado', null, { fondo: !!fondo })
       .then(function (r) { vozCfg = r || { configurada: false }; return vozCfg; })
       ['catch'](function () { pidiendoVoz = null; return { configurada: false }; });
     return pidiendoVoz;

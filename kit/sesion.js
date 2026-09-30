@@ -215,7 +215,14 @@
     /* 7.0 · con arranqueEnLogin el CORE devuelve también el 'inicio' de la app en
        este mismo viaje (un viaje a Apps Script cuesta ~2 s de transporte). */
     var pide = { documento: doc, clave: clave, appDestino: K.app };
-    if (cfg.arranqueEnLogin) pide.conArranque = true;
+    if (cfg.arranqueEnLogin) {
+      pide.conArranque = true;
+      /* 29/09 · lo que el 'inicio' de la app lee del cuerpo (Contratista: el
+         sello de los municipios y los avisos) viaja también en el login */
+      if (typeof cfg.datosArranque === 'function') {
+        try { var ex = cfg.datosArranque() || {}, k; for (k in ex) if (Object.prototype.hasOwnProperty.call(ex, k) && !(k in pide)) pide[k] = ex[k]; } catch (e) {}
+      }
+    }
     coheteAbrir();
     K.pedir('login', pide, { sinToken: true, app: 'CORE' })
       .then(function (d) {

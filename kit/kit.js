@@ -147,7 +147,197 @@
    * `.codigo` trae el del CORE ('SESION_VENCIDA', 'SIN_PERMISO'...), para
    * que la app decida sin leer textos.
    */
+  /* ══════════════ 3b) PRIMERO LA NAVEGACIÓN, LUEGO LOS DATOS (29/09) ══════════════
+
+     Medido en producción: cada viaje a Apps Script paga ~2 s FIJOS de la
+     plataforma de Google, y las llamadas simultáneas se frenan entre sí en
+     el servidor (cuatro a la vez tardaron 6, 7, 14 y 34 s). Y abortar un
+     fetch NO detiene la ejecución en Google: una lectura ya enviada sigue
+     ocupando el servidor aunque la persona se haya ido.
+
+     Por eso el corte al cambiar de vista trabaja ANTES de que salga el viaje:
+
+       · K.pedir(accion, datos, {fondo: true}) — la estadística, las cifras y
+         las precargas para otra vista. Espera en cola a que la vista termine
+         sus propias llamadas (y 400 ms más) y salen de a dos como mucho. Si
+         la persona toca otro botón antes, lo que no salió SE DESCARTA sin
+         llegar nunca al servidor (se rechaza con código CANCELADA).
+       · ADOPCIÓN: si la vista nueva pide la misma lectura que ya estaba en
+         cola o en camino, la hereda (sale ya si estaba en cola) en vez de
+         repetir el viaje. K.vista.adoptar(promesa) hace lo mismo para una
+         promesa que el módulo guardó en una variable.
+       · K.vista.luego(fn, ms) — temporizador de la vista: muere al cambiar de
+         vista. (Un setTimeout normal no se toca: los del cohete de guardado,
+         los reintentos y los avisos deben terminar siempre.)
+       · El corte lo dispara K.vista.cambio(), que llama el banner en cada
+         cambio de vista. Solo cuenta el PRIMER tramo del hash: #/borrador/7
+         sigue siendo borrador, y repintar la misma vista no corta nada.
+       · Solo LECTURAS se deduplican o se dejan en cola (la lista es la misma
+         FC_LECTURAS del Router del CORE). Una escritura nunca espera ni se
+         comparte, y al salir deja caducadas las lecturas de fondo en vuelo
+         para que nadie herede un dato de antes del guardado.            */
+
+  var LECTURAS = (function () {
+    var L = {
+      CONTRATISTA: 'INICIO MICONTRATO MISDATOS MISAVISOS MISCONTRATOS BORRADORESTADO CUENTAESTADO SEGUIMIENTO SEGUIMIENTOHISTORIA SEGUIMIENTODOCS COMUNICADOS DIRECTORIO TUTORIALES COMUNICACIONESESTADO PRENSAESTADO TESORERIAESTADO PERSONAS SOPORTEMIOS LISTASDATOS MUNICIPIOS SOLICITUDESCONTRATACION SEGUIMIENTODOCUMENTO CUENTACOMO',
+      CONTRATACION: 'INICIO CONTRATISTAS CONTRATISTADETALLE CUENTASPORREVISAR CUENTAREVISION CUENTAHISTORIAL REVISIONDOCS REVISIONARCHIVOS REVISIONDOCUMENTO REVISIONPAQUETE REQUERIMIENTOS COMUNICADOS REPORTE OPCIONES SOPORTEMIOS PERSONAS CONTRATOPARA CONTRATOEDITARPARA SOLICITUDES',
+      SUPERVISION: 'INICIO CUENTAS CUENTAREVISION CUENTAHISTORIAL REVISIONDOCS REVISIONARCHIVOS REVISIONDOCUMENTO REVISIONPAQUETE CONTRATISTAS CONTRATISTADETALLE FIRMADOS REPORTE REQUERIMIENTOS COMUNICADOS DIRECTORIO DRIVEHACIENDA FIRMA COMUNICACIONESESTADO PRENSAESTADO ACTAPREVIA SOPORTEMIOS PERSONAS INFORMECONTRATISTA',
+      CONTABILIDAD: 'INICIO REVISIONPAQUETE ORDENES REGISTROS CONFIGURACION FIRMA CONTRATISTAS CONTRATISTADETALLE INFORMECONTRATISTA REQUERIMIENTOS COMUNICADOS SOPORTEMIOS PERSONAS',
+      TESORERIA: 'INICIO REVISIONPAQUETE BANDEJA PAGADAS SOLICITUDES INFORMES CONFIGURACION CONTRATISTAS CONTRATISTADETALLE INFORMECONTRATISTA REQUERIMIENTOS COMUNICADOS SOPORTEMIOS PERSONAS',
+      COMUNICACIONES: 'INICIO SOLICITUDES SOLICITUD DIRECTORIO COMUNICADOS SOLICITANTES SOPORTEMIOS PERSONAS',
+      ADMIN: 'INICIO ATRASOS CONTRATISTAS CONTRATISTADETALLE OPCIONES RECORDATORIOS SOPORTES COMUNICADOS BOT TABLERO BITACORA TUTORIALES CONTRATOPARA CONTRATOEDITARPARA SOPORTEMIOS PERSONAS PLANTILLAS USUARIOSLISTAR',
+      CORE: 'PING SALUD CONFIG RUTAS YO PERMISOS'
+    };
+    var o = {};
+    Object.keys(L).forEach(function (a) { L[a].split(' ').forEach(function (x) { o[a + '.' + x] = 1; }); });
+    /* VOZESTADO no toca el libro (el Router la exime en FC_ESCRIBE_): para el
+       kit es una lectura y puede ir de fondo */
+    Object.keys(L).forEach(function (a) { if (a !== 'CORE') o[a + '.VOZESTADO'] = 1; });
+    return o;
+  }());
+  function esLectura(app, accion) { return LECTURAS[String(app || '').toUpperCase() + '.' + String(accion || '').toUpperCase()] === 1; }
+
+  var VISTA = { nombre: null, id: 0, timers: [] };
+  var FONDO = [];                 /* lecturas de fondo en cola o en camino */
+  var EN_PRIMER_PLANO = 0;        /* viajes de la vista (no de fondo) en camino */
+  var ULTIMO_PRIMER = Date.now(); /* cuándo terminó el último (al cargar: la pausa cuenta desde ya, el 'inicio' sale a los 30 ms de pintar) */
+  var FONDO_EN_VUELO = 0, FONDO_MAX = 2, FONDO_PAUSA = 400;
+  var bombaT = null;
+  var TXT_CANCELADA = 'Se canceló.';
+
+  function claveDe(cuerpo) {
+    var c = {}, k;
+    for (k in cuerpo) if (Object.prototype.hasOwnProperty.call(cuerpo, k) && k !== 'token' && k !== 'rid') c[k] = cuerpo[k];
+    try { return JSON.stringify(c); } catch (e) { return ''; }
+  }
+
+  function buscarFondo(clave) {
+    for (var i = 0; i < FONDO.length; i++) if (FONDO[i].clave === clave && !FONDO[i].caducada) return FONDO[i];
+    return null;
+  }
+
+  function quitarFondo(e) { var i = FONDO.indexOf(e); if (i >= 0) FONDO.splice(i, 1); }
+
+  /* la vista actual se queda con esta entrada: ya no se descarta y, si
+     esperaba en cola, sale YA */
+  function promover(e) {
+    e.vista = VISTA.id;
+    if (e.estado === 'cola') e.urgente = true;
+    bomba();
+  }
+
+  function bomba() {
+    if (bombaT) { clearTimeout(bombaT); bombaT = null; }
+    var espera = FONDO_PAUSA - (Date.now() - ULTIMO_PRIMER);
+    for (var i = 0; i < FONDO.length; i++) {
+      var e = FONDO[i];
+      if (e.estado !== 'cola') continue;
+      if (!e.urgente) {
+        if (EN_PRIMER_PLANO > 0 || FONDO_EN_VUELO >= FONDO_MAX) continue;
+        if (espera > 0) { bombaT = setTimeout(bomba, espera + 5); continue; }
+      }
+      salirFondo(e);
+    }
+  }
+
+  function salirFondo(e) {
+    e.estado = 'vuelo';
+    var urgente = !!e.urgente;
+    if (urgente) EN_PRIMER_PLANO++; else FONDO_EN_VUELO++;
+    pedirDirecto(e.accion, e.datos, e.opciones).then(function (d) {
+      fin(); e.resolver(d);
+    }, function (err) {
+      fin(); e.rechazar(err);
+    });
+    function fin() {
+      if (urgente) { EN_PRIMER_PLANO--; ULTIMO_PRIMER = Date.now(); } else FONDO_EN_VUELO--;
+      quitarFondo(e);
+      bomba();
+    }
+  }
+
   function pedir(accion, datos, opciones) {
+    opciones = opciones || {};
+    var app = opciones.app || APP;
+    var lectura = esLectura(app, accion);
+
+    /* una escritura deja caducadas las lecturas de fondo en vuelo */
+    if (!lectura) FONDO.forEach(function (e) { if (e.estado === 'vuelo') e.caducada = true; });
+
+    var clave = lectura ? claveDe({ app: app, action: accion, d: datos || {} }) : '';
+    if (clave) {
+      var ya = buscarFondo(clave);
+      if (ya) { promover(ya); return ya.promesa; }
+    }
+
+    if (lectura && opciones.fondo && !opciones.senal) {
+      var e = { clave: clave, accion: accion, datos: datos, opciones: opciones, vista: VISTA.id, estado: 'cola' };
+      e.promesa = new Promise(function (res, rej) { e.resolver = res; e.rechazar = rej; });
+      FONDO.push(e);
+      bomba();
+      return e.promesa;
+    }
+
+    EN_PRIMER_PLANO++;
+    return pedirDirecto(accion, datos, opciones).then(function (d) {
+      EN_PRIMER_PLANO--; ULTIMO_PRIMER = Date.now(); bomba(); return d;
+    }, function (err) {
+      EN_PRIMER_PLANO--; ULTIMO_PRIMER = Date.now(); bomba(); throw err;
+    });
+  }
+
+  var vista = {
+    /** La llama el banner en cada cambio de vista. */
+    cambio: function (nombre) {
+      nombre = String(nombre || '');
+      if (nombre === VISTA.nombre) return false;
+      var vieja = VISTA.id;
+      VISTA.nombre = nombre;
+      VISTA.id++;
+      VISTA.timers.forEach(function (t) { clearTimeout(t); });
+      VISTA.timers = [];
+      /* Al terminar este turno, la vista nueva ya pidió (y adoptó) lo suyo:
+         lo que la vieja dejó en cola y nadie heredó, no sale. */
+      setTimeout(function () {
+        FONDO.slice().forEach(function (e) {
+          if (e.estado === 'cola' && e.vista === vieja) {
+            quitarFondo(e);
+            e.rechazar(problema('CANCELADA', TXT_CANCELADA));
+          }
+        });
+        bomba();
+      }, 0);
+      disparar('kit:vista', { vista: nombre });
+      return true;
+    },
+    luego: function (fn, ms) {
+      var t = setTimeout(function () {
+        var i = VISTA.timers.indexOf(t); if (i >= 0) VISTA.timers.splice(i, 1);
+        fn();
+      }, ms || 0);
+      VISTA.timers.push(t);
+      return t;
+    },
+    /* adoptar(promesa) o adoptar('accion'): la vista actual se queda con
+       esa lectura de fondo (los módulos suelen guardar la promesa ya
+       transformada con .then, por eso también vale el nombre) */
+    adoptar: function (p) {
+      var n = 0, a = (typeof p === 'string') ? p.toUpperCase() : null;
+      FONDO.slice().forEach(function (e) {
+        if (a ? String(e.accion).toUpperCase() === a : e.promesa === p) { promover(e); n++; }
+      });
+      return n > 0;
+    },
+    actual: function () { return VISTA.nombre; },
+    /* para las pruebas */
+    _estado: function () {
+      return { vista: VISTA.nombre, primerPlano: EN_PRIMER_PLANO, fondoVuelo: FONDO_EN_VUELO,
+        cola: FONDO.filter(function (e) { return e.estado === 'cola'; }).map(function (e) { return e.accion; }),
+        vuelo: FONDO.filter(function (e) { return e.estado === 'vuelo'; }).map(function (e) { return e.accion; }) };
+    }
+  };
+
+  function pedirDirecto(accion, datos, opciones) {
     opciones = opciones || {};
     if (!API) return Promise.reject(problema('SIN_API', 'Falta API_URL en marca.js.'));
 
@@ -474,6 +664,9 @@
   var pilaAvisos = null;
 
   function aviso(texto, tipo, ms) {
+    /* 29/09 · lo que se descartó al cambiar de vista no es un problema de la
+       persona: nunca sale como aviso */
+    if (texto === TXT_CANCELADA) return null;
     if (!pilaAvisos) {
       pilaAvisos = nodo('<div class="kit-avisos" role="status" aria-live="polite"></div>');
       document.body.appendChild(pilaAvisos);
@@ -603,7 +796,7 @@
 
     guardar: guardar,
     token: token, ponerToken: ponerToken,
-    pedir: pedir, problema: problema,
+    pedir: pedir, problema: problema, vista: vista, esLectura: esLectura,
     recuerdo: recuerdo,
     recordado: recordado,
 
