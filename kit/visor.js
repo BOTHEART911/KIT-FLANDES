@@ -95,6 +95,174 @@
     return id ? 'https://drive.google.com/uc?export=download&id=' + id : url;
   }
 
+  /* ── 30/09 · DIRECTO DE DRIVE (el de REVISAR CUENTAS de Contratación) ──
+     Medido en producción: abrir un documento por el CORE es 0,5 s de
+     servidor y 2 a 22 s de fila de Apps Script. Con la llave de Google
+     (MARCA.DRIVE_LLAVE: solo API de Drive y solo botheart911.github.io)
+     el teléfono le pide los bytes a Drive sin pasar por Apps Script y los
+     pinta en este mismo visor, en memoria: nada se descarga al equipo.
+     Si no hay llave o Drive no lo entrega (no compartido por enlace,
+     cuota, red), ese documento sigue por el camino de antes.
+
+     Uso: un documento del visor puede traer `drive` (id de Drive, o
+     {id, google}) junto a su `cargar` o su `url` de siempre. Un `url` de
+     un archivo de Drive ya cuenta como `drive` sin hacer nada.
+     KIT.drive.deBoleto(t) saca el id de un boleto del CORE (6.3/5.4). */
+
+  var DRV = { cache: {}, malo: {}, pend: {}, cola: [], vuelo: 0, peso: 0, orden: [], medidas: [], ctrl: [] };
+  var DRV_A_LA_VEZ = 3, DRV_MS = 15000, DRV_TOPE = 40 * 1024 * 1024;
+  var DRV_API = 'https://www.googleapis.com/drive/v3/files/';
+
+  function drvLlave() { return String((window.MARCA && window.MARCA.DRIVE_LLAVE) || '').trim(); }
+  function drvListo() { return !!drvLlave() && typeof fetch === 'function'; }
+  function drvTipo(mime) { return /^image\//.test(mime) ? 'imagen' : (/pdf/.test(mime) ? 'pdf' : 'otro'); }
+
+  /** Boleto del CORE "id.fila.doc.vence.g.firma" → {id, google}. El id ya
+      viaja dentro del boleto: no se expone nada nuevo. */
+  function deBoleto(t) {
+    var p = String(t || '').split('.');
+    if (p.length !== 6 || !/^[a-zA-Z0-9_-]{15,}$/.test(p[0])) return null;
+    return { id: p[0], google: p[4] === '1' };
+  }
+
+  function drvNorm(x) {
+    if (!x) return null;
+    if (typeof x === 'string') return /^[a-zA-Z0-9_-]{15,}$/.test(x) ? { id: x, google: false } : null;
+    return x.id ? { id: String(x.id), google: !!x.google, mime: x.mime || '', nombre: x.nombre || '' } : null;
+  }
+
+  function drvGuardar(id, v) {
+    DRV.cache[id] = v;
+    DRV.orden.push(id);
+    DRV.peso += v.bytes.length;
+    while (DRV.peso > DRV_TOPE && DRV.orden.length > 1) {
+      var viejo = DRV.orden.shift(), c = DRV.cache[viejo];
+      if (c && c.bytes) DRV.peso -= c.bytes.length;
+      delete DRV.cache[viejo];
+    }
+  }
+
+  function drvBombear() {
+    while (DRV.vuelo < DRV_A_LA_VEZ && DRV.cola.length) drvSalir(DRV.cola.shift());
+  }
+
+  function drvSalir(p) {
+    DRV.vuelo++;
+    var t0 = Date.now(), ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, DRV_MS);
+    if (ctrl) DRV.ctrl.push(ctrl);
+    var k = encodeURIComponent(drvLlave());
+    function url(exportar) {
+      return DRV_API + encodeURIComponent(p.id) + (exportar ? '/export?mimeType=application%2Fpdf&' : '?alt=media&supportsAllDrives=true&') + 'key=' + k;
+    }
+    function bajar(exportar) {
+      return fetch(url(exportar), { signal: ctrl ? ctrl.signal : undefined, credentials: 'omit' }).then(function (r) {
+        if (r.ok) {
+          var mime = exportar ? 'application/pdf' : String(r.headers.get('content-type') || p.mime || '').split(';')[0].trim();
+          return r.arrayBuffer().then(function (ab) { return { mime: mime, bytes: new Uint8Array(ab) }; });
+        }
+        /* un Documento de Google no se baja "tal cual": se exporta a PDF */
+        if (!exportar && r.status === 403) {
+          return r.text().then(function (txt) {
+            if (/fileNotDownloadable|binary content/i.test(txt)) return bajar(true);
+            throw new Error('Drive ' + r.status);
+          });
+        }
+        throw new Error('Drive ' + r.status);
+      });
+    }
+    bajar(p.google).then(function (x) {
+      var v = { nombre: p.nombre || '', mime: x.mime, tipo: drvTipo(x.mime), bytes: x.bytes };
+      drvGuardar(p.id, v);
+      DRV.medidas.push({ id: p.id.slice(0, 6), via: 'drive', kb: Math.round(x.bytes.length / 1024), ms: Date.now() - t0 });
+      p.res(v);
+    }, function (e) {
+      var cortado = !!(ctrl && ctrl.signal.aborted && ctrl.__cortado);
+      DRV.medidas.push({ id: p.id.slice(0, 6), via: 'drive', ms: Date.now() - t0, error: cortado ? 'cortado' : ((e && e.message) || 'red') });
+      if (!cortado) DRV.malo[p.id] = true;     /* este ya no se intenta directo */
+      var err = new Error(cortado ? 'cortado' : 'Drive no lo entregó');
+      err.cortado = cortado;
+      p.rej(err);
+    }).then(function () {
+      clearTimeout(corte);
+      if (ctrl) DRV.ctrl = DRV.ctrl.filter(function (c) { return c !== ctrl; });
+      delete DRV.pend[p.id];
+      DRV.vuelo--;
+      drvBombear();
+    });
+  }
+
+  /** Bytes de un archivo de Drive, directo. Rechaza si no se puede. */
+  function drvBytes(ref, nombre, urgente) {
+    var r = drvNorm(ref);
+    if (!r || !drvListo()) return Promise.reject(new Error('sin llave'));
+    if (DRV.malo[r.id]) return Promise.reject(new Error('Drive no lo entregó'));
+    var c = DRV.cache[r.id];
+    if (c) return Promise.resolve({ nombre: nombre || c.nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes });
+    var p = DRV.pend[r.id];
+    if (!p) {
+      p = { id: r.id, google: r.google, mime: r.mime, nombre: nombre || '' };
+      p.prom = new Promise(function (res, rej) { p.res = res; p.rej = rej; });
+      DRV.pend[r.id] = p;
+      if (urgente) DRV.cola.unshift(p); else DRV.cola.push(p);
+      drvBombear();
+    } else if (urgente) {
+      var k = DRV.cola.indexOf(p);
+      if (k > 0) { DRV.cola.splice(k, 1); DRV.cola.unshift(p); }
+    }
+    return p.prom.then(function (v) { return { nombre: nombre || v.nombre, mime: v.mime, tipo: v.tipo, bytes: v.bytes }; });
+  }
+
+  /** Corta lo que se está bajando y lo que espera en cola (al cerrar el visor). */
+  function drvCortar() {
+    DRV.cola.splice(0).forEach(function (p) {
+      delete DRV.pend[p.id];
+      var e = new Error('cortado'); e.cortado = true; p.rej(e);
+    });
+    DRV.ctrl.forEach(function (c) { c.__cortado = true; try { c.abort(); } catch (e) {} });
+  }
+
+  /** Lo que el visor necesita para abrir `d` directo de Drive (o null). */
+  function drvDe(d) {
+    if (!drvListo()) return null;
+    if (d.drive) return drvNorm(d.drive);
+    if (d.url && !/\/thumbnail\b|[?&]sz=/.test(d.url)) { var id = idDrive(d.url); if (id) return { id: id, google: /docs\.google\.com\/document/.test(d.url) }; }
+    return null;
+  }
+
+  /** Prepara un documento: lo directo primero y, si Drive no lo entrega, el
+      camino de antes (su `cargar` del CORE o su `url` en el marco). */
+  function drvPreparar(d) {
+    if (d._drv !== undefined) return;
+    var r = drvDe(d);
+    d._drv = r || null;
+    if (!r) return;
+    var antes = typeof d.cargar === 'function' ? d.cargar : null;
+    if (!antes && d.url) { d._urlAntes = d.url; d.url = ''; }
+    d.cargar = function () {
+      return drvBytes(r, r.nombre || '', true).then(null, function (e) {
+        if (e && e.cortado) throw e;
+        DRV.medidas.push({ id: r.id.slice(0, 6), via: antes ? 'core' : 'marco', ms: 0 });
+        if (antes) return antes();
+        var x = new Error('al marco'); x.aMarco = true; throw x;
+      });
+    };
+  }
+
+  /** Vuelve un documento al marco de Drive de siempre (Drive no lo entregó). */
+  function drvAlMarco(d) {
+    d.url = d._urlAntes; d.cargar = null; d._drv = null;
+    soltar([d]);
+  }
+
+  K.drive = {
+    listo: drvListo, deBoleto: deBoleto,
+    bytes: function (ref, nombre) { return drvBytes(ref, nombre, true); },
+    precargar: function (ref) { if (drvNorm(ref) && drvListo()) drvBytes(ref, '', false)['catch'](function () {}); },
+    cortar: drvCortar,
+    medidas: function () { return DRV.medidas.slice(); }
+  };
+
   /* ── 4.7 · documentos con bytes ── */
 
   var CDN_PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
@@ -201,6 +369,7 @@
     lienzo.innerHTML = '<div class="kit-visor__cargando">Abriendo el documento…</div>';
     traer(d).then(function () {
       if (actual() !== d) return;
+      vecinos();
       if (d._tipo === 'imagen') {
         montarImagen(lienzo, d._url, d.titulo);
         return;
@@ -224,9 +393,20 @@
       lienzo.querySelector('button').addEventListener('click', function () { accion('bajar'); });
     })['catch'](function (e) {
       if (actual() !== d) return;
+      /* 30/09 · Drive no lo entregó y no hay camino del CORE: el marco de antes */
+      if (e && e.aMarco) { drvAlMarco(d); pintar(); return; }
       lienzo.innerHTML = '<div class="kit-visor__malo">' + K.esc((e && e.message) || 'No se pudo abrir el documento.') + '<br>' +
         '<button type="button" class="kit-btn kit-btn--marca">Volver a intentar</button></div>';
       lienzo.querySelector('button').addEventListener('click', function () { pintar(); });
+    });
+  }
+
+  /* 30/09 · el siguiente y el anterior se adelantan directo de Drive (no
+     tocan la fila de Apps Script); lo que va por el CORE no se adelanta. */
+  function vecinos() {
+    [i + 1, i - 1].forEach(function (k) {
+      var v = docs[k];
+      if (v && v._drv) K.drive.precargar(v._drv);
     });
   }
 
@@ -808,6 +988,7 @@
     docs = (Array.isArray(lista) ? lista : [lista]).filter(function (d) { return d && (d.url || typeof d.cargar === 'function'); });
     if (!docs.length) { K.aviso('No hay documentos para mostrar.', 'aviso'); return; }
     i = Math.min(Math.max(opciones.indice || 0, 0), docs.length - 1);
+    docs.forEach(drvPreparar);
 
     if (!capa) crear();
     if (capa.__resetPos) capa.__resetPos();
@@ -822,6 +1003,7 @@
     capa.querySelector('.kit-visor__lienzo').innerHTML = '';   /* suelta el iframe */
     sinZoom();
     soltar(docs);
+    drvCortar();
     docs = [];
     i = 0;
   }
