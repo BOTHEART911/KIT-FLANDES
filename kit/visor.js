@@ -225,6 +225,9 @@
   /** Lo que el visor necesita para abrir `d` directo de Drive (o null). */
   function drvDe(d) {
     if (!drvListo()) return null;
+    /* 05/10 · Word y Excel: el visor de Google (/preview) los pinta tal cual;
+       bajar sus bytes no sirve (no son PDF) */
+    if (d.marco) return null;
     if (d.drive) return drvNorm(d.drive);
     if (d.url && !/\/thumbnail\b|[?&]sz=/.test(d.url)) { var id = idDrive(d.url); if (id) return { id: id, google: /docs\.google\.com\/document/.test(d.url) }; }
     return null;
