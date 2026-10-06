@@ -335,3 +335,15 @@
   .kit-visor__zoom { right: 10px; bottom: 10px; }
   .kit-visor__caja--libre { width: 100% !important; height: 100% !important; left: 0 !important; top: 0 !important; }
 }
+
+/* 05/10 · Word y Excel pintados en el teléfono */
+.kit-visor__ofi { width: 100%; align-self: stretch; flex: 1 1 auto; box-sizing: border-box; height: 100%; overflow: auto; background: #fff; color: #1a1a1a; -webkit-overflow-scrolling: touch; }
+.kit-visor__ofi--word .docx-wrapper { background: #e9ecea; padding: 12px; }
+.kit-visor__ofi--word .docx-wrapper > section.docx { box-shadow: 0 2px 10px rgba(0,0,0,.15); margin-bottom: 12px; max-width: 100%; }
+.kit-visor__hojas-tab { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 6px; background: #f1f4f2; border-bottom: 1px solid #d9dfdc; overflow-x: auto; }
+.kit-visor__hojas-tab button { font: 600 12px/1 inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #cdd5d1; background: #fff; color: #234; white-space: nowrap; cursor: pointer; }
+.kit-visor__hojas-tab button.on { background: var(--k-marca, #06402B); border-color: var(--k-marca, #06402B); color: #fff; }
+.kit-visor__hoja-xls { padding: 8px; }
+.kit-visor__hoja-xls table { border-collapse: collapse; font: 12px/1.35 'IBM Plex Sans', system-ui, sans-serif; }
+.kit-visor__hoja-xls td, .kit-visor__hoja-xls th { border: 1px solid #d5dbd8; padding: 4px 8px; white-space: nowrap; vertical-align: top; }
+.kit-visor__hoja-xls tr:first-child td { background: #f3f6f4; font-weight: 600; }

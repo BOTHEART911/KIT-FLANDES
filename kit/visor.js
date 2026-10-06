@@ -225,9 +225,7 @@
   /** Lo que el visor necesita para abrir `d` directo de Drive (o null). */
   function drvDe(d) {
     if (!drvListo()) return null;
-    /* 05/10 · Word y Excel: el visor de Google (/preview) los pinta tal cual;
-       bajar sus bytes no sirve (no son PDF) */
-    if (d.marco) return null;
+
     if (d.drive) return drvNorm(d.drive);
     if (d.url && !/\/thumbnail\b|[?&]sz=/.test(d.url)) { var id = idDrive(d.url); if (id) return { id: id, google: /docs\.google\.com\/document/.test(d.url) }; }
     return null;
@@ -322,6 +320,91 @@
     return d._pidiendo;
   }
 
+  /* ── 05/10 · WORD Y EXCEL PINTADOS EN EL TELÉFONO ──
+     El visor de Google (/preview) no sirve dentro de la app: abre marcos de
+     inicio de sesión que el navegador bloquea (frame-ancestors) y se queda
+     en "Abriendo...". Aquí los bytes llegan directo de Drive (o del propio
+     teléfono) y se pintan con docx-preview (Word) o SheetJS (Excel); las
+     librerías se bajan solo la primera vez que hacen falta. El .doc antiguo
+     no lo lee ningún navegador: se ofrece abrirlo en Drive. */
+  var CDN_OF = {
+    jszip: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+    docx: 'https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js',
+    xlsx: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+  };
+  var MIME_OF = {
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/vnd.ms-excel': 'xls'
+  };
+  var libP = {};
+  function libOf(k) {
+    if (libP[k]) return libP[k];
+    libP[k] = new Promise(function (res, rej) {
+      var sc = document.createElement('script');
+      sc.src = CDN_OF[k]; sc.async = true;
+      sc.onload = function () { res(); };
+      sc.onerror = function () { libP[k] = null; rej(new Error('No se pudo cargar el lector. Revisa tu internet y toca Volver a intentar.')); };
+      document.head.appendChild(sc);
+    });
+    return libP[k];
+  }
+  function libsDe(ext) {
+    if (ext === 'docx') return libOf('jszip').then(function () { return libOf('docx'); });
+    if (ext === 'xlsx' || ext === 'xls') return libOf('xlsx');
+    return Promise.resolve();
+  }
+  /** docx | doc | xlsx | xls | '' */
+  function oficinaDe(d, mime) {
+    var e = String(d.ext || '').toLowerCase();
+    if (/^(docx?|xlsx?)$/.test(e)) return e;
+    var m = /\.(docx?|xlsx?)\s*$/i.exec(String(d._nombre || d.titulo || ''));
+    if (m) return m[1].toLowerCase();
+    return MIME_OF[String(mime || '').split(';')[0].trim()] || '';
+  }
+  function pintarOficina(d, lienzo, ext) {
+    sinZoom();
+    if (ext === 'doc') {
+      lienzo.innerHTML = '<div class="kit-visor__malo">Este es un Word antiguo (.doc): se abre en Drive.<br>' +
+        '<button type="button" class="kit-btn kit-btn--marca">Abrir en Drive</button></div>';
+      lienzo.querySelector('button').addEventListener('click', function () {
+        var u = d._urlAntes || d.url;
+        if (u) window.open(paraAbrir(u), '_blank', 'noopener'); else accion('bajar');
+      });
+      return Promise.resolve();
+    }
+    return libsDe(ext).then(function () {
+      if (actual() !== d) return;
+      lienzo.innerHTML = '';
+      var caja = document.createElement('div');
+      caja.className = 'kit-visor__ofi kit-visor__ofi--' + (ext === 'docx' ? 'word' : 'excel');
+      lienzo.appendChild(caja);
+      if (ext === 'docx') {
+        return window.docx.renderAsync(d._blob, caja, null, { inWrapper: true, ignoreLastRenderedPageBreak: true, breakPages: true, experimental: false });
+      }
+      var libro = window.XLSX.read(d._bytes, { type: 'array' });
+      var nombres = libro.SheetNames || [];
+      var pest = document.createElement('div');
+      pest.className = 'kit-visor__hojas-tab';
+      var cuerpo = document.createElement('div');
+      cuerpo.className = 'kit-visor__hoja-xls';
+      function ver(k) {
+        cuerpo.innerHTML = window.XLSX.utils.sheet_to_html(libro.Sheets[nombres[k]], { editable: false });
+        [].forEach.call(pest.children, function (b, j) { b.classList.toggle('on', j === k); });
+      }
+      nombres.forEach(function (n, k) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.textContent = n;
+        b.addEventListener('click', function () { ver(k); });
+        pest.appendChild(b);
+      });
+      if (nombres.length > 1) caja.appendChild(pest);
+      caja.appendChild(cuerpo);
+      if (nombres.length) ver(0);
+    });
+  }
+
   function soltar(lista) {
     (lista || []).forEach(function (d) {
       if (d && d._url) { try { URL.revokeObjectURL(d._url); } catch (e) {} d._url = null; d._blob = null; d._bytes = null; }
@@ -376,6 +459,15 @@
       if (d._tipo === 'imagen') {
         montarImagen(lienzo, d._url, d.titulo);
         return;
+      }
+      var ofi = oficinaDe(d, d._blob && d._blob.type);
+      if (d._tipo !== 'pdf' && ofi) {
+        return pintarOficina(d, lienzo, ofi)['catch'](function (e) {
+          if (actual() !== d) return;
+          lienzo.innerHTML = '<div class="kit-visor__malo">' + K.esc((e && e.message) || 'No se pudo mostrar el archivo.') + '<br>' +
+            '<button type="button" class="kit-btn kit-btn--marca">Descargarlo</button></div>';
+          lienzo.querySelector('button').addEventListener('click', function () { accion('bajar'); });
+        });
       }
       if (d._tipo === 'pdf') {
         return dibujarPDF(d, lienzo)['catch'](function () {
@@ -1028,6 +1120,8 @@
     abierto: function () { return !!(capa && capa.classList.contains('kit-visor--on')); },
     idDrive: idDrive, paraVer: paraVer, paraAbrir: paraAbrir, paraBajar: paraBajar,
     /* 5.4 · bajar pdf.js y su trabajador ANTES del primer documento */
-    precalentar: function () { return pdfjs()['catch'](function () { return null; }); }
+    precalentar: function () { return pdfjs()['catch'](function () { return null; }); },
+    /* 05/10 · bajar de una vez el lector de Word o Excel (ext: docx, xlsx, xls) */
+    precalentarOficina: function (ext) { return libsDe(String(ext || '').toLowerCase())['catch'](function () { return null; }); }
   };
 }());
