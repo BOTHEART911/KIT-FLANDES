@@ -991,8 +991,18 @@
     docs.forEach(drvPreparar);
 
     if (!capa) crear();
-    if (capa.__resetPos) capa.__resetPos();
-    capa.classList.remove('kit-visor--chico');
+    /* 05/10 · si ya estaba abierto, se cambia el documento SIN mover la
+       ventana; si estaba minimizado, se restaura sola (con el tamaño que la
+       persona le había dado y el botón de minimizar en su sitio). Solo una
+       ventana cerrada vuelve a su sitio de siempre. */
+    var yaAbierto = capa.classList.contains('kit-visor--on');
+    if (yaAbierto && capa.classList.contains('kit-visor--chico')) accion('encoger');
+    else if (!yaAbierto) {
+      if (capa.__resetPos) capa.__resetPos();
+      capa.classList.remove('kit-visor--chico');
+      var bE = capa.querySelector('[data-a="encoger"]');
+      if (bE) { bE.textContent = '–'; bE.title = 'Minimizar'; }
+    }
     capa.classList.add('kit-visor--on');
     pintar();
   }
