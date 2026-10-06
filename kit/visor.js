@@ -369,7 +369,7 @@
       lienzo.innerHTML = '<div class="kit-visor__malo">Este es un Word antiguo (.doc): se abre en Drive.<br>' +
         '<button type="button" class="kit-btn kit-btn--marca">Abrir en Drive</button></div>';
       lienzo.querySelector('button').addEventListener('click', function () {
-        var u = d._urlAntes || d.url;
+        var u = d.enlace || d._urlAntes || d.url;
         if (u) window.open(paraAbrir(u), '_blank', 'noopener'); else accion('bajar');
       });
       return Promise.resolve();
