@@ -111,6 +111,15 @@
 
   var DRV = { cache: {}, malo: {}, pend: {}, cola: [], vuelo: 0, peso: 0, orden: [], medidas: [], ctrl: [] };
   var DRV_A_LA_VEZ = 3, DRV_MS = 15000, DRV_TOPE = 40 * 1024 * 1024;
+  /* 07/10 · LO GUARDADO EN MEMORIA SE CONFIRMA CON DRIVE. ADMIN puede rehacer un
+     documento (informe de supervisión, acta) en el MISMO archivo: mismo id y
+     enlace, contenido nuevo. El visor lo guardaba por id y, mientras la app
+     siguiera abierta, mostraba el de antes aunque se refrescara la vista.
+     Ahora cada copia guarda la fecha de modificación de Drive y, si tiene más
+     de DRV_FRESCO ms, antes de mostrarla se pregunta solo esa fecha (~0,1 s,
+     sin bajar el archivo): igual = se muestra la de memoria; distinta = se
+     baja de nuevo. Si la pregunta falla (red), se muestra la de memoria. */
+  var DRV_FRESCO = 20000, DRV_MS_META = 4000;
   var DRV_API = 'https://www.googleapis.com/drive/v3/files/';
 
   function drvLlave() { return String((window.MARCA && window.MARCA.DRIVE_LLAVE) || '').trim(); }
@@ -190,12 +199,13 @@
     }
     /* 06/10 · el NOMBRE REAL del archivo en Drive se pide a la vez que los bytes
        (en paralelo, no suma tiempo): al descargar sale igual que en Drive */
-    var nombreReal = fetch(DRV_API + encodeURIComponent(p.id) + '?fields=name&supportsAllDrives=true&key=' + k,
+    var nombreReal = fetch(DRV_API + encodeURIComponent(p.id) + '?fields=name,modifiedTime&supportsAllDrives=true&key=' + k,
       { signal: ctrl ? ctrl.signal : undefined, credentials: 'omit' })
-      .then(function (r) { return r.ok ? r.json().then(function (j) { return String((j && j.name) || ''); }) : ''; })['catch'](function () { return ''; });
+      .then(function (r) { return r.ok ? r.json().then(function (j) { return { nombre: String((j && j.name) || ''), mod: String((j && j.modifiedTime) || '') }; }) : { nombre: '', mod: '' }; })['catch'](function () { return { nombre: '', mod: '' }; });
     Promise.all([bajar(p.google), nombreReal]).then(function (a) {
       var x = a[0];
-      var v = { nombre: nombreArchivo(a[1] || p.nombre || '', x.mime), mime: x.mime, tipo: drvTipo(x.mime), bytes: x.bytes };
+      var v = { nombre: nombreArchivo(a[1].nombre || p.nombre || '', x.mime), mime: x.mime, tipo: drvTipo(x.mime), bytes: x.bytes,
+                mod: a[1].mod, t: Date.now() };
       drvGuardar(p.id, v);
       DRV.medidas.push({ id: p.id.slice(0, 6), via: 'drive', kb: Math.round(x.bytes.length / 1024), ms: Date.now() - t0 });
       p.res(v);
@@ -222,7 +232,12 @@
     if (DRV.malo[r.id]) return Promise.reject(new Error('Drive no lo entregó'));
     var c = DRV.cache[r.id];
     /* 06/10 · el nombre de Drive gana: el que trae la app es solo un rótulo de respaldo */
-    if (c) return Promise.resolve({ nombre: c.nombre || nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes });
+    if (c && Date.now() - (c.t || 0) < DRV_FRESCO) return Promise.resolve({ nombre: c.nombre || nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes });
+    if (c) return drvVigente(r.id, c).then(function (sigue) {
+      if (sigue) return { nombre: c.nombre || nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes };
+      drvOlvidar(r.id);
+      return drvBytes(ref, nombre, urgente);
+    });
     var p = DRV.pend[r.id];
     if (!p) {
       p = { id: r.id, google: r.google, mime: r.mime, nombre: nombre || '' };
@@ -235,6 +250,32 @@
       if (k > 0) { DRV.cola.splice(k, 1); DRV.cola.unshift(p); }
     }
     return p.prom.then(function (v) { return { nombre: v.nombre || nombre, mime: v.mime, tipo: v.tipo, bytes: v.bytes }; });
+  }
+
+  /** 07/10 · ¿la copia en memoria sigue siendo la de Drive? Solo pregunta la fecha. */
+  function drvVigente(id, c) {
+    if (!c.mod) return Promise.resolve(false);
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, DRV_MS_META);
+    return fetch(DRV_API + encodeURIComponent(id) + '?fields=modifiedTime&supportsAllDrives=true&key=' + encodeURIComponent(drvLlave()),
+      { signal: ctrl ? ctrl.signal : undefined, credentials: 'omit', cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) return r.status === 404 ? false : true;
+        return r.json().then(function (j) {
+          var mod = String((j && j.modifiedTime) || '');
+          if (!mod || mod === c.mod) { c.t = Date.now(); return true; }
+          return false;
+        });
+      })['catch'](function () { return true; })
+      .then(function (x) { clearTimeout(corte); return x; });
+  }
+
+  function drvOlvidar(id) {
+    var c = DRV.cache[id];
+    if (!c) return;
+    if (c.bytes) DRV.peso -= c.bytes.length;
+    delete DRV.cache[id];
+    DRV.orden = DRV.orden.filter(function (x) { return x !== id; });
   }
 
   /** Corta lo que se está bajando y lo que espera en cola (al cerrar el visor). */
