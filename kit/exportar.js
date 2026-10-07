@@ -117,7 +117,7 @@
   /* ══════════════ EXCEL ══════════════ */
 
   function aExcel(titulo, cols, filas) {
-    var nombre = limpiarNombre(titulo) + '.xlsx';
+    var nombre = nombreArchivo(titulo) + '.xlsx';
     var cab = cabeceras(cols);
     var cuerpo = filas.map(function (f) { return cols.map(function (c) { return valorCrudo(f, c); }); });
 
@@ -159,7 +159,7 @@
       .concat(filas.map(function (f) { return f.map(esc).join(';'); }))
       .join('\r\n');
     /* el BOM hace que Excel respete las tildes */
-    bajar(new Blob([BOM + txt], { type: 'text/csv;charset=utf-8' }), limpiarNombre(titulo) + '.csv');
+    bajar(new Blob([BOM + txt], { type: 'text/csv;charset=utf-8' }), nombreArchivo(titulo) + '.csv');
     return 'csv';
   }
 
@@ -453,7 +453,7 @@
       doc.text('Página ' + p + ' de ' + total, ancho - mx, alto - 7, { align: 'right' });
       doc.text(recortarAncho(doc, 'Documento generado por el sistema. ' + (m.MARCA_MUNICIPIO || ''), util - 30), mx, alto - 7);
     }
-    doc.save(limpiarNombre(titulo) + '.pdf');
+    doc.save(nombreArchivo(titulo) + '.pdf');
     return 'pdf';
   }
 
@@ -560,7 +560,7 @@
     });
 
     pie();
-    doc.save(limpiarNombre(titulo) + '.pdf');
+    doc.save(nombreArchivo(titulo) + '.pdf');
     return 'pdf';
   }
 
@@ -818,6 +818,18 @@
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
   }
+  /* 06/10 · todo reporte que se arma al momento baja con un nombre que dice
+     qué es y de cuándo: si el título no trae ya una fecha (dd-mm-aaaa o
+     aaaa-mm-dd), se le agrega la de hoy. Ej.: Cuentas_atrasadas_06-10-2026.xlsx */
+  function nombreArchivo(titulo) {
+    var t = String(titulo || 'informe').trim();
+    if (!/\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}/.test(t)) {
+      var h = new Date();
+      t += ' ' + ('0' + h.getDate()).slice(-2) + '-' + ('0' + (h.getMonth() + 1)).slice(-2) + '-' + h.getFullYear();
+    }
+    return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\- ]/g, '').trim().replace(/\s+/g, '_').slice(0, 120) || 'informe';
+  }
   function limpiarNombre(t) {
     return String(t || 'informe').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^\w\- ]/g, '').trim().replace(/\s+/g, '_').slice(0, 60) || 'informe';
@@ -827,6 +839,6 @@
   K.piezas.exportar = {
     modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir,
     _agrupar: agrupar, _resumen: resumenDe, _campos: camposDeFicha,
-    limpiarNombre: limpiarNombre, valor: valor, valorCrudo: valorCrudo
+    limpiarNombre: limpiarNombre, nombreArchivo: nombreArchivo, valor: valor, valorCrudo: valorCrudo
   };
 }());

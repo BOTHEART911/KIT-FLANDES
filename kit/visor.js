@@ -117,6 +117,23 @@
   function drvListo() { return !!drvLlave() && typeof fetch === 'function'; }
   function drvTipo(mime) { return /^image\//.test(mime) ? 'imagen' : (/pdf/.test(mime) ? 'pdf' : 'otro'); }
 
+  /* 06/10 · NOMBRE AL DESCARGAR: el mismo del archivo en Drive. Si el archivo
+     llegó convertido a PDF (Word, Excel o Doc de Google) la extensión pasa a
+     .pdf; si no trae extensión, se le pone la de su tipo. Solo se quitan los
+     signos que Windows no acepta en un nombre de archivo. */
+  var EXT_MIME = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx', 'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx', 'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx', 'text/plain': 'txt', 'text/csv': 'csv' };
+  function nombreArchivo(nombre, mime) {
+    var n = String(nombre || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').replace(/ \./g, '.').trim();
+    if (!n) return '';
+    var ext = EXT_MIME[String(mime || '').split(';')[0].trim()] || '';
+    if (ext === 'pdf' && /\.(docx?|xlsx?|pptx?|odt|ods|odp)$/i.test(n)) n = n.replace(/\.[a-z0-9]{2,5}$/i, '');
+    if (ext && !new RegExp('\\.' + ext + '$', 'i').test(n) && !(ext === 'jpg' && /\.jpe?g$/i.test(n))) n += '.' + ext;
+    return n;
+  }
+
   /** Boleto del CORE "id.fila.doc.vence.g.firma" → {id, google}. El id ya
       viaja dentro del boleto: no se expone nada nuevo. */
   function deBoleto(t) {
@@ -171,8 +188,14 @@
         throw new Error('Drive ' + r.status);
       });
     }
-    bajar(p.google).then(function (x) {
-      var v = { nombre: p.nombre || '', mime: x.mime, tipo: drvTipo(x.mime), bytes: x.bytes };
+    /* 06/10 · el NOMBRE REAL del archivo en Drive se pide a la vez que los bytes
+       (en paralelo, no suma tiempo): al descargar sale igual que en Drive */
+    var nombreReal = fetch(DRV_API + encodeURIComponent(p.id) + '?fields=name&supportsAllDrives=true&key=' + k,
+      { signal: ctrl ? ctrl.signal : undefined, credentials: 'omit' })
+      .then(function (r) { return r.ok ? r.json().then(function (j) { return String((j && j.name) || ''); }) : ''; })['catch'](function () { return ''; });
+    Promise.all([bajar(p.google), nombreReal]).then(function (a) {
+      var x = a[0];
+      var v = { nombre: nombreArchivo(a[1] || p.nombre || '', x.mime), mime: x.mime, tipo: drvTipo(x.mime), bytes: x.bytes };
       drvGuardar(p.id, v);
       DRV.medidas.push({ id: p.id.slice(0, 6), via: 'drive', kb: Math.round(x.bytes.length / 1024), ms: Date.now() - t0 });
       p.res(v);
@@ -198,7 +221,8 @@
     if (!r || !drvListo()) return Promise.reject(new Error('sin llave'));
     if (DRV.malo[r.id]) return Promise.reject(new Error('Drive no lo entregó'));
     var c = DRV.cache[r.id];
-    if (c) return Promise.resolve({ nombre: nombre || c.nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes });
+    /* 06/10 · el nombre de Drive gana: el que trae la app es solo un rótulo de respaldo */
+    if (c) return Promise.resolve({ nombre: c.nombre || nombre, mime: c.mime, tipo: c.tipo, bytes: c.bytes });
     var p = DRV.pend[r.id];
     if (!p) {
       p = { id: r.id, google: r.google, mime: r.mime, nombre: nombre || '' };
@@ -210,7 +234,7 @@
       var k = DRV.cola.indexOf(p);
       if (k > 0) { DRV.cola.splice(k, 1); DRV.cola.unshift(p); }
     }
-    return p.prom.then(function (v) { return { nombre: nombre || v.nombre, mime: v.mime, tipo: v.tipo, bytes: v.bytes }; });
+    return p.prom.then(function (v) { return { nombre: v.nombre || nombre, mime: v.mime, tipo: v.tipo, bytes: v.bytes }; });
   }
 
   /** Corta lo que se está bajando y lo que espera en cola (al cerrar el visor). */
@@ -257,7 +281,7 @@
   }
 
   K.drive = {
-    listo: drvListo, deBoleto: deBoleto,
+    listo: drvListo, deBoleto: deBoleto, nombreArchivo: nombreArchivo,
     bytes: function (ref, nombre) { return drvBytes(ref, nombre, true); },
     precargar: function (ref) { if (drvNorm(ref) && drvListo()) drvBytes(ref, '', false)['catch'](function () {}); },
     cortar: drvCortar,
@@ -312,7 +336,7 @@
       d._bytes = bytes;
       d._blob = new Blob([bytes], { type: mime });
       d._url = URL.createObjectURL(d._blob);
-      d._nombre = r.nombre || d.titulo || 'documento';
+      d._nombre = nombreArchivo(r.nombre || d.nombre || d.titulo || 'documento', mime);
       d._tipo = d.tipo || r.tipo || (/^image\//.test(mime) ? 'imagen' : (/pdf/.test(mime) ? 'pdf' : 'otro'));
       d._pidiendo = null;
       return d;
