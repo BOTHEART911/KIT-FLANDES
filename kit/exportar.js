@@ -806,6 +806,59 @@
     return { cerrar: fuera };
   }
 
+  /* ══════════════ 10/10 · INFORME GERENCIAL ══════════════
+     El PDF para la jefatura (portada, indicadores y gráficas). La pieza
+     kit/gerencial.js NO se carga al abrir la app: se pide aquí, la primera
+     vez, junto con jsPDF, la marca y el escudo (los tres en paralelo).
+     Sin red para la librería: aviso claro, nada a medias. */
+  var gerencialListo = null;
+  function cargarGerencial() {
+    if (window.KIT_GERENCIAL) return Promise.resolve(true);
+    if (!gerencialListo) {
+      var v = window.APP_VERSION ? '?v=' + encodeURIComponent(window.APP_VERSION) : '';
+      gerencialListo = guion('kit/gerencial.js' + v).catch(function (e) { gerencialListo = null; throw e; });
+    }
+    return gerencialListo;
+  }
+  var iconoApp = null;
+  function iconoPNG() {
+    if (iconoApp !== null) return Promise.resolve(iconoApp);
+    var src = (window.MARCA && window.MARCA.APP_ICON) || '';
+    if (!src) { iconoApp = ''; return Promise.resolve(''); }
+    return new Promise(function (res) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas');
+          c.width = 160; c.height = 160;
+          c.getContext('2d').drawImage(img, 0, 0, 160, 160);
+          iconoApp = c.toDataURL('image/png');
+        } catch (e) { iconoApp = ''; }
+        res(iconoApp);
+      };
+      img.onerror = function () { iconoApp = ''; res(''); };
+      img.src = src;
+    });
+  }
+  function aGerencial(spec) {
+    var t0 = Date.now();
+    return Promise.all([
+      hayPDF() ? Promise.resolve(true) : guion(CDN_PDF),
+      cargarGerencial(),
+      datosMarca(),
+      logoPNG(),
+      iconoPNG()
+    ]).then(function (r) {
+      var t1 = Date.now();
+      var out = window.KIT_GERENCIAL.dibujar(spec, r[2], r[3], r[4]);
+      out.msCarga = t1 - t0; out.msDibujo = Date.now() - t1;
+      try { console.info('[gerencial]', out); } catch (e) {}
+      return out;
+    }, function () {
+      throw K.problema('CDN', 'No se pudo bajar lo necesario para armar el informe. Revisa la conexión y vuelve a intentarlo.');
+    });
+  }
+
   /* ══════════════ utilidades ══════════════ */
 
   function bajar(blob, nombre) {
@@ -837,7 +890,7 @@
   function recortar(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) : s; }
 
   K.piezas.exportar = {
-    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir,
+    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir, aGerencial: aGerencial,
     _agrupar: agrupar, _resumen: resumenDe, _campos: camposDeFicha,
     limpiarNombre: limpiarNombre, nombreArchivo: nombreArchivo, valor: valor, valorCrudo: valorCrudo
   };
