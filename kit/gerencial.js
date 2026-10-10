@@ -71,6 +71,7 @@
   function lunes(d) { var x = new Date(d); x.setDate(x.getDate() - diaSemana(x)); return x; }
   function sumarDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
   function entre(a, b) { return Math.round((b - a) / 864e5); }
+  function frase(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
   function titular(s) {
     s = String(s || '').toLowerCase().replace(/(^|[\s(])([a-záéíóúñü])/g, function (m, a, b) { return a + b.toUpperCase(); });
     return s.replace(/ (De|Del|La|Las|Los|Y|E|En|Para|Por|A) /g, function (m) { return m.toLowerCase(); });
@@ -129,7 +130,10 @@
     var t = { ok: 0, malo: 0, aviso: 0, info: 0 };
     regs.forEach(function (r) { t[r.tono || 'info'] = (t[r.tono || 'info'] || 0) + 1; });
     A.tonos = t;
-    A.decididos = t.ok + t.malo;
+    /* sin un estado "malo" (Contabilidad, Tesorería, Comunicaciones) el
+       porcentaje va sobre el total: si no, 22 pagadas de 28 salían "100 %" */
+    A.sinMalo = !!(sp.tonos && !sp.tonos.malo);
+    A.decididos = A.sinMalo ? A.total : t.ok + t.malo;
 
     var sem = [0, 0, 0, 0, 0, 0, 0];
     regs.forEach(function (r) { sem[diaSemana(aFecha(r.fecha))]++; });
@@ -176,7 +180,9 @@
     if (!A.total) return ['En el periodo no hay ' + pal[1] + ' para analizar.'];
     if (A.porTipo[0]) h.push('Lo más frecuente fue «' + A.porTipo[0].etiqueta + '»: ' + ent(A.porTipo[0].valor) + ' ' + (A.porTipo[0].valor === 1 ? pal[0] : pal[1]) + ' (' + pct(A.porTipo[0].valor, A.total) + ' del total).');
     if (A.cuboPico && A.serie.length > 1) h.push('El pico de actividad fue ' + (A.modo === 'mes' ? 'en ' : (A.modo === 'semana' ? 'la ' : 'el ')) + A.cuboPico.largo + ', con ' + ent(A.cuboPico.valor) + ' ' + (A.cuboPico.valor === 1 ? pal[0] : pal[1]) + '.');
-    if (A.decididos >= 3) h.push('De lo decidido, ' + pct(A.tonos.ok, A.decididos) + ' fue ' + (TT.ok || 'favorable').toLowerCase() + ' y ' + pct(A.tonos.malo, A.decididos) + ' ' + (TT.malo || 'con observaciones').toLowerCase() + '.');
+    if (A.decididos >= 3) h.push(A.sinMalo
+      ? pct(A.tonos.ok, A.total) + ' quedó en «' + TT.ok.toLowerCase() + '» y ' + pct(A.total - A.tonos.ok, A.total) + ' sigue en otro estado.'
+      : 'De lo decidido, ' + pct(A.tonos.ok, A.decididos) + ' fue ' + (TT.ok || 'favorable').toLowerCase() + ' y ' + pct(A.tonos.malo, A.decididos) + ' ' + (TT.malo || 'con observaciones').toLowerCase() + '.');
     if (A.porCategoria.length > 1) h.push('La ' + (E.categoria || 'categoría').toLowerCase() + ' con más movimiento fue ' + titular(A.porCategoria[0].etiqueta) + ' (' + pct(A.porCategoria[0].valor, A.total) + ').');
     if (A.porSujeto.length > 1) {
       var top5 = A.porSujeto.slice(0, 5).reduce(function (s, x) { return s + x.valor; }, 0);
@@ -198,8 +204,10 @@
   function sintesis(sp, A) {
     var pal = sp.palabra || ['registro', 'registros'];
     if (!A.total) return 'Entre el ' + largo(A.desde) + ' y el ' + largo(A.hasta) + ' no hay ' + pal[1] + ' de ' + sp.persona + ' en ' + sp.app + '.';
-    var t = 'Entre el ' + largo(A.desde) + ' y el ' + largo(A.hasta) + ', ' + sp.persona + ' registró ' + ent(A.total) + ' ' + (A.total === 1 ? pal[0] : pal[1]) +
-      ' en ' + sp.app + ', en ' + ent(A.diasActivos) + (A.diasActivos === 1 ? ' día' : ' días') + ' con actividad de ' + ent(A.habiles) + ' hábiles del periodo' +
+    var colectivo = /^(todo|toda|solicitudes sin)/i.test(sp.persona);
+    var quien = colectivo ? sp.persona.charAt(0).toLowerCase() + sp.persona.slice(1) : sp.persona;
+    var t = 'Entre el ' + largo(A.desde) + ' y el ' + largo(A.hasta) + ', ' + (colectivo ? 'en ' + sp.app + ' se registraron ' + ent(A.total) + ' ' + (A.total === 1 ? pal[0] : pal[1]) + ' (' + quien + ')'
+      : quien + ' registró ' + ent(A.total) + ' ' + (A.total === 1 ? pal[0] : pal[1]) + ' en ' + sp.app) + ', en ' + ent(A.diasActivos) + (A.diasActivos === 1 ? ' día' : ' días') + ' con actividad de ' + ent(A.habiles) + ' hábiles del periodo' +
       ' (promedio de ' + num(A.promedio) + ' por día activo).';
     if (A.hayMonto) t += ' El valor asociado suma ' + plata(A.monto) + '.';
     if (A.porTipo.length > 1) t += ' Se registraron ' + A.porTipo.length + ' tipos de actuación distintos.';
@@ -318,7 +326,7 @@
 
       /* tres cifras grandes de entrada */
       var cy = ty + th + 12, cw = (util - 8) / 3;
-      var cif = [[ent(A.total), A.total === 1 ? titular(pal[0]) : titular(pal[1])], [ent(A.diasActivos), 'Días con actividad'],
+      var cif = [[ent(A.total), A.total === 1 ? frase(pal[0]) : frase(pal[1])], [ent(A.diasActivos), 'Días con actividad'],
                  A.hayMonto ? [plataCorta(A.monto), E.monto || 'Valor asociado'] : [num(A.promedio), 'Promedio por día activo']];
       cif.forEach(function (c, i) {
         var x0 = mx + i * (cw + 4);
@@ -384,7 +392,7 @@
       if (op.promedio !== false && prom > 0 && n > 2) {
         var yp = base - (prom / tope) * h;
         trazo(C.malo, 0.3); doc.setLineDashPattern([1.2, 1], 0); doc.line(x0, yp, x0 + w, yp); doc.setLineDashPattern([], 0);
-        fuente('bold', 6.4, C.malo); doc.text('Promedio ' + fmtCorto(prom, f), x0 + 1, yp - 1.3);
+        op.promedioTxt = 'Promedio: ' + fmtCorto(prom, f);
       }
       y = base + 9;
       leyendaV(op);
@@ -397,6 +405,10 @@
         relleno(it[0]); doc.roundedRect(x, y - 2.4, 3, 3, 0.6, 0.6, 'F');
         fuente('normal', 6.8, C.gris); doc.text(it[1], x + 4.5, y); x += 6 + doc.getTextWidth(it[1]) + 5;
       });
+      if (op.promedioTxt) {
+        trazo(C.malo, 0.4); doc.setLineDashPattern([1.2, 1], 0); doc.line(x, y - 1, x + 5, y - 1); doc.setLineDashPattern([], 0);
+        fuente('normal', 6.8, C.malo); doc.text(op.promedioTxt, x + 6.5, y);
+      }
       y += 6;
     }
     function escala(max) {
@@ -487,7 +499,7 @@
       var d0 = aFecha(A.desde), d1 = aFecha(A.hasta);
       if (entre(d0, d1) > 371) d0 = sumarDias(d1, -371);
       var ini = lunes(d0), semanas = Math.ceil((entre(ini, d1) + 1) / 7);
-      var lw = 14, cel = Math.min(semanas <= 8 ? 8 : 5.2, (util - lw) / semanas), gap = Math.min(0.7, cel * 0.15);
+      var lw = 14, cel = Math.min(semanas <= 8 ? 6 : 5.2, (util - lw) / semanas), gap = Math.min(0.7, cel * 0.15);
       var hh = 7 * cel + 12;
       cabe(hh + 8);
       var max = Math.max.apply(null, Object.keys(A.porDia).map(function (k) { return A.porDia[k]; }).concat([1]));
@@ -572,12 +584,13 @@
     var n = 1;
     seccion(n++, 'Resumen ejecutivo', null);
     var kp = sp.kpis || [
-      { etiqueta: titular(pal[1]) + ' en el periodo', valor: ent(A.total), nota: A.porTipo.length + (A.porTipo.length === 1 ? ' tipo de actuación' : ' tipos de actuación') },
+      { etiqueta: frase(pal[1]) + ' en el periodo', valor: ent(A.total), nota: A.porTipo.length + (A.porTipo.length === 1 ? ' tipo de actuación' : ' tipos de actuación') },
       { etiqueta: 'Días con actividad', valor: ent(A.diasActivos), nota: pct(Math.min(A.diasActivos, A.habiles), A.habiles) + ' de ' + ent(A.habiles) + ' días hábiles' },
       { etiqueta: 'Promedio por día activo', valor: num(A.promedio), nota: 'Pico: ' + (A.diaPico ? dma(A.diaPico) + ' con ' + ent(A.porDia[A.diaPico]) : '—') },
-      A.decididos ? { etiqueta: TT.ok, valor: pct(A.tonos.ok, A.decididos), nota: ent(A.tonos.ok) + ' de ' + ent(A.decididos) + ' decididos', tono: 'ok' }
+      A.decididos ? { etiqueta: TT.ok, valor: pct(A.tonos.ok, A.decididos), nota: ent(A.tonos.ok) + ' de ' + ent(A.decididos) + (A.sinMalo ? '' : ' decididos'), tono: 'ok' }
                   : { etiqueta: E.sujetos ? titular(E.sujetos) + ' atendidos' : 'Distintos atendidos', valor: ent(A.porSujeto.length), nota: E.sujeto ? 'por ' + E.sujeto.toLowerCase() : '' },
-      A.decididos ? { etiqueta: TT.malo, valor: pct(A.tonos.malo, A.decididos), nota: ent(A.tonos.malo) + ' de ' + ent(A.decididos) + ' decididos', tono: A.tonos.malo ? 'malo' : 'ok' }
+      A.sinMalo ? { etiqueta: 'En otros estados', valor: pct(A.total - A.tonos.ok, A.total), nota: ent(A.total - A.tonos.ok) + ' de ' + ent(A.total), tono: 'aviso' }
+      : A.decididos ? { etiqueta: TT.malo, valor: pct(A.tonos.malo, A.decididos), nota: ent(A.tonos.malo) + ' de ' + ent(A.decididos) + ' decididos', tono: A.tonos.malo ? 'malo' : 'ok' }
                   : { etiqueta: (E.categoria || 'Categoría') + 's', valor: ent(A.porCategoria.length), nota: A.porCategoria[0] ? 'Mayor: ' + titular(A.porCategoria[0].etiqueta) : '' },
       A.hayMonto ? { etiqueta: E.monto || 'Valor asociado', valor: plataCorta(A.monto), nota: plata(A.monto), tono: 'info' }
                  : { etiqueta: 'Tendencia del periodo', valor: (A.tendencia > 0 ? '+' : '') + pct(A.tendencia, 1), nota: 'segunda mitad frente a la primera', tono: A.tendencia >= 0 ? 'ok' : 'aviso' }
@@ -640,7 +653,7 @@
       nuevaPagina();
       seccion(n++, 'Evolución en el tiempo', 'Cómo se repartió la actividad a lo largo del periodo, ' +
         (A.modo === 'dia' ? 'día por día.' : (A.modo === 'semana' ? 'semana por semana (cada barra empieza el lunes).' : 'mes a mes.')));
-      subtitulo(titular(pal[1]) + ' por ' + (A.modo === 'dia' ? 'día' : A.modo), A.cuboPico ? 'Mayor: ' + A.cuboPico.largo : '');
+      subtitulo(frase(pal[1]) + ' por ' + (A.modo === 'dia' ? 'día' : A.modo), A.cuboPico ? 'Mayor: ' + A.cuboPico.largo : '');
       barrasV(A.serie, { finde: A.modo === 'dia' });
       if (A.hayMonto) {
         subtitulo((E.monto || 'Valor') + ' por ' + (A.modo === 'dia' ? 'día' : A.modo));
@@ -694,7 +707,8 @@
     var notas = [
       'Fuente: registros del aplicativo ' + sp.app + ' del ecosistema FLANDES-CORE, consultados en el momento de generar este informe.',
       'Periodo pedido: del ' + dma(A.pedido.desde) + ' al ' + dma(A.pedido.hasta) + (A.recortado ? '; el análisis arranca en el primer registro (' + dma(A.desde) + ')' : '') + '. Los días hábiles cuentan de lunes a viernes (no descuentan festivos).',
-      'Los porcentajes de resultado se calculan sobre lo decidido (' + TT.ok.toLowerCase() + ' y ' + TT.malo.toLowerCase() + '); lo informativo o en trámite no entra en esa cuenta.',
+      A.sinMalo ? 'Los porcentajes de estado se calculan sobre el total de ' + pal[1] + ' del periodo.'
+        : 'Los porcentajes de resultado se calculan sobre lo decidido (' + TT.ok.toLowerCase() + ' y ' + TT.malo.toLowerCase() + '); lo informativo o en trámite no entra en esa cuenta.',
       'Código de verificación ' + codigo + '. Generado el ' + generado.toLocaleString('es-CO') + '.'
     ];
     notas.forEach(function (t) {
