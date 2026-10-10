@@ -170,7 +170,8 @@
     /* app 'CORE': config es ruta del CORE, no de la app. */
     return K.pedir('config', {}, { sinToken: true, app: 'CORE' })
       .then(function (c) { marca = c || {}; return marca; })
-      .catch(function () { marca = {}; return marca; });
+      /* 10/10 · sin respuesta NO se recuerda el vacío: el próximo intento vuelve a preguntar */
+      .catch(function () { return {}; });
   }
 
   /** jsPDF no entiende WebP: el escudo se pasa por un lienzo y sale PNG. */
@@ -860,7 +861,12 @@
       if (m && (m.MARCA_MUNICIPIO || m.MARCA_NIT)) { try { K.guardar.escribir(MARCA_K, { MARCA_MUNICIPIO: m.MARCA_MUNICIPIO || '', MARCA_NIT: m.MARCA_NIT || '', t: Date.now() }); } catch (e) {} }
       return m;
     });
-    return tiene ? Promise.resolve(g) : fresca;
+    if (tiene) return Promise.resolve(g);
+    /* sin recuerdo: a lo sumo 1,5 s de espera por el CORE; si no llega, el
+       informe sale con el nombre del municipio de la app (MARCA.MUNICIPIO) */
+    var local = { MARCA_MUNICIPIO: String((window.MARCA && window.MARCA.MUNICIPIO) || 'Municipio de Flandes').toUpperCase(), MARCA_NIT: '' };
+    return Promise.race([fresca, new Promise(function (r) { setTimeout(function () { r(local); }, 1500); })])
+      .then(function (m) { return m && (m.MARCA_MUNICIPIO || m.MARCA_NIT) ? m : local; });
   }
   /** El escudo a 240 px: en el PDF mide 26 mm, y el original hacía lento cada página. */
   var escudoChico = null;
