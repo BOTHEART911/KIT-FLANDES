@@ -271,8 +271,8 @@
         y += 2;
       }
     }
-    function subtitulo(t, nota) {
-      cabe(16);
+    function subtitulo(t, nota, reserva) {
+      cabe(reserva || 16);
       fuente('bold', 9.8, C.tinta); doc.text(t, mx, y);
       if (nota) { fuente('normal', 7.4, C.gris2); doc.text(recorte(nota, 'normal', 7.4, 90), W - mx, y, { align: 'right' }); }
       trazo(C.linea, 0.25); doc.line(mx, y + 2, W - mx, y + 2);
@@ -363,7 +363,9 @@
       cabe(h + 16);
       var campo = op.campo || 'valor', f = op.formato;
       var max = Math.max.apply(null, datos.map(function (d) { return d[campo]; }).concat([1]));
-      var paso = escala(max), tope = Math.ceil(max / paso) * paso || 1;
+      var paso = escala(max);
+      if (f !== 'pesos' && paso < 1) paso = 1;          /* conteos: nada de 0,5 cuentas */
+      var tope = Math.ceil(max / paso) * paso || 1;
       var base = y + h;
       /* rejilla */
       fuente('normal', 6.4, C.gris2);
@@ -376,6 +378,9 @@
       var n = datos.length, slot = w / Math.max(n, 1), bw = Math.min(slot * 0.66, 14);
       var mejor = -1, i;
       for (i = 0; i < n; i++) if (mejor < 0 || datos[i][campo] > datos[mejor][campo]) mejor = i;
+      /* el dorado solo si el máximo es único: con empates no hay "más alto" */
+      if (mejor >= 0 && datos.filter(function (d) { return d[campo] === datos[mejor][campo]; }).length > 1) mejor = -1;
+      op.sinMax = mejor < 0 || !(datos[mejor] && datos[mejor][campo] > 0);
       var cadaEtiqueta = Math.ceil(n / 16);
       datos.forEach(function (d, i) {
         var bh = (d[campo] / tope) * h, xb = x0 + i * slot + (slot - bw) / 2;
@@ -398,7 +403,8 @@
       leyendaV(op);
     }
     function leyendaV(op) {
-      var items = [[C.verde2, 'Actividad'], [C.oro, 'Valor más alto']];
+      var items = [[C.verde2, 'Actividad']];
+      if (!op.sinMax) items.push([C.oro, 'Valor más alto']);
       if (op.finde) items.push([C.verde3, 'Fin de semana']);
       var x = mx;
       items.forEach(function (it) {
@@ -640,7 +646,7 @@
       if (s.kpis && s.kpis.length) tarjetasKpi(s.kpis);
       (s.graficas || []).forEach(function (g) {
         if (!g.datos || !g.datos.length) return;
-        subtitulo(g.titulo, g.nota);
+        subtitulo(g.titulo, g.nota, g.tipo === 'barras' ? 90 : (g.tipo === 'proporcion' ? 30 : 40));
         if (g.tipo === 'barras') barrasV(g.datos, { formato: g.formato, alto: g.alto });
         else if (g.tipo === 'proporcion') proporcion(g.datos, { formato: g.formato });
         else barrasH(g.datos, { formato: g.formato, max: g.max, titular: g.titular });
@@ -653,15 +659,15 @@
       nuevaPagina();
       seccion(n++, 'Evolución en el tiempo', 'Cómo se repartió la actividad a lo largo del periodo, ' +
         (A.modo === 'dia' ? 'día por día.' : (A.modo === 'semana' ? 'semana por semana (cada barra empieza el lunes).' : 'mes a mes.')));
-      subtitulo(frase(pal[1]) + ' por ' + (A.modo === 'dia' ? 'día' : A.modo), A.cuboPico ? 'Mayor: ' + A.cuboPico.largo : '');
+      subtitulo(frase(pal[1]) + ' por ' + (A.modo === 'dia' ? 'día' : A.modo), A.cuboPico ? 'Mayor: ' + A.cuboPico.largo : '', 90);
       barrasV(A.serie, { finde: A.modo === 'dia' });
       if (A.hayMonto) {
-        subtitulo((E.monto || 'Valor') + ' por ' + (A.modo === 'dia' ? 'día' : A.modo));
+        subtitulo((E.monto || 'Valor') + ' por ' + (A.modo === 'dia' ? 'día' : A.modo), '', 76);
         barrasV(A.serie, { campo: 'monto', formato: 'pesos', alto: 44 });
       }
-      subtitulo('Calendario de actividad', A.diasRango > 371 ? 'últimas 53 semanas del rango' : '');
+      subtitulo('Calendario de actividad', A.diasRango > 371 ? 'últimas 53 semanas del rango' : '', 60);
       calendario();
-      subtitulo('Por día de la semana');
+      subtitulo('Por día de la semana', '', 66);
       barrasV(DIAS.map(function (d, i) { return { etiqueta: d.slice(0, 3), valor: A.semana[i], finde: i > 4 }; }), { alto: 34, promedio: false, finde: true });
 
       /* 5. DISTRIBUCIÓN */
