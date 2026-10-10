@@ -852,11 +852,15 @@
   function marcaRapida() {
     var g = null;
     try { g = K.guardar.leer(MARCA_K, null); } catch (e) { g = null; }
+    var tiene = g && (g.MARCA_MUNICIPIO || g.MARCA_NIT);
+    /* recordada y de hoy: ni se pregunta. Recordada pero vieja: sale con ella
+       y se pone al día de fondo (un viaje al día como mucho). */
+    if (tiene && g.t && Date.now() - g.t < 864e5) return Promise.resolve(g);
     var fresca = datosMarca().then(function (m) {
-      if (m && (m.MARCA_MUNICIPIO || m.MARCA_NIT)) { try { K.guardar.escribir(MARCA_K, { MARCA_MUNICIPIO: m.MARCA_MUNICIPIO || '', MARCA_NIT: m.MARCA_NIT || '' }); } catch (e) {} }
+      if (m && (m.MARCA_MUNICIPIO || m.MARCA_NIT)) { try { K.guardar.escribir(MARCA_K, { MARCA_MUNICIPIO: m.MARCA_MUNICIPIO || '', MARCA_NIT: m.MARCA_NIT || '', t: Date.now() }); } catch (e) {} }
       return m;
     });
-    return g && (g.MARCA_MUNICIPIO || g.MARCA_NIT) ? Promise.resolve(g) : fresca;
+    return tiene ? Promise.resolve(g) : fresca;
   }
   /** El escudo a 240 px: en el PDF mide 26 mm, y el original hacía lento cada página. */
   var escudoChico = null;
@@ -885,7 +889,8 @@
       tocar el CORE si la marca ya está recordada. Se llama al abrir Mis registros. */
   function prepararGerencial() {
     try {
-      var ir = function () { cargarPDF().catch(function () {}); cargarGerencial().catch(function () {}); escudoGerencial(); };
+      /* la marca solo se pide si este equipo todavía no la recuerda: una vez por equipo */
+      var ir = function () { cargarPDF().catch(function () {}); cargarGerencial().catch(function () {}); escudoGerencial(); marcaRapida(); };
       if (window.requestIdleCallback) window.requestIdleCallback(ir, { timeout: 2500 }); else setTimeout(ir, 800);
     } catch (e) { /* calentar nunca rompe la vista */ }
   }
