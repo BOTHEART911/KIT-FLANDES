@@ -811,7 +811,12 @@
      kit/gerencial.js NO se carga al abrir la app: se pide aquí, la primera
      vez, junto con jsPDF, la marca y el escudo (los tres en paralelo).
      Sin red para la librería: aviso claro, nada a medias. */
-  var gerencialListo = null;
+  var gerencialListo = null, pdfListo = null;
+  function cargarPDF() {
+    if (hayPDF()) return Promise.resolve(true);
+    if (!pdfListo) pdfListo = guion(CDN_PDF).catch(function (e) { pdfListo = null; throw e; });
+    return pdfListo;
+  }
   function cargarGerencial() {
     if (window.KIT_GERENCIAL) return Promise.resolve(true);
     if (!gerencialListo) {
@@ -840,13 +845,57 @@
       img.src = src;
     });
   }
+  /* La marca (MUNICIPIO, NIT) cambia casi nunca: se recuerda en el teléfono
+     y el informe sale sin esperar al CORE; de fondo se pone al día para la
+     próxima vez. Sin recuerdo, se pide como siempre. */
+  var MARCA_K = 'gerencial.marca.v1';
+  function marcaRapida() {
+    var g = null;
+    try { g = K.guardar.leer(MARCA_K, null); } catch (e) { g = null; }
+    var fresca = datosMarca().then(function (m) {
+      if (m && (m.MARCA_MUNICIPIO || m.MARCA_NIT)) { try { K.guardar.escribir(MARCA_K, { MARCA_MUNICIPIO: m.MARCA_MUNICIPIO || '', MARCA_NIT: m.MARCA_NIT || '' }); } catch (e) {} }
+      return m;
+    });
+    return g && (g.MARCA_MUNICIPIO || g.MARCA_NIT) ? Promise.resolve(g) : fresca;
+  }
+  /** El escudo a 240 px: en el PDF mide 26 mm, y el original hacía lento cada página. */
+  var escudoChico = null;
+  function escudoGerencial() {
+    if (escudoChico !== null) return Promise.resolve(escudoChico);
+    return logoPNG().then(function (src) {
+      if (!src) { escudoChico = ''; return ''; }
+      return new Promise(function (res) {
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var lado = 240, c = document.createElement('canvas');
+            var r = Math.min(lado / img.naturalWidth, lado / img.naturalHeight, 1);
+            c.width = Math.round(img.naturalWidth * r); c.height = Math.round(img.naturalHeight * r);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            escudoChico = c.toDataURL('image/png');
+          } catch (e) { escudoChico = src; }
+          res(escudoChico);
+        };
+        img.onerror = function () { escudoChico = src; res(src); };
+        img.src = src;
+      });
+    });
+  }
+  /** Calienta lo que pide el informe (librería, pieza, marca y escudo) sin
+      tocar el CORE si la marca ya está recordada. Se llama al abrir Mis registros. */
+  function prepararGerencial() {
+    try {
+      var ir = function () { cargarPDF().catch(function () {}); cargarGerencial().catch(function () {}); escudoGerencial(); };
+      if (window.requestIdleCallback) window.requestIdleCallback(ir, { timeout: 2500 }); else setTimeout(ir, 800);
+    } catch (e) { /* calentar nunca rompe la vista */ }
+  }
   function aGerencial(spec) {
     var t0 = Date.now();
     return Promise.all([
-      hayPDF() ? Promise.resolve(true) : guion(CDN_PDF),
+      cargarPDF(),
       cargarGerencial(),
-      datosMarca(),
-      logoPNG(),
+      marcaRapida(),
+      escudoGerencial(),
       iconoPNG()
     ]).then(function (r) {
       var t1 = Date.now();
@@ -890,7 +939,7 @@
   function recortar(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) : s; }
 
   K.piezas.exportar = {
-    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir, aGerencial: aGerencial,
+    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir, aGerencial: aGerencial, prepararGerencial: prepararGerencial,
     _agrupar: agrupar, _resumen: resumenDe, _campos: camposDeFicha,
     limpiarNombre: limpiarNombre, nombreArchivo: nombreArchivo, valor: valor, valorCrudo: valorCrudo
   };

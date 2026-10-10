@@ -238,7 +238,7 @@
     function cabecera() {
       relleno(C.verde); doc.rect(0, 0, W, 18, 'F');
       relleno(C.oro); doc.rect(0, 18, W, 0.9, 'F');
-      if (escudo) { try { doc.addImage(escudo, 'PNG', mx, 3, 12, 12); } catch (e) {} }
+      if (escudo) { try { doc.addImage(escudo, 'PNG', mx, 3, 12, 12, 'escudo'); } catch (e) {} }
       var xt = escudo ? mx + 15 : mx;
       fuente('bold', 9.5, C.blanco); doc.text(municipio, xt, 8.4);
       fuente('normal', 7.2, [205, 225, 214]); doc.text((M.MARCA_NIT ? 'NIT ' + M.MARCA_NIT + '  ·  ' : '') + 'Aplicativo ' + sp.app, xt, 12.6);
@@ -284,7 +284,7 @@
       opaco(1);
       relleno(C.oro); doc.rect(0, alto, W, 2.2, 'F');
 
-      if (escudo) { try { doc.addImage(escudo, 'PNG', mx, 20, 26, 26); } catch (e) {} }
+      if (escudo) { try { doc.addImage(escudo, 'PNG', mx, 20, 26, 26, 'escudo'); } catch (e) {} }
       var xt = escudo ? mx + 31 : mx;
       fuente('bold', 15, C.blanco); doc.text(municipio, xt, 30);
       fuente('normal', 9, [205, 225, 214]);
@@ -300,7 +300,7 @@
       var ty = alto + 18, th = 64;
       relleno(C.fondo); trazo(C.linea, 0.3); doc.roundedRect(mx, ty, util, th, 3, 3, 'FD');
       relleno(C.verde2); doc.roundedRect(mx, ty, 2.2, th, 1, 1, 'F');
-      if (icono) { try { doc.addImage(icono, 'PNG', W - mx - 26, ty + 8, 18, 18); } catch (e) {} }
+      if (icono) { try { doc.addImage(icono, 'PNG', W - mx - 26, ty + 8, 18, 18, 'icono'); } catch (e) {} }
       var filas = [
         ['RESPONSABLE', sp.persona + (sp.rol ? '  ·  ' + sp.rol : '')],
         ['APLICATIVO', sp.app],
