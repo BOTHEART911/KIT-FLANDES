@@ -27,7 +27,11 @@
        kpis: [{ etiqueta, valor, nota, tono }],   // opcional: reemplaza los de por defecto
        secciones: [{ titulo, intro, kpis, graficas: [{ titulo, tipo: 'barras'|'barrasH'|'proporcion',
                      datos: [{ etiqueta, valor, tono }], formato: 'numero'|'pesos', nota }] }],
-       hallazgos: ['...']                // opcional: se suman a los automáticos
+       hallazgos: ['...'],               // opcional: se suman a los automáticos
+       // 11/10 · opcionales (SEC-HACIENDA): ecosistema: 'FLANDES-CORE' (portada y nota),
+       // notaAnexo: '...' (texto cuando el anexo no cabe entero),
+       // sujetos: { n: 3120, top: [{ etiqueta, valor }] } — el servidor ya contó los
+       // distintos y el top 10, así los registros grandes no traen cada nombre.
      }, marca, escudoPNG, iconoPNG)
    ============================================================ */
 (function () {
@@ -126,6 +130,11 @@
     A.porTipo = contar(regs, 'tipo', A.hayMonto);
     A.porCategoria = contar(regs.filter(function (r) { return r.categoria; }), 'categoria', A.hayMonto);
     A.porSujeto = contar(regs.filter(function (r) { return r.sujeto; }), 'sujeto', A.hayMonto);
+    /* 11/10 · conteo de distintos y top 10 hechos por el servidor (registros sin cada nombre) */
+    if (sp.sujetos && sp.sujetos.top) {
+      A.porSujeto = sp.sujetos.top.map(function (x) { return { etiqueta: x.etiqueta, valor: x.valor, monto: 0, tonos: {} }; });
+      A.nSujetos = Number(sp.sujetos.n) || A.porSujeto.length;
+    } else A.nSujetos = A.porSujeto.length;
 
     var t = { ok: 0, malo: 0, aviso: 0, info: 0 };
     regs.forEach(function (r) { t[r.tono || 'info'] = (t[r.tono || 'info'] || 0) + 1; });
@@ -184,9 +193,9 @@
       ? pct(A.tonos.ok, A.total) + ' quedó en «' + TT.ok.toLowerCase() + '» y ' + pct(A.total - A.tonos.ok, A.total) + ' sigue en otro estado.'
       : 'De lo decidido, ' + pct(A.tonos.ok, A.decididos) + ' fue ' + (TT.ok || 'favorable').toLowerCase() + ' y ' + pct(A.tonos.malo, A.decididos) + ' ' + (TT.malo || 'con observaciones').toLowerCase() + '.');
     if (A.porCategoria.length > 1) h.push('La ' + (E.categoria || 'categoría').toLowerCase() + ' con más movimiento fue ' + titular(A.porCategoria[0].etiqueta) + ' (' + pct(A.porCategoria[0].valor, A.total) + ').');
-    if (A.porSujeto.length > 1) {
+    if (A.nSujetos > 1) {
       var top5 = A.porSujeto.slice(0, 5).reduce(function (s, x) { return s + x.valor; }, 0);
-      h.push('Se atendieron ' + ent(A.porSujeto.length) + ' ' + (E.sujetos || (E.sujeto ? E.sujeto.toLowerCase() + 's' : 'personas')) + ' distintos; los 5 más frecuentes concentran el ' + pct(top5, A.total) + '.');
+      h.push('Se atendieron ' + ent(A.nSujetos) + ' ' + (E.sujetos || (E.sujeto ? E.sujeto.toLowerCase() + 's' : 'personas')) + ' distintos; los 5 más frecuentes concentran el ' + pct(top5, A.total) + '.');
     }
     if (A.diasRango >= 14 && A.mitades[0] + A.mitades[1] >= 6) {
       var t = A.tendencia;
@@ -297,7 +306,7 @@
       fuente('bold', 15, C.blanco); doc.text(municipio, xt, 30);
       fuente('normal', 9, [205, 225, 214]);
       if (M.MARCA_NIT) doc.text('NIT ' + M.MARCA_NIT, xt, 36);
-      doc.text('Ecosistema digital FLANDES-CORE', xt, M.MARCA_NIT ? 41 : 36);
+      doc.text('Ecosistema digital ' + (sp.ecosistema || 'FLANDES-CORE'), xt, M.MARCA_NIT ? 41 : 36);
 
       relleno(C.oro); doc.rect(mx, 66, 30, 1.2, 'F');
       fuente('bold', 11, [214, 233, 222]); doc.text('INFORME', mx, 78);
@@ -594,7 +603,7 @@
       { etiqueta: 'Días con actividad', valor: ent(A.diasActivos), nota: pct(Math.min(A.diasActivos, A.habiles), A.habiles) + ' de ' + ent(A.habiles) + ' días hábiles' },
       { etiqueta: 'Promedio por día activo', valor: num(A.promedio), nota: 'Pico: ' + (A.diaPico ? dma(A.diaPico) + ' con ' + ent(A.porDia[A.diaPico]) : '—') },
       A.decididos ? { etiqueta: TT.ok, valor: pct(A.tonos.ok, A.decididos), nota: ent(A.tonos.ok) + ' de ' + ent(A.decididos) + (A.sinMalo ? '' : ' decididos'), tono: 'ok' }
-                  : { etiqueta: E.sujetos ? titular(E.sujetos) + ' atendidos' : 'Distintos atendidos', valor: ent(A.porSujeto.length), nota: E.sujeto ? 'por ' + E.sujeto.toLowerCase() : '' },
+                  : { etiqueta: E.sujetos ? titular(E.sujetos) + ' atendidos' : 'Distintos atendidos', valor: ent(A.nSujetos), nota: E.sujeto ? 'por ' + E.sujeto.toLowerCase() : '' },
       A.sinMalo ? { etiqueta: 'En otros estados', valor: pct(A.total - A.tonos.ok, A.total), nota: ent(A.total - A.tonos.ok) + ' de ' + ent(A.total), tono: 'aviso' }
       : A.decididos ? { etiqueta: TT.malo, valor: pct(A.tonos.malo, A.decididos), nota: ent(A.tonos.malo) + ' de ' + ent(A.decididos) + ' decididos', tono: A.tonos.malo ? 'malo' : 'ok' }
                   : { etiqueta: (E.categoria || 'Categoría') + 's', valor: ent(A.porCategoria.length), nota: A.porCategoria[0] ? 'Mayor: ' + titular(A.porCategoria[0].etiqueta) : '' },
@@ -681,7 +690,7 @@
         barrasH(A.porCategoria, { max: 10 });
       }
       if (A.porSujeto.length) {
-        subtitulo((E.sujeto || 'Sujeto') + 's con más ' + pal[1], 'los 10 primeros de ' + ent(A.porSujeto.length));
+        subtitulo((E.sujeto || 'Sujeto') + 's con más ' + pal[1], 'los 10 primeros de ' + ent(A.nSujetos));
         barrasH(A.porSujeto, { max: 10 });
       }
       if (A.hayMonto && A.porTipo.length > 1) {
@@ -692,7 +701,7 @@
       /* 6. ANEXO: el detalle */
       nuevaPagina();
       var TOPE = 400, det = A.regs.slice(-TOPE).reverse();
-      seccion(n++, 'Anexo · Detalle de ' + pal[1], A.total > TOPE ? 'Los ' + ent(TOPE) + ' más recientes de ' + ent(A.total) + '. El detalle completo está en la descarga en Excel de Mis registros.'
+      seccion(n++, 'Anexo · Detalle de ' + pal[1], A.total > TOPE ? 'Los ' + ent(TOPE) + ' más recientes de ' + ent(A.total) + '. ' + (sp.notaAnexo || 'El detalle completo está en la descarga en Excel de Mis registros.')
         : 'Los ' + ent(A.total) + ' ' + pal[1] + ' del periodo, del más reciente al más antiguo.');
       var cols = [{ titulo: 'Fecha', ancho: 24 }, { titulo: E.tipo || 'Tipo', ancho: 42, negrilla: true, color: function (f) { return f.tono; } },
                   { titulo: E.sujeto || 'Sujeto' }, { titulo: E.categoria || 'Categoría', ancho: 40 }];
@@ -711,7 +720,7 @@
     if (y > arriba + 5) y += 2;
     subtitulo('Nota metodológica');
     var notas = [
-      'Fuente: registros del aplicativo ' + sp.app + ' del ecosistema FLANDES-CORE, consultados en el momento de generar este informe.',
+      'Fuente: registros del aplicativo ' + sp.app + ' del ecosistema ' + (sp.ecosistema || 'FLANDES-CORE') + ', consultados en el momento de generar este informe.',
       'Periodo pedido: del ' + dma(A.pedido.desde) + ' al ' + dma(A.pedido.hasta) + (A.recortado ? '; el análisis arranca en el primer registro (' + dma(A.desde) + ')' : '') + '. Los días hábiles cuentan de lunes a viernes (no descuentan festivos).',
       A.sinMalo ? 'Los porcentajes de estado se calculan sobre el total de ' + pal[1] + ' del periodo.'
         : 'Los porcentajes de resultado se calculan sobre lo decidido (' + TT.ok.toLowerCase() + ' y ' + TT.malo.toLowerCase() + '); lo informativo o en trámite no entra en esa cuenta.',
@@ -739,7 +748,9 @@
       fuente('bold', 6.8, C.verde); doc.text('Página ' + p + ' de ' + tot, W - mx, H - 8, { align: 'right' });
     }
 
-    var nombre = (K && K.piezas && K.piezas.exportar ? K.piezas.exportar.nombreArchivo(sp.nombre || 'Informe gerencial') : 'Informe_gerencial') + '.pdf';
+    /* 11/10 · sin kit/exportar.js (SEC-HACIENDA) el nombre se limpia aquí, con la misma regla */
+    var nombre = (K && K.piezas && K.piezas.exportar ? K.piezas.exportar.nombreArchivo(sp.nombre || 'Informe gerencial')
+      : (String(sp.nombre || 'Informe gerencial').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\- ]/g, '').trim().replace(/\s+/g, '_').slice(0, 120) || 'Informe_gerencial')) + '.pdf';
     doc.save(nombre);
     return { paginas: tot, nombre: nombre, total: A.total };
   }
