@@ -258,10 +258,14 @@
       msg.onMessage(function (payload) {
         var d = (payload && payload.data) || {};
         var n = (payload && payload.notification) || {};
+        /* 19/10 · el CORE manda solo `data` (titulo y cuerpo van ahí) para
+           que el teléfono pinte un único aviso; `notification` queda para
+           los mensajes viejos. */
+        var t = d.titulo || n.title || '', c = d.cuerpo || n.body || '';
         for (var i = 0; i < alLlegarFns.length; i++) {
-          try { alLlegarFns[i]({ titulo: n.title || '', cuerpo: n.body || '', datos: d }); } catch (e) {}
+          try { alLlegarFns[i]({ titulo: t, cuerpo: c, datos: d }); } catch (e) {}
         }
-        K.disparar('kit:aviso', { titulo: n.title || '', cuerpo: n.body || '', datos: d });
+        K.disparar('kit:aviso', { titulo: t, cuerpo: c, datos: d });
       });
     } catch (e) {}
   }
