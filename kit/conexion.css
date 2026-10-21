@@ -19,6 +19,9 @@
   transition: transform .24s cubic-bezier(.2, .9, .3, 1);
 }
 .kit-conex--on { transform: none; }
+/* 21/10 · red lenta: ámbar, sin botón (se sigue intentando solo) */
+.kit-conex--lenta { background: #b45309; }
+.kit-conex__b[hidden] { display: none; }
 
 .kit-conex__punto {
   width: 9px; height: 9px;

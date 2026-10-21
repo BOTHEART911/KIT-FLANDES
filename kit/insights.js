@@ -53,8 +53,21 @@
 
   /* ══════════════ el botón flotante ══════════════ */
 
+  /* 21/10 · una pregunta que vale en TODAS las vistas de las 7 apps:
+     qué es la barra roja (o ámbar) de abajo. */
+  var P_RED = { texto: '¿Qué es la barra roja de abajo?', responde: function () {
+    var sin = document.documentElement.classList.contains('kit-sin-red');
+    return (sin ? '**Ahora mismo tu teléfono no tiene internet.** ' : '') +
+      'La barra **roja** "Sin conexión. Es tu internet, no la app." sale en cuanto se cae tu internet. ' +
+      'Lo que estabas haciendo **no se pierde**: cuando vuelve la red, la barra se va sola y la app vuelve a pedir lo que estaba cargando; ' +
+      'un guardado que ya había salido **no se repite**. Si quieres comprobar antes, toca **Reintentar**.\n' +
+      'La barra **ámbar** "Tu internet está lento" avisa que tu conexión va despacio; la app sigue intentando sola.\n' +
+      'Si la falla es del servidor y no de tu internet, la vista lo dice con su propio mensaje: ahí no es tu conexión.';
+  } };
+
   function montar(opciones) {
     cfg = opciones || {};
+    if (cfg.botones && !cfg.botones.some(function (b) { return b && b.texto === P_RED.texto; })) cfg.botones = cfg.botones.concat([P_RED]);
     if (!fab) {
       fab = K.nodo('<button type="button" class="kit-ins__fab" aria-label="Ayuda de esta vista">' +
         K.icono('robot', 26) + '</button>');

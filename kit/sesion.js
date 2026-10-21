@@ -254,8 +254,10 @@
   function mensajeDe(e) {
     var c = (e && e.codigo) || '';
     if (c === 'SIN_RED') return 'No hay internet. Es tu conexión, no la aplicación.';
-    if (c === 'TIEMPO') return 'El servidor tardó demasiado. Inténtalo otra vez.';
-    if (c === 'RESPUESTA_NO_JSON') return 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.';
+    if (c === 'RED_LENTA') return 'Tu internet está muy lento. Inténtalo de nuevo en un momento.';
+    if (c === 'TIEMPO') return 'El servidor está tardando. No es tu internet: inténtalo otra vez.';
+    if (c === 'SERVIDOR') return 'El servidor no respondió. No es tu internet: inténtalo en un momento.';
+    if (c === 'RESPUESTA_NO_JSON') return 'La respuesta llegó incompleta. Inténtalo de nuevo; si sigue, solicita soporte.';
     return (e && e.message) || 'No se pudo entrar.';
   }
 
@@ -450,7 +452,7 @@
    * SIN_PERMISO...). Si es la red, se reintenta una vez solo y, si sigue,
    * se ofrece reintentar sin perder la sesión.
    */
-  var DE_RED = { SIN_RED: 1, TIEMPO: 1, RESPUESTA_NO_JSON: 1 };
+  var DE_RED = { SIN_RED: 1, RED_LENTA: 1, TIEMPO: 1, SERVIDOR: 1, RESPUESTA_NO_JSON: 1 };
 
   function comprobarSesion(intento) {
     var comprobacion = (typeof cfg.comprobar === 'function')

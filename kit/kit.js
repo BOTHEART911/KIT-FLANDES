@@ -383,6 +383,8 @@
     /* 25/09 · cada petición lleva su 'rid': si hay que repetirla, el CORE
        devuelve la respuesta ya dada en vez de hacerla dos veces. */
     if (!cuerpo.rid) cuerpo.rid = rid();
+    var vistaDeSalida = VISTA.id, vueltasRed = 0;
+    function intento() {
     return puerta.then(function () {
       /* 29/09 · el token se toma AL SALIR, no al pedir: una llamada que se
          pidio antes de entrar (o con la sesion anterior) sale con la sesion
@@ -414,9 +416,96 @@
         cuerpo.token = token();
         return enviar(cuerpo, opciones);
       }
+      /* 21/10 · SIN RED DE VERDAD → se espera a que vuelva y se repite con
+         el MISMO 'rid' (un guardado que alcanzó a llegar no se duplica: el
+         CORE devuelve la respuesta ya dada). Mientras tanto la vista sigue
+         con su esqueleto y abajo sale el banner rojo. Una lectura de fondo
+         de una vista que ya se cerró no espera: se cancela. */
+      if (e && e.codigo === 'SIN_RED' && opciones.esperarRed !== false && vueltasRed < 5) {
+        if (opciones.fondo && VISTA.id !== vistaDeSalida) throw problema('CANCELADA', TXT_CANCELADA);
+        vueltasRed++;
+        return esperarRed(opciones.senal).then(intento);
+      }
       throw e;
     });
+    }
+    return intento();
   }
+
+  /* ══════════════ 3b) LA RED: SIN RED, LENTA O EL SERVIDOR ══════════════
+
+     21/10 · Antes todo fallo de fetch se pintaba "No se pudo hablar con el
+     servidor" y el aviso de "intermitencias" culpaba al internet aunque la
+     falla fuera de Google. Ahora se pregunta a un tercero que siempre está
+     (gstatic de Google, respuesta vacía 204, sin pasar por el service
+     worker porque es de otro origen):
+       · no contesta            → SIN_RED: banner rojo inmediato y espera.
+       · contesta, pero lento   → RED_LENTA: es el internet, se dice así.
+       · contesta rápido        → el problema es del servidor: SERVIDOR /
+                                  TIEMPO con un texto que NO culpa al internet. */
+  var SONDA = 'https://www.gstatic.com/generate_204';
+  var TXT_SIN_RED = 'No hay internet. Es tu conexión, no la app. Lo que escribiste no se perdió.';
+  var TXT_RED_LENTA = 'Tu internet está muy lento en este momento. Inténtalo de nuevo; lo que escribiste no se perdió.';
+  var TXT_SERVIDOR = 'El servidor de Google no respondió como debía. No es tu internet: inténtalo en un momento y, si sigue, avisa a soporte.';
+  var TXT_SERVIDOR_LENTO = 'El servidor está tardando más de lo normal. No es tu internet: inténtalo en un momento.';
+  var LENTA_MS = 2500;
+
+  function conexionLenta() {
+    try {
+      var c = navigator.connection;
+      return !!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || ''))));
+    } catch (e) { return false; }
+  }
+
+  /** {red: bool, ms: número} — nunca rechaza. */
+  function sondear(tope) {
+    if (raiz.navigator && navigator.onLine === false) return Promise.resolve({ red: false, ms: 0 });
+    var t0 = Date.now();
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, tope || 4000);
+    return fetch(SONDA + '?t=' + t0, { mode: 'no-cors', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function () { clearTimeout(corte); return { red: true, ms: Date.now() - t0 }; },
+            function () { clearTimeout(corte); return { red: false, ms: Date.now() - t0 }; });
+  }
+
+  /* Quienes esperan a que vuelva la red. Los suelta la pieza de conexión
+     cuando COMPRUEBA que hay internet (kit:conexion hay:true) o, si esa pieza
+     no está, el evento 'online' del navegador. */
+  var ESPERANDO_RED = [];
+  var ESPERA_RED_MAX = 180000;
+  function soltarRed() {
+    var l = ESPERANDO_RED.splice(0);
+    l.forEach(function (f) { try { f(); } catch (e) {} });
+  }
+  function esperarRed(senal) {
+    disparar('kit:sinRed', {});
+    return new Promise(function (res, rej) {
+      var hecho = false;
+      function listo() { if (hecho) return; hecho = true; clearTimeout(t); res(); }
+      var t = setTimeout(function () {
+        if (hecho) return; hecho = true;
+        var i = ESPERANDO_RED.indexOf(listo); if (i >= 0) ESPERANDO_RED.splice(i, 1);
+        rej(problema('SIN_RED', TXT_SIN_RED));
+      }, ESPERA_RED_MAX);
+      if (senal) {
+        if (senal.aborted) { hecho = true; clearTimeout(t); rej(problema('CANCELADA', TXT_CANCELADA)); return; }
+        senal.addEventListener('abort', function () {
+          if (hecho) return; hecho = true; clearTimeout(t);
+          var i = ESPERANDO_RED.indexOf(listo); if (i >= 0) ESPERANDO_RED.splice(i, 1);
+          rej(problema('CANCELADA', TXT_CANCELADA));
+        });
+      }
+      ESPERANDO_RED.push(listo);
+    });
+  }
+  document.addEventListener('kit:conexion', function (ev) { if (ev && ev.detail && ev.detail.hay) soltarRed(); });
+  raiz.addEventListener && raiz.addEventListener('online', function () {
+    /* sin la pieza de conexión, el evento del navegador basta */
+    if (!(raiz.KIT && raiz.KIT.piezas && raiz.KIT.piezas.conexion)) setTimeout(soltarRed, 900);
+  });
+
+  /* Cuántos viajes van lentos ahora mismo (para el aviso amarillo). */
+  var LENTOS = 0;
 
   function rid() {
     var s = Date.now().toString(36);
@@ -430,6 +519,23 @@
   var TXT_INTERMITENCIA = 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.';
 
   function enviar(cuerpo, opciones) {
+    /* sin red según el propio teléfono: ni se intenta (eso sí es fiable;
+       lo que miente es el 'true') */
+    if (raiz.navigator && navigator.onLine === false) return Promise.reject(problema('SIN_RED', TXT_SIN_RED));
+    /* 21/10 · si a los 8 s no ha vuelto, se mira si es el internet: si va
+       lento, sale el aviso amarillo mientras se sigue esperando */
+    var lento = false;
+    var ojoLento = setTimeout(function () {
+      sondear(4000).then(function (s) {
+        if (terminado || lento) return;
+        if (!s.red || s.ms > LENTA_MS || conexionLenta()) { lento = true; LENTOS++; disparar('kit:redLenta', { lentos: LENTOS }); }
+      });
+    }, 8000);
+    var terminado = false;
+    function cerrarLento() {
+      terminado = true; clearTimeout(ojoLento);
+      if (lento) { lento = false; LENTOS = Math.max(0, LENTOS - 1); disparar('kit:redLenta', { lentos: LENTOS }); }
+    }
     var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
     var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, opciones.ms || 60000);
     /* 29/09 · quien pidio puede cancelar (opciones.senal): los documentos que se
@@ -446,14 +552,15 @@
     })
       .then(function (r) { return r.text(); })
       .then(function (txt) {
-        clearTimeout(corte);
+        clearTimeout(corte); cerrarLento();
+        if (document.documentElement.classList.contains('kit-sin-red')) disparar('kit:redOk', {});
         var j;
         try { j = JSON.parse(txt); }
         catch (e) {
           /* Apps Script devuelve HTML cuando la sesión de Google caducó o
              el despliegue no es público: ese es el famoso "Unexpected token '<'". */
           try { console.warn('[kit] respuesta que no es JSON en ' + cuerpo.action + ':', String(txt || '').slice(0, 120)); } catch (e2) {}
-          throw problema('RESPUESTA_NO_JSON', TXT_INTERMITENCIA);
+          throw problema('RESPUESTA_NO_JSON', opciones.__sinJson ? TXT_SERVIDOR : TXT_INTERMITENCIA);
         }
         if (j && j.ok) {
           /* 10.4 · el CORE pega '_soporte' a 'inicio' (y al login) cuando la
@@ -468,7 +575,7 @@
         var p = problema((j && j.codigo) || 'ERROR', (j && j.error) || 'El servidor no pudo atender la solicitud.');
         /* 26/09 · el CORE puede mandar datos con el error (el login sin acceso trae el caso: SolicitudesContratacion.gs) */
         if (j && j.datos) p.datos = j.datos;
-        if (p.codigo === 'REPETIR' || /^Faltan "app" y "action"/.test(p.message)) { p.codigo = 'REPETIR'; p.message = TXT_INTERMITENCIA; }
+        if (p.codigo === 'REPETIR' || /^Faltan "app" y "action"/.test(p.message)) { p.codigo = 'REPETIR'; p.message = opciones.__repetida ? TXT_SERVIDOR : TXT_INTERMITENCIA; }
         /* F11 (26/09) · SESIÓN CAÍDA → A LA PUERTA. El CORE no manda código,
            manda el texto ('Tu sesion se venció…', 'Sesion no valida…'). Antes
            solo se borraba el token y la vista mostraba "Reintentar", que con
@@ -486,11 +593,24 @@
         throw p;
       })
       .catch(function (e) {
-        clearTimeout(corte);
+        clearTimeout(corte); cerrarLento();
         if (e && e.codigo) throw e;
         if (e && e.name === 'AbortError' && sn && sn.aborted) throw problema('CANCELADA', 'Se canceló.');
-        if (e && e.name === 'AbortError') throw problema('TIEMPO', 'El servidor tardó demasiado en responder.');
-        throw problema('SIN_RED', 'No se pudo hablar con el servidor.');
+        var porTiempo = !!(e && e.name === 'AbortError');
+        /* 21/10 · ¿es el internet o el servidor? se pregunta antes de culpar */
+        return sondear(4000).then(function (s) {
+          if (!s.red) throw problema('SIN_RED', TXT_SIN_RED);
+          if (s.ms > LENTA_MS || conexionLenta()) throw problema('RED_LENTA', TXT_RED_LENTA);
+          if (porTiempo) throw problema('TIEMPO', TXT_SERVIDOR_LENTO);
+          /* el fetch se cayó con la red bien: casi siempre es la página de
+             respuesta de Google (el echo) que no trae permisos CORS. Igual que
+             el 404 del echo, se repite UNA vez con el mismo 'rid'. */
+          if (!opciones.__servidor && !(sn && sn.aborted)) {
+            opciones.__servidor = true;
+            return new Promise(function (r) { setTimeout(r, 400); }).then(function () { return enviar(cuerpo, opciones); });
+          }
+          throw problema('SERVIDOR', TXT_SERVIDOR);
+        });
       });
   }
 
@@ -835,6 +955,7 @@
     guardar: guardar,
     token: token, ponerToken: ponerToken,
     pedir: pedir, problema: problema, vista: vista, esLectura: esLectura,
+    sondear: sondear, esDeRed: function (e) { var c = e && e.codigo; return c === 'SIN_RED' || c === 'RED_LENTA'; },
     recuerdo: recuerdo,
     recordado: recordado,
 

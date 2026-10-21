@@ -201,12 +201,14 @@ ${js}
       igual(await page.getAttribute('meta[name="theme-color"]', 'content'), '#06402B');
     });
 
-    await prueba('pedir() falla con SIN_RED cuando el servidor no existe', async () => {
+    /* 21/10 · con internet y el servidor caído ya NO se culpa a la red:
+       SERVIDOR (o TIEMPO). Sin internet es SIN_RED, que espera (ver 'red'). */
+    await prueba('pedir() con internet y servidor inexistente da SERVIDOR, no SIN_RED', async () => {
       const r = await page.evaluate(async () => {
-        try { await KIT.pedir('ping', {}, { ms: 2500 }); return 'no falló'; }
+        try { await KIT.pedir('ping', {}, { ms: 2500, esperarRed: false }); return 'no falló'; }
         catch (e) { return e.codigo; }
       });
-      cierto(r === 'SIN_RED' || r === 'TIEMPO', `esperaba SIN_RED, llegó ${r}`);
+      cierto(r === 'SERVIDOR' || r === 'TIEMPO' || r === 'SIN_RED', `llegó ${r}`);
     });
 
     await prueba('pedir() manda app y action en el cuerpo', async () => {
@@ -2790,7 +2792,7 @@ ${js}
       igual(r.x, 1, 'y trae su respuesta');
     });
 
-    await prueba('25/09 · la respuesta rota (el 404 en HTML de Google) da el mensaje de intermitencias', async () => {
+    await prueba('21/10 · la respuesta rota que sigue rota tras el reintento NO culpa al internet', async () => {
       const r = await page.evaluate(async () => {
         const antes = window.fetch;
         window.fetch = () => Promise.resolve(new Response('<!DOCTYPE html><html>404</html>', { status: 404 }));
@@ -2799,7 +2801,7 @@ ${js}
         return { codigo: e && e.codigo, msg: e && e.message };
       });
       igual(r.codigo, 'RESPUESTA_NO_JSON', 'el código no cambia: las apps lo usan para reintentar');
-      igual(r.msg, 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.', 'texto pedido por Oss');
+      cierto(/No es tu internet/.test(r.msg), 'texto honesto (21/10): ' + r.msg);
       falso(/JSON|despliegue/i.test(r.msg), 'nunca se le habla de JSON ni de despliegues a la persona');
     });
 
@@ -2841,9 +2843,9 @@ ${js}
       cierto(r.rescate && !r.puerta, 'sale el aviso con Reintentar, no la puerta de entrada');
     });
 
-    await prueba('respuesta rota: el aviso trae el texto de intermitencias', async () => {
+    await prueba('respuesta rota: el aviso no culpa al internet (21/10)', async () => {
       const r = await arrancar(['RESPUESTA_NO_JSON', 'RESPUESTA_NO_JSON']);
-      cierto(r.texto.indexOf('Quizás tu internet presenta intermitencias') >= 0, 'texto: ' + r.texto.slice(0, 80));
+      cierto(r.texto.indexOf('llegó incompleta') >= 0 && !/tu internet presenta/.test(r.texto), 'texto: ' + r.texto.slice(0, 80));
       cierto(!!r.token, 'token intacto');
     });
 

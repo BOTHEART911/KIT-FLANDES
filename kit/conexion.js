@@ -44,52 +44,91 @@
   var vigilando = false;
   var cayo = false;
   var reintento = null;
+  var sondeo = null, pausa = 4000;
+  var lentos = 0;
+  var generacion = 0;
 
   function pintarBarra() {
     if (barra) return barra;
     barra = K.nodo(
-      '<div class="kit-conex" role="alert">' +
+      '<div class="kit-conex" role="alert" aria-live="assertive">' +
       '  <span class="kit-conex__punto"></span>' +
       '  <span class="kit-conex__txt">Sin conexión. <b>Es tu internet, no la app.</b></span>' +
       '  <button type="button" class="kit-conex__b">Reintentar</button>' +
       '</div>'
     );
     barra.querySelector('.kit-conex__b').addEventListener('click', function () { comprobar(true); });
-    document.body.appendChild(barra);
+    (document.body || document.documentElement).appendChild(barra);
     return barra;
+  }
+
+  /* 21/10 · el texto depende del caso: sin red (rojo) o red lenta (ámbar).
+     Lo del servidor NUNCA sale aquí: eso no es culpa del internet y lo dice
+     la vista con su propio mensaje. */
+  function pintarTexto() {
+    if (!barra) return;
+    var txt = barra.querySelector('.kit-conex__txt');
+    var lenta = !cayo && lentos > 0;
+    barra.classList.toggle('kit-conex--lenta', lenta);
+    txt.innerHTML = lenta
+      ? 'Tu internet está lento. <b>Seguimos intentando…</b>'
+      : 'Sin conexión. <b>Es tu internet, no la app.</b>';
+    barra.querySelector('.kit-conex__b').hidden = lenta;
+    barra.classList.toggle('kit-conex--on', cayo || lenta);
   }
 
   function mostrar(hay) {
     pintarBarra();
-    barra.classList.toggle('kit-conex--on', !hay);
     document.documentElement.classList.toggle('kit-sin-red', !hay);
     if (hay && cayo) {
       cayo = false;
+      pararSondeo();
+      pintarTexto();
       K.aviso('Volvió la conexión.', 'ok');
+      /* al disparar esto, kit.js vuelve a mandar lo que esperaba (mismo rid) */
       K.disparar('kit:conexion', { hay: true });
+      return;
     } else if (!hay && !cayo) {
       cayo = true;
       K.disparar('kit:conexion', { hay: false });
+      arrancarSondeo();
     }
+    pintarTexto();
   }
+
+  /* Mientras no hay red se mira solo cada 4 s (luego más espaciado, hasta
+     15 s): el 'online' del navegador no llega cuando hay wifi sin internet. */
+  function arrancarSondeo() {
+    pararSondeo(); pausa = 4000;
+    (function vuelta() {
+      sondeo = setTimeout(function () {
+        if (!cayo) return;
+        comprobar(false).then(function () { if (cayo) { pausa = Math.min(15000, Math.round(pausa * 1.5)); vuelta(); } });
+      }, pausa);
+    }());
+  }
+  function pararSondeo() { if (sondeo) clearTimeout(sondeo); sondeo = null; }
 
   /**
    * Comprueba de verdad. navigator.onLine solo sabe si hay cable o wifi,
-   * no si hay internet: en la Alcaldía eso pasa a diario.
+   * no si hay internet: en la Alcaldía eso pasa a diario. 21/10 · se
+   * pregunta a gstatic (K.sondear), no al CORE: si el CORE falla, eso no es
+   * falta de internet y no debe pintar el banner.
    */
   function comprobar(aMano) {
-    if (!navigator.onLine) { mostrar(false); return Promise.resolve(false); }
-    /* app 'CORE': ping es ruta del CORE. Sin esto, la comprobación de red
-       fallaba SIEMPRE y la app acusaba de caída una conexión que iba bien. */
-    return K.pedir('ping', {}, { ms: 8000, sinToken: true, app: 'CORE' })
-      .then(function () { mostrar(true); return true; })
-      .catch(function (e) {
-        /* si el servidor contesta un error de negocio, la red SÍ está */
-        var hay = e && e.codigo && e.codigo !== 'SIN_RED' && e.codigo !== 'TIEMPO';
-        mostrar(!!hay);
-        if (!hay && aMano) K.aviso('Sigue sin haber conexión.', 'malo');
-        return !!hay;
-      });
+    var b = barra && barra.querySelector('.kit-conex__b');
+    if (aMano && b) { b.disabled = true; b.textContent = 'Comprobando…'; }
+    var p = (typeof K.sondear === 'function') ? K.sondear(5000) : Promise.resolve({ red: navigator.onLine !== false });
+    var mia = ++generacion;
+    return p.then(function (s) {
+      if (aMano && b) { b.disabled = false; b.textContent = 'Reintentar'; }
+      /* 21/10 · una sonda que salió SIN red y contesta cuando ya volvió no
+         puede volver a pintar el banner: solo cuenta la última que salió */
+      if (mia !== generacion) return !cayo;
+      mostrar(!!s.red);
+      if (!s.red && aMano) K.aviso('Sigue sin haber conexión.', 'malo');
+      return !!s.red;
+    });
   }
 
   function vigilar() {
@@ -99,18 +138,28 @@
 
     window.addEventListener('offline', function () { mostrar(false); });
     window.addEventListener('online', function () {
+      generacion++;   /* lo que se preguntó sin red ya no vale */
       /* el evento 'online' se adelanta: se espera un poco y se comprueba */
       if (reintento) clearTimeout(reintento);
       reintento = setTimeout(function () { comprobar(false); }, 900);
     });
+    /* kit.js avisa en cuanto un viaje falla por falta de red */
+    K.cuando('kit:sinRed', function () { mostrar(false); });
+    /* un viaje al CORE que llegó completo es la mejor prueba de que hay red */
+    K.cuando('kit:redOk', function () { if (cayo) { generacion++; mostrar(true); } });
+    K.cuando('kit:redLenta', function (d) { lentos = d.lentos || 0; pintarTexto(); });
 
     /* al volver a la pestaña, por si se durmió el teléfono */
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden && cayo) comprobar(false);
     });
 
-    if (!navigator.onLine) mostrar(false);
+    if (navigator.onLine === false) mostrar(false);
   }
+
+  /* 21/10 · se vigila sola al cargar: antes ninguna de las 7 apps llamaba a
+     vigilar() y el banner nunca salía (SEC-HACIENDA sí la llama). */
+  if (document.body) vigilar(); else document.addEventListener('DOMContentLoaded', vigilar);
 
   /* ══════════════ ATAJOS DE RESCATE ══════════════ */
 
@@ -159,9 +208,11 @@
   function explicar(error, atajos, extra) {
     var c = (error && error.codigo) || 'ERROR';
     var mapa = {
-      SIN_RED:            { icono: K.icono('sin-red', 34), titulo: 'No hay internet', texto: 'Revisa tus datos o el wifi y vuelve a intentarlo. Lo que escribiste no se perdió.' },
-      TIEMPO:             { icono: K.icono('reloj', 34), titulo: 'El servidor tardó demasiado', texto: 'Suele ser la conexión. Inténtalo otra vez en un momento.' },
-      RESPUESTA_NO_JSON:  { icono: K.icono('sin-red', 34), titulo: 'La conexión se interrumpió', texto: 'Quizás tu internet presenta intermitencias, inténtalo de nuevo. Si el problema persiste, solicita soporte.' },
+      SIN_RED:            { icono: K.icono('sin-red', 34), titulo: 'No hay internet', texto: 'Es tu conexión, no la app. Revisa tus datos o el wifi; lo que escribiste no se perdió.' },
+      RED_LENTA:          { icono: K.icono('sin-red', 34), titulo: 'Tu internet está lento', texto: 'Inténtalo de nuevo en un momento; lo que escribiste no se perdió.' },
+      TIEMPO:             { icono: K.icono('reloj', 34), titulo: 'El servidor está tardando', texto: 'No es tu internet. Inténtalo otra vez en un momento.' },
+      SERVIDOR:           { icono: K.icono('aviso', 34), titulo: 'El servidor no respondió', texto: 'No es tu internet. Inténtalo en un momento y, si sigue, avisa a soporte.' },
+      RESPUESTA_NO_JSON:  { icono: K.icono('aviso', 34), titulo: 'La respuesta llegó incompleta', texto: 'Inténtalo de nuevo. Si el problema persiste, solicita soporte.' },
       SESION_VENCIDA:     { icono: K.icono('candado', 34), titulo: 'Tu sesión venció', texto: 'Por seguridad la sesión dura 12 horas. Vuelve a entrar.' },
       SIN_SESION:         { icono: K.icono('candado', 34), titulo: 'Necesitas entrar de nuevo', texto: 'Vuelve a iniciar sesión para continuar.' },
       SIN_PERMISO:        { icono: K.icono('prohibido', 34), titulo: 'Tu usuario no tiene permiso para esto', texto: 'Si crees que sí deberías tenerlo, pídeselo al administrador.' }
