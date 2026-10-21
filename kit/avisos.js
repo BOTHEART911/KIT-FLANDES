@@ -403,6 +403,59 @@
   /** Olvida este aparato al cerrar sesión: el token se queda en el CORE. */
   function olvidar() { K.guardar.borrar(TOKEN_K); K.guardar.borrar(AHORA_NO_K); }
 
+  /* ── 21/10 · el service worker de los avisos al día y el toque que lleva a su vista ──
+
+     1. Al día. El service worker de los avisos vive en su propio scope
+        (SW_SCOPE), que la persona nunca navega. El navegador solo lo revisa
+        si se le pide (update) o con un push, y como mucho una vez al día:
+        volver a llamar register() con la misma dirección NO lo revisa. Así,
+        tras publicar uno nuevo, los teléfonos seguían con el viejo, que con
+        el mensaje de solo `data` pintaba "Alcaldía de Flandes" sin texto.
+        Ahora cada apertura de la app le pide al navegador que lo revise, por
+        detrás y sin tocar el CORE: es una sola descarga del archivo.
+
+     2. El toque. Con la app abierta o en segundo plano, el service worker de
+        los avisos no puede cambiarle la vista (navigate() solo sirve en
+        ventanas que controla él, y la app la controla sw.js): solo la traía
+        al frente. Ahora le manda un mensaje y la app cambia de vista aquí. */
+  function refrescarServiceWorker() {
+    try {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.getRegistrations) return;
+      var scope = new URL(SW_SCOPE, location.href).href;
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        rs.forEach(function (r) {
+          if (r.scope === scope || r.scope === scope + '/') { try { r.update()['catch'](function () {}); } catch (e) {} }
+        });
+      })['catch'](function () {});
+    } catch (e) {}
+  }
+
+  function irDesdeAviso(vista) {
+    var v = String(vista || '').replace(/^#?\/?/, '');
+    if (!v) return;
+    var h = '#/' + v;
+    if (location.hash === h) {
+      /* ya estaba ahí: se vuelve a pintar para que salga lo nuevo */
+      try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) {}
+    } else {
+      location.hash = h;
+    }
+  }
+
+  (function escucharToques() {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.addEventListener('message', function (ev) {
+        var d = (ev && ev.data) || {};
+        if (d.kitAviso === 'ir') irDesdeAviso(d.vista);
+      });
+      if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages();
+    } catch (e) {}
+  }());
+
+  /* por detrás, cuando ya se pintó lo de primer plano */
+  setTimeout(refrescarServiceWorker, 3000);
+
   K.piezas.avisos = {
     activar: activar, autoActivar: autoActivar, pedirAlTocar: pedirAlTocar, proponer: proponer, estado: estado,
     alLlegar: alLlegar, olvidar: olvidar, configurar: configurar,
