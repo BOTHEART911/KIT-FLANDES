@@ -112,6 +112,8 @@
     }
 
     var texto = hoja.querySelector('textarea');
+    /* 24/10 · el asistente abre el soporte con la pregunta ya escrita */
+    if (opciones.texto) texto.value = String(opciones.texto).slice(0, 600);
     var err = hoja.querySelector('.kit-sop__error');
     function marcar(t) {
       err.textContent = t || '';

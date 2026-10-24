@@ -77,6 +77,13 @@
     }
     fab.hidden = false;
     fab.classList.toggle('kit-ins__fab--alto', !!cfg.alto);
+    /* 24/10 · ASISTENTE: con la base cargada, el robot es el asistente de
+       ayuda (kit/asistente.js). Llama la atención UNA vez por día. */
+    var As = K.piezas.asistente;
+    if (As && As.listo() && !(As.enEntradaAhora && As.enEntradaAhora())) {
+      fab.classList.add('kit-ins__fab--asistente');
+      setTimeout(function () { if (fab && !fab.hidden) As.llamar(fab); }, 1500);
+    }
     fab.setAttribute('aria-label', 'Ayuda: ' + (cfg.vista || 'esta vista'));
     /* la voz se consulta una vez por sesión y ANTES del primer toque, para
        que el botón de escuchar ya sepa si sale cuando se abra el panel */
@@ -173,6 +180,9 @@
   }
 
   function abrir() {
+    /* 24/10 · el asistente toma el botón cuando hay base (kit/asistente.js) */
+    var As = K.piezas.asistente;
+    if (As && As.listo()) return As.abrir(cfg);
     if (abierto) abierto.cerrar();
     /* PRIMERO, dentro del toque: sin esto Safari no deja sonar después */
     Repro.desbloquear();
@@ -458,29 +468,51 @@
       });
     }
 
+    /* 24/10 · RESPALDO (asistente): si Inworld falla o el primer trozo tarda
+       más de 'espera' ms, se le pasa lo que falta a la voz del teléfono, sin
+       aviso. Sin respaldo, todo sigue como antes. */
+    var respaldo = null, espera = 0, relojEspera = null;
+    function caer(miTurno) {
+      if (miTurno !== turno || !respaldo) return false;
+      var resto = cola.slice(i).join(' ');
+      var fn = respaldo;
+      parar();
+      try { fn(resto); } catch (e) {}
+      return true;
+    }
     function siguiente(miTurno) {
       if (!activo || miTurno !== turno) return;
       if (i >= cola.length) return parar();
       var p = sig || pedirTrozo(cola[i]);
       sig = null;
+      if (i === 0 && respaldo && espera) {
+        clearTimeout(relojEspera);
+        relojEspera = setTimeout(function () { caer(miTurno); }, espera);
+      }
       p.then(function (src) {
-        if (!activo || miTurno !== turno || !src) return;
+        clearTimeout(relojEspera);
+        if (!activo || miTurno !== turno) return;
+        if (!src) { if (!caer(miTurno)) parar(); return; }
         var a = el();
         a.src = src;
         var pl = a.play();
-        if (pl && pl['catch']) pl['catch'](function () { parar(); });
+        if (pl && pl['catch']) pl['catch'](function () { if (!caer(miTurno)) parar(); });
         if (i + 1 < cola.length) sig = pedirTrozo(cola[i + 1])['catch'](function () { return null; });
         i++;
       })['catch'](function (e) {
+        clearTimeout(relojEspera);
         if (miTurno !== turno) return;
+        if (caer(miTurno)) return;
         parar();
         K.aviso(e && e.message ? e.message : 'No se pudo generar la voz.', 'malo', 5000);
       });
     }
 
     /** Empieza a leer. Lo que estuviera sonando se corta. */
-    function hablar(t, alCambiar) {
+    function hablar(t, alCambiar, op) {
       parar();
+      respaldo = (op && op.respaldo) || null;
+      espera = (op && op.espera) || 0;
       cola = trocear(t);
       if (!cola.length) return;
       if (alCambiar) avisa = alCambiar;
@@ -495,6 +527,7 @@
     }
 
     function parar() {
+      clearTimeout(relojEspera);
       var estaba = activo;
       activo = false; cola = []; i = 0; sig = null; turno++;
       try { if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); } } catch (e) {}
@@ -513,6 +546,7 @@
   K.piezas.insights = {
     montar: montar, abrir: abrir, repartir: repartir,
     voz: Repro,
+    vozDisponible: vozDisponible,   /* 24/10 · el asistente pregunta si hay Inworld */
     configuracion: function () { return cfg; },
     ocultar: function () { if (fab) fab.hidden = true; if (abierto) abierto.cerrar(); },
     quitar: function () { if (abierto) abierto.cerrar(); if (fab) { fab.remove(); fab = null; } Repro.parar(); }

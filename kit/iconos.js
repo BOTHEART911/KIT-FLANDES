@@ -258,7 +258,18 @@
     /* velocimetro: cuanto se demora cada area en revisar */
     'velocimetro':
       '<path d="M4.2 17.5a9 9 0 1 1 15.6 0"/><path d="M12 13.6l4.2-4.6"/><circle cx="12" cy="14.4" r="1.4"/>' +
-      '<path d="M6.6 11.2l1.2.7M12 6.5v1.4M17.4 11.2l-1.2.7"/>'
+      '<path d="M6.6 11.2l1.2.7M12 6.5v1.4M17.4 11.2l-1.2.7"/>',
+    /* 24/10 · asistente de ayuda: dictar, callar la voz y calificar */
+    'microfono':
+      '<rect x="9" y="3.2" width="6" height="11" rx="3"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6v3.2M8.8 20.8h6.4"/>',
+    'silencio':
+      '<path d="M4.8 9.4h3.2l4.2-3.2v11.6l-4.2-3.2H4.8z"/><path d="M16 9.6l4.8 4.8M20.8 9.6L16 14.4"/>',
+    'pulgar-arriba':
+      '<path d="M7.4 10.6v9.2H4.6a1 1 0 0 1-1-1v-7.2a1 1 0 0 1 1-1z"/>' +
+      '<path d="M7.4 10.6l3.6-6.8a2.1 2.1 0 0 1 3 1.9l-.5 3.6h5.1a2 2 0 0 1 2 2.4l-1.3 6.4a2 2 0 0 1-2 1.7H7.4"/>',
+    'pulgar-abajo':
+      '<path d="M7.4 13.4V4.2H4.6a1 1 0 0 0-1 1v7.2a1 1 0 0 0 1 1z"/>' +
+      '<path d="M7.4 13.4l3.6 6.8a2.1 2.1 0 0 0 3-1.9l-.5-3.6h5.1a2 2 0 0 0 2-2.4l-1.3-6.4a2 2 0 0 0-2-1.7H7.4"/>'
   };
 
   function svg(nombre, tam) {
