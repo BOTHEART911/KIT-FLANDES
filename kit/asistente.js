@@ -329,6 +329,12 @@
     if (c.app) CFG.app = String(c.app).toUpperCase();
     if (c.adaptador) CFG.adaptador = c.adaptador;
     if (c.remoto) CFG.remoto = c.remoto;
+    /* entrega 2 · si la app carga kit/gemini.js y tiene llave, Gemini es el remoto por defecto */
+    else if (!CFG.remoto && K.piezas.gemini && K.piezas.gemini.disponible()) {
+      CFG.remoto = K.piezas.gemini.elegir;
+      CFG.precalentar = K.piezas.gemini.precalentar;
+    }
+    if (c.precalentar) CFG.precalentar = c.precalentar;
     /* la base guardada en el dispositivo manda sobre la semilla embebida */
     var g = K.guardar.leer(BASE_K, null);
     if (g && g.app === CFG.app && Array.isArray(g.temas) && g.temas.length) { indexar(g.temas); SELLO = g.sello || ''; }
@@ -537,6 +543,7 @@
       '        <button type="button" class="kit-as__mic" aria-label="Dictar">' + K.icono('microfono', 20) + '</button>' +
       '        <button type="submit" class="kit-as__env" aria-label="Enviar">' + K.icono('enviar', 18) + '</button>' +
       '      </form>' +
+      (CFG.remoto && !entrada && K.piezas.gemini ? '      <p class="kit-as__legal">Protegido por reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacidad</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Términos</a></p>' : '') +
       '    </footer>' +
       '  </section>' +
       '</div>');
@@ -677,13 +684,16 @@
       if (r.tipo === 'tema') return responderTema(r.tema, t, modo, 'LOCAL');
       if (CFG.remoto && !entrada) {
         /* entrega 2 · Gemini solo ELIGE un tema; con 3 s de tope y caída sin aviso */
-        var listo = false;
+        var listo = false, t0r = Date.now();
         var tope = setTimeout(function () { if (!listo) { listo = true; dudas(r, t, modo); } }, 3000);
         Promise.resolve().then(function () {
           return CFG.remoto(t, vista, TEMAS.filter(function (x) { return aplica(x, { estado: estadoAhora() }); }).map(function (x) { return { id: x.id, titulo: x.titulo }; }));
         }).then(function (id) {
           if (listo) return; listo = true; clearTimeout(tope);
-          if (id && POR_ID[id]) responderTema(POR_ID[id], t, modo, 'GEMINI'); else dudas(r, t, modo);
+          MEDIDAS.push({ que: 'remoto', ms: Date.now() - t0r, id: id || '' });
+          if (id && POR_ID[id]) responderTema(POR_ID[id], t, modo, 'GEMINI');
+          else if (id === 'FUERA') dudas({ tipo: 'fuera', candidatos: [] }, t, modo);
+          else dudas(r, t, modo);
         }, function () { if (listo) return; listo = true; clearTimeout(tope); dudas(r, t, modo); });
         return;
       }
@@ -709,7 +719,7 @@
       var bs = botonesDe(tema, pregunta);
       if (bs.extra) txt = (txt ? txt + '\n\n' : '') + llenar(bs.extra);
       var id = nuevoId();
-      decir({ quien: 'as', texto: txt, botones: bs.botones, tema: tema.id, idPregunta: id, voto: true, pregunta: pregunta });
+      decir({ quien: 'as', texto: txt, botones: bs.botones, tema: tema.id, idPregunta: id, voto: true, pregunta: pregunta, resolucion: modo === 'boton' ? 'LOCAL' : (resolucion || 'LOCAL') });
       if (modo !== 'boton') {
         encolar({ id: id, app: CFG.app, vista: vista, fecha: new Date().toISOString(), pregunta: String(pregunta).slice(0, 200), resolucion: resolucion || 'LOCAL', tema: tema.id, voto: '' });
       }
@@ -778,7 +788,7 @@
               m.votado = v;
               t.querySelectorAll('button').forEach(function (x) { x.classList.toggle('kit-as__voto--on', x === b); });
               encolar({ id: m.idPregunta, app: CFG.app, vista: vista, fecha: new Date().toISOString(),
-                pregunta: String(m.pregunta || '').slice(0, 200), resolucion: m.tema ? 'LOCAL' : 'SIN RESPUESTA', tema: m.tema || '', voto: v === 'SI' ? '👍' : '👎' });
+                pregunta: String(m.pregunta || '').slice(0, 200), resolucion: m.resolucion || (m.tema ? 'LOCAL' : 'SIN RESPUESTA'), tema: m.tema || '', voto: v === 'SI' ? '👍' : '👎' });
               if (v === 'NO') {
                 decir({ quien: 'as', texto: 'Gracias, lo voy a aprender. Si quieres, cuéntaselo a soporte.',
                   botones: [{ texto: 'Hablar con soporte', icono: 'salvavidas', soporte: true, lleva: true, hacer: function () { soporte(m.pregunta || ''); } }] });
@@ -804,6 +814,8 @@
     requestAnimationFrame(function () { chat.scrollTop = chat.scrollHeight; });
     if (!opciones.sinFoco && window.matchMedia && window.matchMedia('(hover: hover)').matches) setTimeout(function () { inp.focus(); }, 120);
     MEDIDAS.push({ que: 'abrir', ms: Date.now() - t0 });
+    /* entrega 2 · el SDK de Gemini y el token de App Check se preparan mientras la persona escribe */
+    if (CFG.precalentar && !entrada) setTimeout(function () { try { CFG.precalentar(); } catch (e) {} }, 600);
     return abierto;
   }
 

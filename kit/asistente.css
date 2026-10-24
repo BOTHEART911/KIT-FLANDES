@@ -186,3 +186,9 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(var(--k-marca-rgb), 0); }
   50% { box-shadow: 0 0 0 5px rgba(var(--k-marca-rgb), .35); }
 }
+
+/* entrega 2 · aviso legal de reCAPTCHA (App Check de Gemini): la insignia
+   flotante de Google se oculta y el aviso va dentro del asistente. */
+.kit-as__legal { margin: 6px 0 0; font-size: 10.5px; line-height: 1.3; text-align: center; color: var(--k-apagado); }
+.kit-as__legal a { color: inherit; text-decoration: underline; }
+.grecaptcha-badge { visibility: hidden !important; }
