@@ -213,6 +213,9 @@
     'camara':
       '<path d="M3.5 8.5A2 2 0 0 1 5.5 6.5h2.2l1.5-2.2h5.6l1.5 2.2h2.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>' +
       '<circle cx="12" cy="13" r="3.6"/>',
+    /* 22/10 · reemplazo de supervisor: uno sale y otro entra */
+    'intercambiar':
+      '<path d="M4 8h14"/><path d="M14.5 4.5 18 8l-3.5 3.5"/><path d="M20 16H6"/><path d="M9.5 12.5 6 16l3.5 3.5"/>',
     'girar':
       '<path d="M20 11.5A8 8 0 1 1 17.6 6"/><path d="M20 3.5v5h-5"/>',
     /* 28/09 · ver en grande y ajustar la foto de perfil */
