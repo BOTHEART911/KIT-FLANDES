@@ -50,7 +50,7 @@
   var M = window.MARCA || {};
   var G = M.GEMINI || {};
   var SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
-  var MODELO = G.modelo || 'gemini-3.5-flash-lite';
+  var MODELO = G.modelo || 'gemini-3.1-flash-lite';   /* 24/10: medido ~0,7–1,6 s; el 3.5-lite daba 3–8 s */
   var TOPE_DIA = 30;
   var CUPO_K = 'gemini.cupo';
   var MEDIDAS = [];
