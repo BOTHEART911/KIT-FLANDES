@@ -259,6 +259,10 @@
     'velocimetro':
       '<path d="M4.2 17.5a9 9 0 1 1 15.6 0"/><path d="M12 13.6l4.2-4.6"/><circle cx="12" cy="14.4" r="1.4"/>' +
       '<path d="M6.6 11.2l1.2.7M12 6.5v1.4M17.4 11.2l-1.2.7"/>',
+    /* 15/10 · AGENDA DE REVISIÓN: calendario con días marcados */
+    'calendario':
+      '<rect x="3.4" y="4.8" width="17.2" height="15.8" rx="2.4"/><path d="M3.4 9.6h17.2M8 3v3.4M16 3v3.4"/>' +
+      '<path d="M7.6 13.4h1.6M11.2 13.4h1.6M14.8 13.4h1.6M7.6 16.8h1.6M11.2 16.8h1.6"/>',
     /* 24/10 · asistente de ayuda: dictar, callar la voz y calificar */
     'microfono':
       '<rect x="9" y="3.2" width="6" height="11" rx="3"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6v3.2M8.8 20.8h6.4"/>',
