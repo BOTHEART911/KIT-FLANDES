@@ -277,8 +277,22 @@
       });
     });
     zona.addEventListener('drop', function (e) {
-      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) meter(e.dataTransfer.files);
+      var fs = e.dataTransfer && e.dataTransfer.files;
+      if (!fs || !fs.length) return;
+      /* 26/10 · en una casilla de UN archivo, soltar varios no mete el primero a ciegas */
+      if (fs.length > 1 && !varios) { variosDeUna(fs.length, 'arrastrando'); return; }
+      meter(fs);
     });
+
+    /* 26/10 · el aviso de "más de un archivo a la vez" (uno por pegado) */
+    function variosDeUna(n, como) {
+      if (document.__kitAdjVarios) return;
+      document.__kitAdjVarios = true;
+      setTimeout(function () { document.__kitAdjVarios = false; }, 1200);
+      try { K.vibrar(30); } catch (x) {}
+      K.aviso('Estás ' + como + ' ' + n + ' archivos a la vez y no se pegó ninguno. ' +
+              'Copia SOLO UN archivo y pégalo aquí; si necesitas más, pégalos uno por uno.', 'malo', 7000);
+    }
 
     /*
      * ── ESTA ZONA PASA A SER LA ACTIVA EN CUANTO EL PUNTERO SE POSA ──
@@ -345,7 +359,14 @@
       }
 
       var sacados = deLosItems((e.clipboardData && e.clipboardData.items) || []);
-      if (sacados.length) { e.preventDefault(); meter(sacados); }
+      if (!sacados.length) return;
+      e.preventDefault();
+      /* 26/10 · VARIOS ARCHIVOS COPIADOS A LA VEZ: no se pega ninguno.
+         Pasó en producción: una contratista copió muchos archivos en el
+         explorador y, con un Ctrl+V, quedaron guardados varios repetidos.
+         Se pega uno por uno, y así cada casilla recibe solo lo que se ve. */
+      if (sacados.length > 1) { variosDeUna(sacados.length, 'copiando'); return; }
+      meter(sacados);
     });
 
     function aBase64() {
