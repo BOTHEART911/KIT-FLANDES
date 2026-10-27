@@ -348,12 +348,20 @@
       return y + h + 6;
     }
 
-    /* mide y arma una ficha: devuelve su alto y una funcion que la dibuja en y */
+    /* 27/10 · LA FICHA YA NO SE CORTA. Antes una ficha era un bloque que no se
+       partía: si medía más que una hoja se dibujaba igual y lo que pasaba del
+       borde de abajo se perdía (jsPDF no avisa), y los campos largos se
+       recortaban a 48 líneas con "…". Ahora la ficha se arma en PIEZAS (la
+       cabecera, cada par de campos cortos y cada línea de los largos) y se
+       pinta pieza por pieza: si una no cabe, se cierra el marco en esa hoja,
+       se pasa a la siguiente y la ficha sigue con "(continúa)". Una ficha que
+       cabe entera en una hoja limpia nunca se parte: salta completa. */
     function ficha(f) {
       var t = String(tituloDe(f) || '').trim() || '—';
       var marca = String(marcaDe(f) || '').trim();
       var tono = TONOS[String(tonoDe(f) || '')] || TONOS[''];
       var pad = 3.2, x0 = mx + 2.4, anchoIn = util - 2.4 - pad * 2;
+      var xt = x0 + pad - 1;
       fuente('bold', 7);
       var anchoMarca = marca ? doc.getTextWidth(marca) + 6 : 0;
       var tl = cortar(t, 'bold', 9.5, anchoIn - anchoMarca - 2);
@@ -363,32 +371,52 @@
       var cortos = campos.filter(function (c) { return !c.largo; });
       var largos = campos.filter(function (c) { return c.largo; });
       var colW = (anchoIn - 4) / 2;
-      var filasC = [];
+      var piezas = [];
       for (var i = 0; i < cortos.length; i += 2) {
-        var par = [cortos[i], cortos[i + 1]].filter(Boolean).map(function (c) {
+        (function (par) {
+          var h = 3.2 + Math.max.apply(null, par.map(function (p) { return p.lineas.length; })) * 3.7 + 1.6;
+          piezas.push({ h: h, dibujar: function (yy) {
+            par.forEach(function (p, k) {
+              var xx = xt + k * (colW + 4);
+              fuente('bold', 6.6, [110, 125, 118]);
+              doc.text(recortarAncho(doc, p.e.toUpperCase(), colW), xx, yy);
+              fuente('normal', 8.3, [30, 40, 35]);
+              p.lineas.forEach(function (l, j) { doc.text(l, xx, yy + 3.7 + j * 3.7); });
+            });
+          } });
+        }([cortos[i], cortos[i + 1]].filter(Boolean).map(function (c) {
           return { e: c.e, lineas: cortar(c.v, 'normal', 8.3, colW) };
-        });
-        filasC.push({ par: par, h: 3.2 + Math.max.apply(null, par.map(function (p) { return p.lineas.length; })) * 3.7 + 1.6 });
+        })));
       }
-      var filasL = largos.map(function (c) {
+      largos.forEach(function (c) {
         var l = cortar(c.v, 'normal', 8.3, anchoIn);
-        if (l.length > 48) { l = l.slice(0, 48); l[47] = String(l[47]).replace(/.{0,3}$/, '…'); }
-        return { e: c.e, lineas: l, h: 3.2 + l.length * 3.7 + 1.6 };
+        l.forEach(function (linea, j) {
+          var primera = j === 0, ultima = j === l.length - 1;
+          piezas.push({ h: (primera ? 6.9 : 3.7) + (ultima ? 1.6 : 0), dibujar: function (yy) {
+            if (primera) {
+              fuente('bold', 6.6, [110, 125, 118]);
+              doc.text(recortarAncho(doc, c.e.toUpperCase(), anchoIn), xt, yy);
+              yy += 3.7;
+            }
+            fuente('normal', 8.3, [30, 40, 35]);
+            doc.text(linea, xt, yy);
+          } });
+        });
       });
-      var h = pad + tl.length * 4.4 + (sl.length ? sl.length * 3.6 + 0.6 : 0) + 1.8;
-      filasC.forEach(function (x) { h += x.h; });
-      filasL.forEach(function (x) { h += x.h; });
-      h += pad - 1;
+      var hCab = pad + tl.length * 4.4 + (sl.length ? sl.length * 3.6 + 0.6 : 0) + 1.8;
+      var h = hCab + pad - 1;
+      piezas.forEach(function (p) { h += p.h; });
 
-      function dibujar(y) {
+      function marco(a, b) {
         doc.setDrawColor(214, 224, 218);
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(mx, y, util, h, 2, 2, 'FD');
+        doc.roundedRect(mx, a, util, b - a, 2, 2, 'S');
         doc.setFillColor(tono[0], tono[1], tono[2]);
-        doc.rect(mx, y, 1.6, h, 'F');
+        doc.rect(mx, a, 1.6, b - a, 'F');
+      }
+      function cabeceraFicha(y) {
         var yy = y + pad + 3.2;
         fuente('bold', 9.5, [20, 30, 25]);
-        tl.forEach(function (l) { doc.text(l, x0 + pad - 1, yy); yy += 4.4; });
+        tl.forEach(function (l) { doc.text(l, xt, yy); yy += 4.4; });
         if (marca) {
           fuente('bold', 7);
           var wm = doc.getTextWidth(marca) + 5;
@@ -399,35 +427,40 @@
         }
         if (sl.length) {
           fuente('normal', 7.8, [80, 95, 88]);
-          sl.forEach(function (l) { doc.text(l, x0 + pad - 1, yy - 0.6); yy += 3.6; });
+          sl.forEach(function (l) { doc.text(l, xt, yy - 0.6); yy += 3.6; });
           yy += 0.6;
         }
         doc.setDrawColor(232, 238, 235);
-        doc.line(x0 + pad - 1, yy - 2.2, mx + util - pad, yy - 2.2);
-        yy += 1;
-        filasC.forEach(function (fc) {
-          fc.par.forEach(function (p, k) {
-            var xx = x0 + pad - 1 + k * (colW + 4);
-            fuente('bold', 6.6, [110, 125, 118]);
-            doc.text(recortarAncho(doc, p.e.toUpperCase(), colW), xx, yy);
-            fuente('normal', 8.3, [30, 40, 35]);
-            p.lineas.forEach(function (l, j) { doc.text(l, xx, yy + 3.7 + j * 3.7); });
-          });
-          yy += fc.h;
-        });
-        filasL.forEach(function (fl) {
-          fuente('bold', 6.6, [110, 125, 118]);
-          doc.text(recortarAncho(doc, fl.e.toUpperCase(), anchoIn), x0 + pad - 1, yy);
-          fuente('normal', 8.3, [30, 40, 35]);
-          fl.lineas.forEach(function (l, j) { doc.text(l, x0 + pad - 1, yy + 3.7 + j * 3.7); });
-          yy += fl.h;
-        });
+        doc.line(xt, yy - 2.2, mx + util - pad, yy - 2.2);
+        return yy + 1;
       }
-      return { h: h, dibujar: dibujar };
+      function continua(y) {
+        fuente('bold', 7.6, [110, 125, 118]);
+        doc.text(recortarAncho(doc, t + ' (continúa)', anchoIn), xt, y + pad + 2.6);
+        return y + pad + 6.4;
+      }
+      /* dibuja desde y; devuelve la y donde termina (puede ser en otra hoja) */
+      function dibujar(y) {
+        var ini = y, yy = cabeceraFicha(y);
+        piezas.forEach(function (p) {
+          if (yy + p.h > abajo - (pad - 1)) {
+            marco(ini, yy + pad - 1);
+            doc.addPage();
+            ini = membrete(false);
+            yy = continua(ini);
+          }
+          p.dibujar(yy);
+          yy += p.h;
+        });
+        marco(ini, yy + pad - 1);
+        return yy + pad - 1;
+      }
+      return { h: h, hCab: hCab, dibujar: dibujar };
     }
 
     var y = membrete(true);
     y = resumen(y);
+    var limpia = abajo - 37;                   /* lo que cabe en una hoja interior limpia */
     agrupar(filas, op).forEach(function (g) {
       if (g.nombre) {
         if (y + 9 + 20 > abajo) { doc.addPage(); y = membrete(false); }
@@ -441,12 +474,12 @@
       }
       g.filas.forEach(function (f) {
         var fi = ficha(f);
-        if (y + fi.h > abajo) { doc.addPage(); y = membrete(false); }
-        fi.dibujar(y);
-        y += fi.h + 3;
+        /* salta entera si cabe en una hoja limpia; si es más larga, arranca
+           aquí (si hay espacio para la cabecera y algo más) y se parte */
+        if (y + fi.h > abajo && (fi.h <= limpia || y + fi.hCab + 20 > abajo)) { doc.addPage(); y = membrete(false); }
+        y = fi.dibujar(y) + 3;
       });
     });
-
     var total = doc.internal.getNumberOfPages();
     for (var p = 1; p <= total; p++) {
       doc.setPage(p);
@@ -919,6 +952,35 @@
     });
   }
 
+  /* 27/10 · lo que necesita un PDF propio de una pieza (informe gerencial del
+     contratista): jsPDF, la marca, el escudo y el ícono, los cuatro en paralelo
+     y una sola vez por sesión. calentarPDF los adelanta en reposo. */
+  function recursosPDF() {
+    var t0 = Date.now();
+    return Promise.all([cargarPDF(), marcaRapida(), escudoGerencial(), iconoPNG()]).then(function (r) {
+      return { marca: r[1] || {}, escudo: r[2] || '', icono: r[3] || '', msCarga: Date.now() - t0 };
+    }, function () {
+      throw K.problema('CDN', 'No se pudo bajar lo necesario para armar el informe. Revisa la conexión y vuelve a intentarlo.');
+    });
+  }
+  /** La pieza del informe del contratista, bajo demanda (ADMIN no la carga al abrir). */
+  var informeListo = null;
+  function cargarInformeCuentas() {
+    if (K.piezas.informeCuentas && K.piezas.informeCuentas.aGerencial) return Promise.resolve(K.piezas.informeCuentas);
+    if (!informeListo) {
+      var v = window.APP_VERSION ? '?v=' + encodeURIComponent(window.APP_VERSION) : '';
+      informeListo = guion('kit/informe-cuentas.js' + v).then(function () { return K.piezas.informeCuentas; })
+        .catch(function (e) { informeListo = null; throw e; });
+    }
+    return informeListo;
+  }
+  function calentarPDF() {
+    try {
+      var ir = function () { cargarPDF().catch(function () {}); escudoGerencial(); marcaRapida(); iconoPNG(); };
+      if (window.requestIdleCallback) window.requestIdleCallback(ir, { timeout: 2500 }); else setTimeout(ir, 800);
+    } catch (e) { /* calentar nunca rompe la vista */ }
+  }
+
   /* ══════════════ utilidades ══════════════ */
 
   function bajar(blob, nombre) {
@@ -950,7 +1012,7 @@
   function recortar(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) : s; }
 
   K.piezas.exportar = {
-    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir, aGerencial: aGerencial, prepararGerencial: prepararGerencial,
+    modal: modal, aExcel: aExcel, aPDF: aPDF, aCSV: aCSV, aImprimir: aImprimir, aGerencial: aGerencial, prepararGerencial: prepararGerencial, recursosPDF: recursosPDF, calentarPDF: calentarPDF, cargarInformeCuentas: cargarInformeCuentas,
     _agrupar: agrupar, _resumen: resumenDe, _campos: camposDeFicha,
     limpiarNombre: limpiarNombre, nombreArchivo: nombreArchivo, valor: valor, valorCrudo: valorCrudo
   };
