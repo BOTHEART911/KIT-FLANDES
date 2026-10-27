@@ -299,7 +299,7 @@
         if (planillas[kp]) alertas.push({ tono: 'aviso', cuenta: x.informe, t: 'La planilla ' + kp + ' ya se había presentado en la cuenta ' + planillas[kp] + '.' });
         else planillas[kp] = x.informe;
       }
-      if (q.incoherente) alertas.push({ tono: 'info', cuenta: x.informe, t: 'Las fechas del trámite no siguen el orden radicación → revisión → orden → egreso (por ejemplo, un egreso anterior a la radicación). Suele pasar con cuentas registradas antes del aplicativo; esos tiempos no se calculan.' });
+      if (q.incoherente) alertas.push({ tono: 'info', cuenta: x.informe, t: 'Las fechas del trámite no siguen el orden radicación, revisión, orden y egreso (por ejemplo, un egreso anterior a la radicación). Suele pasar con cuentas registradas antes del aplicativo; esos tiempos no se calculan.' });
       if (q.diasRad !== null && q.diasRad > 15) alertas.push({ tono: 'aviso', cuenta: x.informe, t: 'Se radicó ' + q.diasRad + ' días después del cierre del periodo.' });
       if (q.diasRad !== null && q.diasRad < 0) alertas.push({ tono: 'aviso', cuenta: x.informe, t: 'Se radicó ' + (-q.diasRad) + ' día(s) antes de terminar el periodo que cobra.' });
       if (q.sin && x.radicada) alertas.push({ tono: 'aviso', cuenta: x.informe, t: q.sin + (q.sin === 1 ? ' obligación quedó' : ' obligaciones quedaron') + ' sin ningún texto de actividad.' });
@@ -343,6 +343,7 @@
         obl.forEach(function (o, i) { if (!gen[i]) hitosDe(celdas[i][j].texto, nC).forEach(function (t) { if (h.indexOf(t) < 0) h.push(t); }); });
         return h;
       });
+      A.balance = balanceAvances(A, c.avances);
     }
     A.hallazgos = hallazgos(A);
     A.recomendaciones = recomendaciones(A);
@@ -368,6 +369,44 @@
       if (out.indexOf(h) < 0) out.push(h);
     }
     return out;
+  }
+
+  /** 27/10 · El balance de lo logrado: series de cifras que se repiten entre
+      cuentas (asignaciones, capacitaciones...) y menciones de cada herramienta
+      (lista "herramientas" de la llave INFORME_AVANCES). Todo sale del texto radicado. */
+  function balanceAvances(A, cfg) {
+    var porUnidad = {};
+    A.hitos.forEach(function (L, j) {
+      L.forEach(function (h) {
+        var m = /^([\d.,]+)\s+(.+)$/.exec(h);
+        if (!m || m[2] === '%') return;
+        var u = sinTildes(m[2].split(' ')[0]).toLowerCase(), v = K.aNumero ? K.aNumero(m[1]) : Number(m[1]);
+        if (!v || u.length < 4) return;
+        var s = porUnidad[u] || (porUnidad[u] = { unidad: m[2].split(' ')[0].toLowerCase(), valores: {} });
+        s.valores[j] = Math.max(s.valores[j] || 0, v);
+      });
+    });
+    var series = Object.keys(porUnidad).map(function (u) {
+      var s = porUnidad[u], js = Object.keys(s.valores).map(Number).sort(function (a, b) { return a - b; });
+      var vals = js.map(function (j) { return s.valores[j]; });
+      var crece = vals.every(function (v, i) { return !i || v >= vals[i - 1]; });
+      return { unidad: s.unidad, cuentas: js, valores: vals, acumulado: crece && vals[vals.length - 1] > vals[0],
+               total: vals.reduce(function (a, b) { return a + b; }, 0), ultimo: vals[vals.length - 1], primero: vals[0] };
+    }).filter(function (s) { return s.cuentas.length >= 3 && (!s.acumulado || s.ultimo >= s.primero * 1.5) && Math.max.apply(null, s.valores) !== Math.min.apply(null, s.valores); })
+      .sort(function (a, b) { return b.cuentas.length - a.cuentas.length || b.total - a.total; }).slice(0, 3);
+    var herr = ((cfg && cfg.herramientas) || []).map(function (h) {
+      var re = new RegExp(String(h).split('|').map(function (x) { return sinTildes(x).replace(/[.*+?^${}()[\]\\]/g, '\\$&'); }).join('|'), 'i');
+      var n = A.cuentas.filter(function (x) { return re.test(sinTildes((x.actividades || []).join(' '))); }).length;
+      return { nombre: String(h).split('|')[0], cuentas: n };
+    }).filter(function (h) { return h.cuentas; }).sort(function (a, b) { return b.cuentas - a.cuentas; });
+    var frases = [];
+    series.forEach(function (s) {
+      var c0 = A.cuentas[s.cuentas[0]].informe, c1 = A.cuentas[s.cuentas[s.cuentas.length - 1]].informe;
+      if (s.acumulado) frases.push('Las ' + s.unidad + ' reportadas pasaron de ' + K.numero(s.primero) + ' (cuenta ' + c0 + ') a ' + K.numero(s.ultimo) + ' (cuenta ' + c1 + '), un crecimiento de ' + K.numero(s.ultimo - s.primero) + '.');
+      else frases.push('Se reportan ' + K.numero(s.total) + ' ' + s.unidad + ' en ' + s.cuentas.length + ' periodos (de la cuenta ' + c0 + ' a la ' + c1 + ').');
+    });
+    if (herr.length) frases.push('Las herramientas con presencia continua en el contrato son: ' + herr.slice(0, 5).map(function (h) { return h.nombre + ' (' + h.cuentas + (h.cuentas === 1 ? ' cuenta' : ' cuentas') + ')'; }).join(', ') + '.');
+    return { series: series, herramientas: herr, frases: frases };
   }
 
   function hallazgosAvances(A) {
@@ -739,6 +778,21 @@
       y += op.despues === undefined ? 4 : op.despues;
     }
 
+    /** Barras verticales con su valor encima (una serie por cuenta). */
+    function barrasV(titulo, etiquetas, valores) {
+      var alto = 38, max = Math.max.apply(null, valores) || 1;
+      cabe(alto + 20);
+      f('bold', 9, COL.tinta); doc.text(titulo, mx, y); y += 4;
+      var x0 = mx + 4, ancho = util - 8, base = y + alto, paso = ancho / valores.length, bw = Math.min(14, paso * 0.6);
+      draw(COL.linea, 0.25); doc.line(x0, base, x0 + ancho, base);
+      valores.forEach(function (v, i) {
+        var h = Math.max(0.8, (alto - 6) * v / max), cx = x0 + paso * i + paso / 2;
+        fill(i === valores.length - 1 ? COL.ok : COL.verde2); doc.roundedRect(cx - bw / 2, base - h, bw, h, 1, 1, 'F');
+        f('bold', 7.2, COL.tinta); doc.text(K.numero(v), cx, base - h - 1.4, { align: 'center' });
+        f('normal', 7, COL.gris); doc.text(String(etiquetas[i]), cx, base + 4, { align: 'center' });
+      });
+      y = base + 10;
+    }
     function barraH(x, yy, w, v, col) {
       fill(COL.linea); doc.roundedRect(x, yy, w, 2.6, 1.3, 1.3, 'F');
       if (v > 0) { fill(col); doc.roundedRect(x, yy, Math.max(2.6, w * Math.min(100, v) / 100), 2.6, 1.3, 1.3, 'F'); }
@@ -947,10 +1001,30 @@
     if (!A.avances) {
       /* ───────────── 27/10 · AVANCES LOGRADOS (contratos en INFORME_AVANCES) ───────────── */
     if (A.seccionAvances) {
-      seccion('Avances logrados con el desarrollo del ecosistema', 'Lo que este contrato ha dejado en funcionamiento, con las cifras de gestión que reporta en cada periodo (tomadas de sus actividades).');
+      seccion('Avances logrados con el desarrollo del ecosistema', 'Balance de lo que este contrato ha dejado en funcionamiento, con las cifras que reporta en sus actividades periodo a periodo.');
+      var B = A.balance || { series: [], herramientas: [], frases: [] };
       var nH = A.hitos.reduce(function (a, L) { return a + L.length; }, 0), ultH = A.hitos[A.hitos.length - 1] || [];
-      parrafo('A lo largo de ' + A.cuentas.length + (A.cuentas.length === 1 ? ' periodo' : ' periodos') + ' el contrato reporta ' + nH + ' cifras de gestión' +
-        (ultH.length ? '. En la cuenta más reciente: ' + ultH.join(' · ') + '.' : '.'), { t: 8.8, lh: 4.3, despues: 3 });
+      subt('Balance');
+      parrafo('A lo largo de ' + A.cuentas.length + (A.cuentas.length === 1 ? ' periodo' : ' periodos') + ' el contrato registra ' + nH + ' cifras de gestión en sus actividades, con avance continuo en sus obligaciones de desarrollo y soporte.', { t: 8.8, lh: 4.3, despues: 1.6 });
+      B.frases.forEach(function (t) { parrafo(t, { t: 8.6, vineta: true, vcol: COL.ok, despues: 1.4 }); });
+      if (ultH.length) parrafo('En la cuenta más reciente: ' + ultH.join(' · ') + '.', { t: 8.6, vineta: true, vcol: COL.ok, despues: 3 });
+      /* gráficas: cada serie de cifras por cuenta */
+      B.series.forEach(function (s) {
+        barrasV((s.acumulado ? 'Evolución de ' : '') + s.unidad.charAt(0).toUpperCase() + s.unidad.slice(1) + ' por cuenta',
+          s.cuentas.map(function (j) { return 'C' + A.cuentas[j].informe; }), s.valores);
+      });
+      if (B.herramientas.length) {
+        subt('Herramientas desarrolladas: cuentas en las que se reportan');
+        B.herramientas.forEach(function (h) {
+          cabe(8);
+          f('bold', 8, COL.tinta); doc.text(h.nombre, mx, y);
+          f('bold', 8, COL.ok); doc.text(h.cuentas + ' de ' + A.cuentas.length, W - mx, y, { align: 'right' });
+          barraH(mx + 62, y - 2.4, util - 62 - 22, h.cuentas * 100 / A.cuentas.length, COL.verde2);
+          y += 6.4;
+        });
+        y += 3;
+      }
+      subt('Cifras de gestión por periodo');
       tabla([{ t: 'Cuenta', w: 16, al: 'c', e: 'bold' }, { t: 'Periodo', w: 36 }, { t: 'Cifras de gestión reportadas', w: 0 }],
         A.porCuenta.map(function (q, j) {
           var x = q.x;
