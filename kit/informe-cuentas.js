@@ -251,6 +251,7 @@
         mencionaSin: col.filter(function (z) { return z.menciona && !z.soporte && mide(z); }).length,
         diasRad: dRad, revision: pos(dias(x.radicada, x.revisada)), orden: pos(dias(x.revisada, x.fechaOrden)), pago: pos(dias(x.fechaOrden, x.fechaEgreso)),
         ciclo: pos(dias(x.radicada, x.fechaEgreso)), devoluciones: devs,
+        sugerencias: Number(x.sugerencias) || 0,   /* 27/10 · recomendaciones para la próxima cuenta que recibió (no se califican) */
         incoherente: [dias(x.radicada, x.revisada), dias(x.revisada, x.fechaOrden), dias(x.fechaOrden, x.fechaEgreso), dias(x.radicada, x.fechaEgreso)].some(function (v) { return v !== null && v < 0; })
       };
     });
@@ -321,10 +322,11 @@
       if (tot > 0) plazo = Math.max(0, Math.min(100, Math.round(van * 100 / tot)));
     }
     var devTot = porCuenta.reduce(function (a, q) { return a + q.devoluciones.length; }, 0);
+    var sugTot = porCuenta.reduce(function (a, q) { return a + q.sugerencias; }, 0);
 
     var A = {
       contrato: c, obl: obl, cuentas: L, celdas: celdas, porCuenta: porCuenta, porObl: porObl,
-      comps: comps, global: global, alertas: alertas, cifras: k, plazo: plazo, devoluciones: devTot,
+      comps: comps, global: global, alertas: alertas, cifras: k, plazo: plazo, devoluciones: devTot, sugerencias: sugTot,
       reales: todas.length,
       cuantTot: todas.filter(function (z) { return z.clase === 'cuant'; }).length,
       descTot: todas.filter(function (z) { return z.clase === 'desc'; }).length,
@@ -454,6 +456,11 @@
     var rad = A.porCuenta.filter(function (q) { return q.diasRad !== null; });
     if (rad.length) h.push('Radica en promedio ' + Math.round(prom(rad.map(function (q) { return q.diasRad; }))) + ' día(s) después del cierre de cada periodo; ' + rad.filter(function (q) { return q.diasRad <= 5; }).length + ' de ' + rad.length + ' cuentas dentro de los 5 días.');
     h.push(A.devoluciones ? 'Tiene ' + A.devoluciones + (A.devoluciones === 1 ? ' devolución registrada.' : ' devoluciones registradas.') : 'No registra devoluciones de cuentas.');
+    /* 27/10 · solo se informa, no se califica */
+    if (A.sugerencias) {
+      var conSug = A.porCuenta.filter(function (q) { return q.sugerencias; }).length;
+      h.push('Recibió ' + A.sugerencias + (A.sugerencias === 1 ? ' recomendación' : ' recomendaciones') + ' de la supervisión para la próxima cuenta, en ' + conSug + (conSug === 1 ? ' cuenta.' : ' cuentas.'));
+    }
     A.alertas.filter(function (a) { return a.tono === 'malo'; }).forEach(function (a) { h.push('ALERTA en la cuenta ' + a.cuenta + ': ' + a.t); });
     return h;
   }
@@ -552,6 +559,7 @@
     cols.push({ titulo: 'Días para radicar (tras el periodo)', campo: function (x) { var q = qc(x); return q && q.diasRad !== null ? q.diasRad : ''; }, tipo: 'numero' });
     if (!A.avances) {
       cols.push({ titulo: 'Devoluciones', campo: function (x) { var q = qc(x); return q ? q.devoluciones.length : ''; }, tipo: 'numero' });
+      cols.push({ titulo: 'Recomendaciones recibidas para la próxima cuenta', campo: function (x) { var q = qc(x); return q ? q.sugerencias : ''; }, tipo: 'numero' });
       cols.push({ titulo: 'Motivos de devolución', campo: function (x) { var q = qc(x); return q ? q.devoluciones.map(function (v) { return K.fecha(v.fecha) + ' ' + v.estado + ' (' + nombre(v.quien) + '): ' + v.motivo; }).join('\n') : ''; } });
       (c.obligaciones || []).forEach(function (o, i) {
         cols.push({ titulo: 'Redacción obligación ' + o.n, campo: function (x) { var z = celda(x, i); return z ? ETIQUETA_RED[z.clase] : ''; } });
@@ -973,6 +981,12 @@
       A.porCuenta.forEach(function (q) { q.devoluciones.forEach(function (v) { devs.push([q.informe, f2(v.fecha) || '—', v.estado, nombre(v.quien) || '—', v.motivo || 'Sin motivo registrado']); }); });
       if (!devs.length) parrafo('No hay devoluciones registradas en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
       else tabla([{ t: 'Cuenta', w: 15, al: 'c', e: 'bold' }, { t: 'Fecha', w: 20, al: 'c' }, { t: 'Estado', w: 24 }, { t: 'Quién', w: 34 }, { t: 'Motivo', w: 0 }], devs);
+
+      /* 27/10 · cuántas recomendaciones para la próxima cuenta recibió en cada una (solo se informa: no entra en ningún puntaje) */
+      seccion('Recomendaciones recibidas para la próxima cuenta', 'Las que la supervisión le envió al aprobar cada cuenta. Solo se informan: no entran en la calificación.');
+      if (!A.sugerencias) parrafo('No recibió recomendaciones de la supervisión en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
+      else tabla([{ t: 'Cuenta', w: 22, al: 'c', e: 'bold' }, { t: 'Recomendaciones recibidas', w: 0, al: 'c' }],
+        A.porCuenta.map(function (q) { return [q.informe, q.sugerencias || '—']; }));
     }
 
     /* ───────────── 6. SEGURIDAD SOCIAL ───────────── */
