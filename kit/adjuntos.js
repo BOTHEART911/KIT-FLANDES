@@ -16,6 +16,7 @@
        maximoMB: 10,
        maximo: 5,
        alCambiar: function (archivos) { ... }   // Array de File
+       alRechazar: function (file) { ... }      // opcional (27/10): true = ya avisó ella
      });
 
      caja.archivos()   lista actual
@@ -132,6 +133,9 @@
         return false;
       }
       if (acepta && !tipoVale(f)) {
+        /* 27/10 · la casilla puede decir ella misma a dónde va ese archivo
+           (las imágenes de evidencia mandan los PDF/Word/Excel a su bloque) */
+        if (typeof opciones.alRechazar === 'function' && opciones.alRechazar(f)) return false;
         K.aviso('"' + f.name + '" no sirve aquí. ' +
                 (opciones.etiqueta ? opciones.etiqueta + ' admite ' : 'Este campo admite ') +
                 loQueAdmite() + '.', 'aviso', 5000);
@@ -345,7 +349,12 @@
 
       /* si están escribiendo en un campo de texto, el pegado es suyo */
       var a = document.activeElement;
-      if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a.type !== 'file' && !zona.contains(a)) return;
+      /* 27/10 · salvo que el puntero esté ENCIMA de esta casilla: se venía
+         de escribir las actividades (el cursor sigue en el texto), se pone
+         el puntero sobre la casilla y Ctrl+V. Antes ese pegado se perdía. */
+      var encima = false;
+      try { encima = zona.matches(':hover'); } catch (eH) {}
+      if (!encima && a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a.type !== 'file' && !zona.contains(a)) return;
 
       if (zonaActiva !== zona) {
         /* la primera zona visible avisa una sola vez y ninguna se queda el
