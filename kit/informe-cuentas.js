@@ -333,25 +333,20 @@
       nunca: porObl.filter(function (o) { return o.nunca; }),
       generales: porObl.filter(function (o) { return o.general; })
     };
-    A.avances = !!c.avances;
-    if (A.avances) {
-      /* 27/10 · INFORME DE AVANCES (llave INFORME_AVANCES): no se califica la
-         redacción ni la ejecución; se muestran los avances y las cifras que reporta */
+    /* 27/10 · contratos en INFORME_AVANCES: el informe es IGUAL al de todos (misma
+       calificación automática) y al final suma la sección de avances logrados */
+    A.avances = false;
+    A.seccionAvances = !!c.avances;
+    if (A.seccionAvances) {
       A.hitos = porCuenta.map(function (q, j) {
         var h = [];
         obl.forEach(function (o, i) { if (!gen[i]) hitosDe(celdas[i][j].texto, nC).forEach(function (t) { if (h.indexOf(t) < 0) h.push(t); }); });
         return h;
       });
-      A.global = null; A.alertas = [];
-      A.hallazgos = hallazgosAvances(A);
-      A.recomendaciones = ['Continuar con el plan de acción del periodo siguiente y mantener el registro de los avances con sus cifras y soportes en cada cuenta.',
-        'Socializar con las dependencias los avances del periodo y recoger sus necesidades para priorizarlas en el siguiente plan de acción.'];
-      A.conclusion = conclusionAvances(A);
-    } else {
-      A.hallazgos = hallazgos(A);
-      A.recomendaciones = recomendaciones(A);
-      A.conclusion = conclusion(A);
     }
+    A.hallazgos = hallazgos(A);
+    A.recomendaciones = recomendaciones(A);
+    A.conclusion = conclusion(A);
     return A;
   }
 
@@ -950,7 +945,20 @@
     A.recomendaciones.forEach(function (r) { parrafo(r, { t: 8.7, vineta: true, despues: 1.6 }); });
 
     if (!A.avances) {
-      /* ───────────── ANEXO A: ACTIVIDADES COMPLETAS ───────────── */
+      /* ───────────── 27/10 · AVANCES LOGRADOS (contratos en INFORME_AVANCES) ───────────── */
+    if (A.seccionAvances) {
+      seccion('Avances logrados con el desarrollo del ecosistema', 'Lo que este contrato ha dejado en funcionamiento, con las cifras de gestión que reporta en cada periodo (tomadas de sus actividades).');
+      var nH = A.hitos.reduce(function (a, L) { return a + L.length; }, 0), ultH = A.hitos[A.hitos.length - 1] || [];
+      parrafo('A lo largo de ' + A.cuentas.length + (A.cuentas.length === 1 ? ' periodo' : ' periodos') + ' el contrato reporta ' + nH + ' cifras de gestión' +
+        (ultH.length ? '. En la cuenta más reciente: ' + ultH.join(' · ') + '.' : '.'), { t: 8.8, lh: 4.3, despues: 3 });
+      tabla([{ t: 'Cuenta', w: 16, al: 'c', e: 'bold' }, { t: 'Periodo', w: 36 }, { t: 'Cifras de gestión reportadas', w: 0 }],
+        A.porCuenta.map(function (q, j) {
+          var x = q.x;
+          return [x.informe, x.desde ? f2(x.desde) + ' al ' + f2(x.hasta) : '—', A.hitos[j].length ? A.hitos[j].join(' · ') : 'Avances descritos en las actividades del periodo'];
+        }));
+    }
+
+    /* ───────────── ANEXO A: ACTIVIDADES COMPLETAS ───────────── */
       hoja();
       nSec = 0;
       f('bold', 13, COL.verde); doc.text('Anexo A · Actividades reportadas (texto completo)', mx, y + 4); y += 10;
