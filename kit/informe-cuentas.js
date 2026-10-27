@@ -291,7 +291,8 @@
     var planillas = {};
     porCuenta.forEach(function (q, j) {
       var x = q.x;
-      if (x.decidio && mismaPersona(x.decidio, c.nombre)) alertas.push({ tono: 'malo', cuenta: x.informe, t: 'La revisión de Supervisión quedó registrada a nombre del propio contratista (' + nombre(x.decidio) + '). Una cuenta no debe aprobarla quien la cobra.' });
+      /* 27/10 · los REVISORES de Supervisión son contratistas autorizados y conciliados con el supervisor:
+         que un revisor apruebe su propia cuenta NO es alerta (pedido de Oss) */
       if (x.saldo && x.cobro && x.nuevo !== undefined && x.nuevo !== '' && Math.abs((Number(x.saldo) - Number(x.cobro)) - Number(x.nuevo)) > 1)
         alertas.push({ tono: 'malo', cuenta: x.informe, t: 'El nuevo saldo (' + K.pesos(x.nuevo) + ') no es el saldo anterior menos el cobro (' + K.pesos(Number(x.saldo) - Number(x.cobro)) + ').' });
       if (x.planilla) {
