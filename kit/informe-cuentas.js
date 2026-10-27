@@ -333,10 +333,72 @@
       nunca: porObl.filter(function (o) { return o.nunca; }),
       generales: porObl.filter(function (o) { return o.general; })
     };
-    A.hallazgos = hallazgos(A);
-    A.recomendaciones = recomendaciones(A);
-    A.conclusion = conclusion(A);
+    A.avances = !!c.avances;
+    if (A.avances) {
+      /* 27/10 · INFORME DE AVANCES (llave INFORME_AVANCES): no se califica la
+         redacción ni la ejecución; se muestran los avances y las cifras que reporta */
+      A.hitos = porCuenta.map(function (q, j) {
+        var h = [];
+        obl.forEach(function (o, i) { if (!gen[i]) hitosDe(celdas[i][j].texto, nC).forEach(function (t) { if (h.indexOf(t) < 0) h.push(t); }); });
+        return h;
+      });
+      A.global = null; A.alertas = [];
+      A.hallazgos = hallazgosAvances(A);
+      A.recomendaciones = ['Continuar con el plan de acción del periodo siguiente y mantener el registro de los avances con sus cifras y soportes en cada cuenta.',
+        'Socializar con las dependencias los avances del periodo y recoger sus necesidades para priorizarlas en el siguiente plan de acción.'];
+      A.conclusion = conclusionAvances(A);
+    } else {
+      A.hallazgos = hallazgos(A);
+      A.recomendaciones = recomendaciones(A);
+      A.conclusion = conclusion(A);
+    }
     return A;
+  }
+
+  /** Las cifras de gestión de un texto, legibles: "283 asignaciones", "93 %", "13 capacitaciones". */
+  function hitosDe(texto, nC) {
+    var t = ' ' + String(texto || '').replace(/\s+/g, ' ') + ' ';
+    t = t.replace(/["“”«»][^"“”«»]{0,200}["“”«»]/g, ' ').replace(/https?:\/\/\S+/g, ' ');
+    t = t.replace(/\b\d{1,2}\s*[\/\-.]\s*\d{1,2}\s*[\/\-.]\s*\d{2,4}\b/g, ' ');
+    t = t.replace(new RegExp('\\b\\d{1,2}\\s+(de\\s+)?(' + MESES + ')(\\s+(de|del)\\s+\\d{4})?', 'gi'), ' ');
+    t = t.replace(/\b(19|20)\d{2}\b/g, ' ');
+    t = t.replace(/\b(contrato|cuenta|obligaci[oó]n|informe|item|numeral|punto|vigencia|periodo|período|n[°º]\.?|no\.)\s*(n[°º]\.?\s*)?\d+\b/gi, ' ');
+    if (nC) t = t.replace(new RegExp('\\b0*' + String(nC).replace(/\D/g, '') + '\\b', 'g'), ' ');
+    var out = [], re = /(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*\)?\s*(%|[A-Za-zÁÉÍÓÚÑáéíóúñ]+(?:\s+(?:de|del|por)\s+(?!el\b|la\b|los\b|las\b|un\b|una\b)[A-Za-zÁÉÍÓÚÑáéíóúñ]+)?)/g, m;
+    while ((m = re.exec(t))) {
+      var w = sinTildes(m[2]).toLowerCase().split(' ')[0];
+      if (/^(dias?|mes(es)?|anos?|horas?|minutos?|semanas?|de|a|y|al|el|la|los|las|del|en|se|que|con|correspondientes?|siguientes?|respectivos?|anteriores?)$/.test(w)) continue;
+      if (m[1].replace(/\D/g, '').length >= 7) continue;
+      var h = m[1] + (m[2] === '%' ? ' %' : ' ' + m[2]);
+      if (out.indexOf(h) < 0) out.push(h);
+    }
+    return out;
+  }
+
+  function hallazgosAvances(A) {
+    var k = A.cifras, h = [];
+    h.push('Radicó ' + A.cuentas.length + (A.cuentas.length === 1 ? ' cuenta' : ' cuentas') + ' por ' + K.pesos(k.cobrado) + ' (' + k.avance + ' % del valor del contrato); ' + k.pagadas + ' ya están pagadas.');
+    var gest = A.porObl.filter(function (o) { return !o.general; });
+    var todas = gest.filter(function (o) { return o.reales + o.noreq >= A.cuentas.length; });
+    h.push('Reportó actividad en ' + gest.filter(function (o) { return o.reales; }).length + ' de ' + gest.length + ' obligaciones de gestión' + (todas.length ? ', ' + todas.length + ' de ellas en todas las cuentas' : '') + '.');
+    var nH = A.hitos.reduce(function (a, L) { return a + L.length; }, 0);
+    if (nH) h.push('Registra ' + nH + ' cifras de gestión a lo largo del contrato.');
+    var ult = A.hitos[A.hitos.length - 1] || [];
+    if (ult.length) h.push('En la cuenta más reciente: ' + ult.slice(0, 8).join(' · ') + '.');
+    var soportes = A.porCuenta.reduce(function (a, q) { return a + q.adjuntos + q.evidencias; }, 0);
+    var conAnexo = A.cuentas.filter(function (x) { return x.anexoViejo; }).length;
+    if (soportes || conAnexo) h.push((soportes ? soportes + ' soportes cargados por obligación' : '') + (soportes && conAnexo ? ' y ' : '') +
+      (conAnexo ? conAnexo + (conAnexo === 1 ? ' cuenta con su anexo general' : ' cuentas con su anexo general') : '') + '.');
+    var rad = A.porCuenta.filter(function (q) { return q.diasRad !== null; });
+    if (rad.length) h.push(rad.filter(function (q) { return q.diasRad <= 5; }).length + ' de ' + rad.length + ' cuentas radicadas dentro de los 5 días siguientes al cierre del periodo.');
+    return h;
+  }
+
+  function conclusionAvances(A) {
+    var c = A.contrato, k = A.cifras;
+    return 'El contrato ' + (c.contrato || '') + ' de ' + nombre(c.nombre) + ' registra ' + A.cuentas.length + (A.cuentas.length === 1 ? ' cuenta' : ' cuentas') +
+      ' por ' + K.pesos(k.cobrado) + ' (' + k.avance + ' % del valor)' + (A.plazo !== null ? ', con el ' + A.plazo + ' % del plazo transcurrido' : '') +
+      '. Las actividades reportadas muestran un avance continuo en las obligaciones del contrato, documentado periodo a periodo con sus cifras de gestión y soportes, como se detalla en la evolución por obligación de este informe.';
   }
 
   function nivel(v) {
@@ -453,14 +515,16 @@
     function celda(x, i) { var j = pos[x.fila || ('i' + x.informe)]; return j === undefined ? null : A.celdas[i][j]; }
     function qc(x) { var j = pos[x.fila || ('i' + x.informe)]; return j === undefined ? null : A.porCuenta[j]; }
     cols.push({ titulo: 'Días para radicar (tras el periodo)', campo: function (x) { var q = qc(x); return q && q.diasRad !== null ? q.diasRad : ''; }, tipo: 'numero' });
-    cols.push({ titulo: 'Devoluciones', campo: function (x) { var q = qc(x); return q ? q.devoluciones.length : ''; }, tipo: 'numero' });
-    cols.push({ titulo: 'Motivos de devolución', campo: function (x) { var q = qc(x); return q ? q.devoluciones.map(function (v) { return K.fecha(v.fecha) + ' ' + v.estado + ' (' + nombre(v.quien) + '): ' + v.motivo; }).join('\n') : ''; } });
-    (c.obligaciones || []).forEach(function (o, i) {
-      cols.push({ titulo: 'Redacción obligación ' + o.n, campo: function (x) { var z = celda(x, i); return z ? ETIQUETA_RED[z.clase] : ''; } });
-    });
-    (c.obligaciones || []).forEach(function (o, i) {
-      cols.push({ titulo: '% repetido obligación ' + o.n, campo: function (x) { var z = celda(x, i); return z && z.rep !== null ? z.rep : ''; }, tipo: 'numero' });
-    });
+    if (!A.avances) {
+      cols.push({ titulo: 'Devoluciones', campo: function (x) { var q = qc(x); return q ? q.devoluciones.length : ''; }, tipo: 'numero' });
+      cols.push({ titulo: 'Motivos de devolución', campo: function (x) { var q = qc(x); return q ? q.devoluciones.map(function (v) { return K.fecha(v.fecha) + ' ' + v.estado + ' (' + nombre(v.quien) + '): ' + v.motivo; }).join('\n') : ''; } });
+      (c.obligaciones || []).forEach(function (o, i) {
+        cols.push({ titulo: 'Redacción obligación ' + o.n, campo: function (x) { var z = celda(x, i); return z ? ETIQUETA_RED[z.clase] : ''; } });
+      });
+      (c.obligaciones || []).forEach(function (o, i) {
+        cols.push({ titulo: '% repetido obligación ' + o.n, campo: function (x) { var z = celda(x, i); return z && z.rep !== null ? z.rep : ''; }, tipo: 'numero' });
+      });
+    }
     (c.obligaciones || []).forEach(function (o, i) {
       cols.push({ titulo: 'Adjuntos obligación ' + o.n, campo: function (x) { return ((x.adjuntos || [])[i] || []).length; }, tipo: 'numero' });
     });
@@ -593,7 +657,7 @@
       if (R.escudo) { try { doc.addImage(R.escudo, 'PNG', mx, 2.5, 11, 11, 'escudo'); } catch (e) {} }
       var xt = R.escudo ? mx + 14 : mx;
       f('bold', 9, COL.blanco); doc.text(municipio, xt, 7.6);
-      f('normal', 7, [205, 225, 214]); doc.text((M.MARCA_NIT ? 'NIT ' + M.MARCA_NIT + '  ·  ' : '') + 'Informe gerencial del contratista', xt, 11.6);
+      f('normal', 7, [205, 225, 214]); doc.text((M.MARCA_NIT ? 'NIT ' + M.MARCA_NIT + '  ·  ' : '') + (A.avances ? 'Informe de avances del contratista' : 'Informe gerencial del contratista'), xt, 11.6);
       ajustar(quien, 'normal', 7.2, 95, [205, 225, 214]); doc.text(quien, W - mx, 9.6, { align: 'right' });
       y = arriba;
     }
@@ -696,7 +760,7 @@
     f('bold', 13, COL.blanco); doc.text(municipio, xt, 15);
     f('normal', 8, [205, 225, 214]);
     doc.text((M.MARCA_NIT ? 'NIT ' + M.MARCA_NIT + '  ·  ' : '') + (window.MARCA && window.MARCA.TITULO ? window.MARCA.TITULO : 'Ecosistema digital FLANDES-CORE'), xt, 20.5);
-    f('bold', 17, COL.blanco); doc.text('Informe gerencial del contratista', xt, 31);
+    f('bold', 17, COL.blanco); doc.text(A.avances ? 'Informe de avances del contratista' : 'Informe gerencial del contratista', xt, 31);
     f('normal', 8, [205, 225, 214]); doc.text('Generado el ' + new Date().toLocaleString('es-CO'), xt, 37.5);
     if (R.icono) { try { doc.addImage(R.icono, 'PNG', W - mx - 16, 12, 16, 16, 'icono'); } catch (e) {} }
     y = 54;
@@ -732,28 +796,50 @@
     }
     y += 10;
 
-    /* la calificación */
-    var nv = nivel(A.global);
-    cabe(54);
-    var y0 = y;
-    fill(COL.fondo); draw(COL.linea, 0.3); doc.roundedRect(mx, y, util, 50, 2.5, 2.5, 'FD');
-    fill(tonoCol(nv.tono)); doc.roundedRect(mx, y, 2.2, 50, 1, 1, 'F');
-    f('bold', 7.4, COL.gris); doc.text('CALIDAD DEL REPORTE', mx + 7, y + 7);
-    f('bold', 30, tonoCol(nv.tono)); doc.text(A.global === null ? '—' : String(Math.round(A.global)), mx + 7, y + 22);
-    f('normal', 8, COL.gris); doc.text('de 100', mx + 7, y + 28);
-    f('bold', 8.6, tonoCol(nv.tono)); doc.text(nv.t, mx + 7, y + 35);
-    var bx = mx + 52, bw = util - 52 - 8, by = y + 7;
-    A.comps.forEach(function (q) {
-      var tq = nivel(q.v).tono;
-      f('bold', 8, COL.tinta); doc.text(q.t, bx, by);
-      f('bold', 8, q.v === null ? COL.gris2 : tonoCol(tq)); doc.text(q.v === null ? 'N/A' : String(Math.round(q.v)), bx + bw, by, { align: 'right' });
-      barraH(bx, by + 1.5, bw, q.v || 0, tonoCol(tq));
-      f('normal', 6.5, COL.gris2); doc.text(q.n, bx, by + 7.4);
-      by += 11.2;
-    });
-    y = y0 + 56;
+    if (A.avances) {
+      /* informe de avances: sin calificación, con las cifras del contrato */
+      var nObl = A.porObl.filter(function (o) { return !o.general; });
+      var kp = [
+        [String(A.cuentas.length), 'Cuentas radicadas'],
+        [String(A.cifras.pagadas), 'Cuentas pagadas'],
+        [nObl.filter(function (o) { return o.reales; }).length + ' de ' + nObl.length, 'Obligaciones con avance'],
+        [String(A.hitos.reduce(function (a, L) { return a + L.length; }, 0)), 'Cifras de gestión reportadas']
+      ];
+      cabe(30);
+      fill(COL.fondo); draw(COL.linea, 0.3); doc.roundedRect(mx, y, util, 26, 2.5, 2.5, 'FD');
+      fill(COL.ok); doc.roundedRect(mx, y, 2.2, 26, 1, 1, 'F');
+      f('bold', 7.4, COL.gris); doc.text('INFORME DE AVANCES', mx + 7, y + 6.5);
+      var kw = (util - 14) / 4;
+      kp.forEach(function (q, i) {
+        var x = mx + 7 + i * kw;
+        ajustar(q[0], 'bold', 16, kw - 4, COL.ok); doc.text(q[0], x, y + 16);
+        ajustar(q[1].toUpperCase(), 'normal', 6.6, kw - 4, COL.gris); doc.text(q[1].toUpperCase(), x, y + 21.5);
+      });
+      y += 32;
+    } else {
+      /* la calificación */
+      var nv = nivel(A.global);
+      cabe(54);
+      var y0 = y;
+      fill(COL.fondo); draw(COL.linea, 0.3); doc.roundedRect(mx, y, util, 50, 2.5, 2.5, 'FD');
+      fill(tonoCol(nv.tono)); doc.roundedRect(mx, y, 2.2, 50, 1, 1, 'F');
+      f('bold', 7.4, COL.gris); doc.text('CALIDAD DEL REPORTE', mx + 7, y + 7);
+      f('bold', 30, tonoCol(nv.tono)); doc.text(A.global === null ? '—' : String(Math.round(A.global)), mx + 7, y + 22);
+      f('normal', 8, COL.gris); doc.text('de 100', mx + 7, y + 28);
+      f('bold', 8.6, tonoCol(nv.tono)); doc.text(nv.t, mx + 7, y + 35);
+      var bx = mx + 52, bw = util - 52 - 8, by = y + 7;
+      A.comps.forEach(function (q) {
+        var tq = nivel(q.v).tono;
+        f('bold', 8, COL.tinta); doc.text(q.t, bx, by);
+        f('bold', 8, q.v === null ? COL.gris2 : tonoCol(tq)); doc.text(q.v === null ? 'N/A' : String(Math.round(q.v)), bx + bw, by, { align: 'right' });
+        barraH(bx, by + 1.5, bw, q.v || 0, tonoCol(tq));
+        f('normal', 6.5, COL.gris2); doc.text(q.n, bx, by + 7.4);
+        by += 11.2;
+      });
+      y = y0 + 56;
+    }
 
-    subt('Hallazgos clave');
+    subt(A.avances ? 'Avances destacados' : 'Hallazgos clave');
     A.hallazgos.forEach(function (h) { var al = /^ALERTA/.test(h); parrafo(h, { t: 8.5, vineta: true, despues: 1.4, e: al ? 'bold' : 'normal', col: al ? COL.malo : COL.tinta, vcol: al ? COL.malo : COL.verde2 }); });
     y += 2;
 
@@ -777,41 +863,67 @@
       { t: 'Orden de pago', w: 30, al: 'c' }, { t: 'Pago (egreso)', w: 30, al: 'c' }, { t: 'Ciclo total', w: 26, al: 'c', e: 'bold' }
     ], A.porCuenta.map(function (q) { return [q.informe, nd(q.diasRad), nd(q.revision), nd(q.orden), nd(q.pago), nd(q.ciclo)]; }));
 
-    /* ───────────── 2. CALIDAD DE LA REDACCIÓN ───────────── */
-    seccion('Calidad de la redacción: ¿cuantifica?', 'Cada actividad se clasifica por las cifras de gestión que contiene (cantidades, entregables, valores). No cuentan fechas, el número del contrato o de la cuenta, la numeración ni los nombres de los archivos.');
-    matriz(function (z) { return { t: CORTO_RED[z.clase], fondo: FONDO_RED[z.clase], e: 'bold', col: z.clase === 'desc' ? COL.malo : (z.clase === 'cuant' ? COL.ok : COL.tinta) }; },
-      'C = cuantifica (2 o más cifras de gestión) · P = parcial (1 cifra) · D = solo describe · NR = no requerida en el periodo · — = sin actividad. Filas en gris: obligaciones generales (de conducta o de forma), que no se miden.');
-    tabla([
-      { t: 'Cuenta', w: 18, al: 'c', e: 'bold' }, { t: 'Con actividad', w: 24, al: 'c' }, { t: 'Cuantifica', w: 22, al: 'c' },
-      { t: 'Parcial', w: 20, al: 'c' }, { t: 'Solo describe', w: 24, al: 'c' }, { t: 'No requerida', w: 24, al: 'c' }, { t: 'Sin actividad', w: 0, al: 'c' }
-    ], A.porCuenta.map(function (q) {
-      return [q.informe, q.reales + ' de ' + q.total, q.cuant + ' (' + pc(q.cuant, q.reales) + ' %)', q.parcial, { t: q.desc, col: q.desc ? COL.malo : COL.tinta }, q.noreq, { t: q.sin, col: q.sin ? COL.aviso : COL.tinta }];
-    }));
+    if (A.avances) {
+      seccion('Avances por periodo', 'Las cifras de gestión que el contratista reporta en cada cuenta (cantidades, porcentajes y entregables), tomadas de sus actividades.');
+      tabla([{ t: 'Cuenta', w: 16, al: 'c', e: 'bold' }, { t: 'Periodo', w: 36 }, { t: 'Cifras de gestión reportadas', w: 0 }],
+        A.porCuenta.map(function (q, j) {
+          var x = q.x;
+          return [x.informe, x.desde ? f2(x.desde) + ' al ' + f2(x.hasta) : '—', A.hitos[j].length ? A.hitos[j].join(' · ') : 'Avances descritos en las actividades del periodo'];
+        }));
+      seccion('Evolución por obligación', 'Cada obligación con lo realizado en cada periodo, en orden, tal como se radicó.');
+      A.obl.forEach(function (o, i) {
+        cabe(24);
+        f('bold', 9.4, COL.verde); doc.text('Obligación ' + o.n + (A.porObl[i].general ? ' (general)' : ''), mx, y); y += 4.2;
+        parrafo(o.texto, { t: 7.8, col: COL.gris, despues: 1.6 });
+        A.cuentas.forEach(function (x, j) {
+          var z = A.celdas[i][j];
+          if (!z.texto) return;
+          cabe(12);
+          f('bold', 7.6, COL.verde2); doc.text('Cuenta ' + x.informe + (x.desde ? '  ·  ' + f2(x.desde) + ' al ' + f2(x.hasta) : ''), mx + 3, y); y += 3.8;
+          parrafo(z.texto, { t: 8.2, x: mx + 3, despues: 0.6 });
+          var adj = ((x.adjuntos || [])[i] || []);
+          if (adj.length) parrafo('Soportes: ' + adj.join(' · '), { t: 7.2, x: mx + 3, col: COL.gris, despues: 0.6 });
+          y += 1.6;
+        });
+        y += 2;
+      });
+    } else {
+      /* ───────────── 2. CALIDAD DE LA REDACCIÓN ───────────── */
+      seccion('Calidad de la redacción: ¿cuantifica?', 'Cada actividad se clasifica por las cifras de gestión que contiene (cantidades, entregables, valores). No cuentan fechas, el número del contrato o de la cuenta, la numeración ni los nombres de los archivos.');
+      matriz(function (z) { return { t: CORTO_RED[z.clase], fondo: FONDO_RED[z.clase], e: 'bold', col: z.clase === 'desc' ? COL.malo : (z.clase === 'cuant' ? COL.ok : COL.tinta) }; },
+        'C = cuantifica (2 o más cifras de gestión) · P = parcial (1 cifra) · D = solo describe · NR = no requerida en el periodo · — = sin actividad. Filas en gris: obligaciones generales (de conducta o de forma), que no se miden.');
+      tabla([
+        { t: 'Cuenta', w: 18, al: 'c', e: 'bold' }, { t: 'Con actividad', w: 24, al: 'c' }, { t: 'Cuantifica', w: 22, al: 'c' },
+        { t: 'Parcial', w: 20, al: 'c' }, { t: 'Solo describe', w: 24, al: 'c' }, { t: 'No requerida', w: 24, al: 'c' }, { t: 'Sin actividad', w: 0, al: 'c' }
+      ], A.porCuenta.map(function (q) {
+        return [q.informe, q.reales + ' de ' + q.total, q.cuant + ' (' + pc(q.cuant, q.reales) + ' %)', q.parcial, { t: q.desc, col: q.desc ? COL.malo : COL.tinta }, q.noreq, { t: q.sin, col: q.sin ? COL.aviso : COL.tinta }];
+      }));
 
-    /* ───────────── 3. COPIA Y PEGA ───────────── */
-    seccion('Copia y pega entre cuentas', 'Porcentaje del texto de cada actividad que ya estaba escrito en una cuenta anterior de la misma obligación (frases de 4 palabras; cambiar solo las cifras no cuenta como texto nuevo). Las actividades “no requeridas” no se miden.');
-    if (A.cuentas.length < 2) parrafo('Hace falta al menos una segunda cuenta para comparar la redacción.', { t: 8.5, col: COL.gris });
-    else matriz(function (z, j) {
-      if (j === 0) return { t: 'base', col: COL.gris2 };
-      if (z.rep === null) return { t: CORTO_RED[z.clase] === 'C' || CORTO_RED[z.clase] === 'P' || CORTO_RED[z.clase] === 'D' ? '—' : CORTO_RED[z.clase], col: COL.gris2 };
-      return { t: z.rep + '%', e: 'bold', fondo: z.rep > 70 ? FONDO_RED.desc : (z.rep >= 30 ? FONDO_RED.parcial : FONDO_RED.cuant), col: z.rep > 70 ? COL.malo : COL.tinta };
-    }, 'Menos de 30 % = redacción original · 30 a 70 % = reutiliza parte del texto · más de 70 % = copia y pega.');
+      /* ───────────── 3. COPIA Y PEGA ───────────── */
+      seccion('Copia y pega entre cuentas', 'Porcentaje del texto de cada actividad que ya estaba escrito en una cuenta anterior de la misma obligación (frases de 4 palabras; cambiar solo las cifras no cuenta como texto nuevo). Las actividades “no requeridas” no se miden.');
+      if (A.cuentas.length < 2) parrafo('Hace falta al menos una segunda cuenta para comparar la redacción.', { t: 8.5, col: COL.gris });
+      else matriz(function (z, j) {
+        if (j === 0) return { t: 'base', col: COL.gris2 };
+        if (z.rep === null) return { t: CORTO_RED[z.clase] === 'C' || CORTO_RED[z.clase] === 'P' || CORTO_RED[z.clase] === 'D' ? '—' : CORTO_RED[z.clase], col: COL.gris2 };
+        return { t: z.rep + '%', e: 'bold', fondo: z.rep > 70 ? FONDO_RED.desc : (z.rep >= 30 ? FONDO_RED.parcial : FONDO_RED.cuant), col: z.rep > 70 ? COL.malo : COL.tinta };
+      }, 'Menos de 30 % = redacción original · 30 a 70 % = reutiliza parte del texto · más de 70 % = copia y pega.');
 
-    /* ───────────── 4. EVIDENCIAS Y ADJUNTOS ───────────── */
-    seccion('Evidencias y adjuntos por obligación', 'Número de evidencias y adjuntos cargados en cada obligación y cuenta. En rojo, las actividades cuyo texto dice que adjunta un soporte que no está cargado.');
-    matriz(function (z) {
-      if (PUNTOS_RED[z.clase] === undefined) return { t: z.soporte ? (z.anexo ? 'A' : String(z.soporte)) : CORTO_RED[z.clase], col: COL.gris2 };
-      if (z.anexo) return { t: 'A', e: 'bold', fondo: FONDO_RED.cuant };
-      if (!z.soporte) return { t: z.menciona ? '0 !' : '0', e: 'bold', fondo: z.menciona ? FONDO_RED.desc : FONDO_RED.parcial, col: z.menciona ? COL.malo : COL.tinta };
-      return { t: String(z.soporte), e: 'bold', fondo: FONDO_RED.cuant };
-    }, 'Número = evidencias + adjuntos de esa obligación · A = anexo general de la cuenta (formato anterior al 05/10) · "0 !" = el texto menciona un adjunto que no está cargado · filas en gris = obligaciones generales, no entran en los puntajes.');
+      /* ───────────── 4. EVIDENCIAS Y ADJUNTOS ───────────── */
+      seccion('Evidencias y adjuntos por obligación', 'Número de evidencias y adjuntos cargados en cada obligación y cuenta. En rojo, las actividades cuyo texto dice que adjunta un soporte que no está cargado.');
+      matriz(function (z) {
+        if (PUNTOS_RED[z.clase] === undefined) return { t: z.soporte ? (z.anexo ? 'A' : String(z.soporte)) : CORTO_RED[z.clase], col: COL.gris2 };
+        if (z.anexo) return { t: 'A', e: 'bold', fondo: FONDO_RED.cuant };
+        if (!z.soporte) return { t: z.menciona ? '0 !' : '0', e: 'bold', fondo: z.menciona ? FONDO_RED.desc : FONDO_RED.parcial, col: z.menciona ? COL.malo : COL.tinta };
+        return { t: String(z.soporte), e: 'bold', fondo: FONDO_RED.cuant };
+      }, 'Número = evidencias + adjuntos de esa obligación · A = anexo general de la cuenta (formato anterior al 05/10) · "0 !" = el texto menciona un adjunto que no está cargado · filas en gris = obligaciones generales, no entran en los puntajes.');
 
-    /* ───────────── 5. DEVOLUCIONES ───────────── */
-    seccion('Devoluciones y motivos', 'Cada vez que una cuenta se devolvió o se marcó incompleta, con quién lo hizo y el motivo que quedó registrado.');
-    var devs = [];
-    A.porCuenta.forEach(function (q) { q.devoluciones.forEach(function (v) { devs.push([q.informe, f2(v.fecha) || '—', v.estado, nombre(v.quien) || '—', v.motivo || 'Sin motivo registrado']); }); });
-    if (!devs.length) parrafo('No hay devoluciones registradas en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
-    else tabla([{ t: 'Cuenta', w: 15, al: 'c', e: 'bold' }, { t: 'Fecha', w: 20, al: 'c' }, { t: 'Estado', w: 24 }, { t: 'Quién', w: 34 }, { t: 'Motivo', w: 0 }], devs);
+      /* ───────────── 5. DEVOLUCIONES ───────────── */
+      seccion('Devoluciones y motivos', 'Cada vez que una cuenta se devolvió o se marcó incompleta, con quién lo hizo y el motivo que quedó registrado.');
+      var devs = [];
+      A.porCuenta.forEach(function (q) { q.devoluciones.forEach(function (v) { devs.push([q.informe, f2(v.fecha) || '—', v.estado, nombre(v.quien) || '—', v.motivo || 'Sin motivo registrado']); }); });
+      if (!devs.length) parrafo('No hay devoluciones registradas en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
+      else tabla([{ t: 'Cuenta', w: 15, al: 'c', e: 'bold' }, { t: 'Fecha', w: 20, al: 'c' }, { t: 'Estado', w: 24 }, { t: 'Quién', w: 34 }, { t: 'Motivo', w: 0 }], devs);
+    }
 
     /* ───────────── 6. SEGURIDAD SOCIAL ───────────── */
     seccion('Seguridad social', 'Planilla y aportes declarados en cada cuenta.');
@@ -824,51 +936,55 @@
         plata(x.base) || '—', plata(x.salud) || '—', plata(x.pension) || '—', plata(x.riesgos) || '—'];
     }));
 
-    /* ───────────── 7. ALERTAS ───────────── */
-    seccion('Alertas de control', 'Situaciones que el supervisor debe revisar. Rojo: requieren acción; ámbar: revisar; azul: informativas.');
-    if (!A.alertas.length) parrafo('No se encontraron alertas de control en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
-    A.alertas.forEach(function (a) { parrafo('Cuenta ' + a.cuenta + ': ' + a.t, { t: 8.5, vineta: true, vcol: tonoCol(a.tono), despues: 1.4 }); });
+    if (!A.avances) {
+      /* ───────────── 7. ALERTAS ───────────── */
+      seccion('Alertas de control', 'Situaciones que el supervisor debe revisar. Rojo: requieren acción; ámbar: revisar; azul: informativas.');
+      if (!A.alertas.length) parrafo('No se encontraron alertas de control en las cuentas de este contrato.', { t: 8.5, col: COL.gris });
+      A.alertas.forEach(function (a) { parrafo('Cuenta ' + a.cuenta + ': ' + a.t, { t: 8.5, vineta: true, vcol: tonoCol(a.tono), despues: 1.4 }); });
+    }
 
     /* ───────────── 8. CONCLUSIONES ───────────── */
-    seccion('Conclusiones y recomendaciones');
+    seccion(A.avances ? 'Conclusión' : 'Conclusiones y recomendaciones');
     parrafo(A.conclusion, { t: 9, lh: 4.4, despues: 3 });
-    subt('Recomendaciones al supervisor');
+    subt(A.avances ? 'Próximos pasos' : 'Recomendaciones al supervisor');
     A.recomendaciones.forEach(function (r) { parrafo(r, { t: 8.7, vineta: true, despues: 1.6 }); });
 
-    /* ───────────── ANEXO A: ACTIVIDADES COMPLETAS ───────────── */
-    hoja();
-    nSec = 0;
-    f('bold', 13, COL.verde); doc.text('Anexo A · Actividades reportadas (texto completo)', mx, y + 4); y += 10;
-    parrafo('Texto tal como lo radicó el contratista, por cuenta y por obligación, con su clasificación.', { t: 8.2, col: COL.gris, despues: 3 });
-    subt('Obligaciones del contrato');
-    A.obl.forEach(function (o) { parrafo(o.n + '. ' + o.texto, { t: 8, col: COL.tinta, despues: 1 }); });
-    y += 3;
-    A.cuentas.forEach(function (x, j) {
-      cabe(26);
-      fill(COL.verde2); doc.roundedRect(mx, y, util, 8, 1.5, 1.5, 'F');
-      f('bold', 9, COL.blanco); doc.text('Cuenta ' + x.informe + (x.total ? ' de ' + x.total : '') + (x.desde ? '  ·  ' + f2(x.desde) + ' al ' + f2(x.hasta) : ''), mx + 3, y + 5.4);
-      f('bold', 7.5, COL.blanco); doc.text(String(x.estado || ''), W - mx - 3, y + 5.4, { align: 'right' });
-      y += 12;
-      A.obl.forEach(function (o, i) {
-        var z = A.celdas[i][j];
-        cabe(16);
-        f('bold', 8.2, COL.verde); doc.text('Obligación ' + o.n, mx, y);
-        var et = (z.gen ? 'Obligación general (no se mide)' : ETIQUETA_RED[z.clase] + (z.rep !== null ? ' · ' + z.rep + ' % repetido' + (z.ident ? ' (texto idéntico a la cuenta ' + z.repCon + ')' : (z.rep > 70 ? ' (de la cuenta ' + z.repCon + ', con cambios menores)' : '')) : '')) +
-          (z.anexo ? ' · anexo general de la cuenta' : (z.soporte ? ' · ' + z.soporte + ' soporte(s)' : ''));
-        f('bold', 6.8, !z.gen && (z.clase === 'desc' || (z.rep !== null && z.rep > 70)) ? COL.malo : COL.gris);
-        doc.text(et, W - mx, y, { align: 'right' });
-        y += 4;
-        parrafo(z.texto || 'Sin actividad reportada.', { t: 8.3, col: z.texto ? COL.tinta : COL.gris2, despues: 0.6 });
-        var adj = ((x.adjuntos || [])[i] || []);
-        if (adj.length) parrafo('Adjuntos: ' + adj.join(' · '), { t: 7.4, col: COL.gris, despues: 0.6 });
-        y += 2;
-      });
+    if (!A.avances) {
+      /* ───────────── ANEXO A: ACTIVIDADES COMPLETAS ───────────── */
+      hoja();
+      nSec = 0;
+      f('bold', 13, COL.verde); doc.text('Anexo A · Actividades reportadas (texto completo)', mx, y + 4); y += 10;
+      parrafo('Texto tal como lo radicó el contratista, por cuenta y por obligación, con su clasificación.', { t: 8.2, col: COL.gris, despues: 3 });
+      subt('Obligaciones del contrato');
+      A.obl.forEach(function (o) { parrafo(o.n + '. ' + o.texto, { t: 8, col: COL.tinta, despues: 1 }); });
       y += 3;
-    });
+      A.cuentas.forEach(function (x, j) {
+        cabe(26);
+        fill(COL.verde2); doc.roundedRect(mx, y, util, 8, 1.5, 1.5, 'F');
+        f('bold', 9, COL.blanco); doc.text('Cuenta ' + x.informe + (x.total ? ' de ' + x.total : '') + (x.desde ? '  ·  ' + f2(x.desde) + ' al ' + f2(x.hasta) : ''), mx + 3, y + 5.4);
+        f('bold', 7.5, COL.blanco); doc.text(String(x.estado || ''), W - mx - 3, y + 5.4, { align: 'right' });
+        y += 12;
+        A.obl.forEach(function (o, i) {
+          var z = A.celdas[i][j];
+          cabe(16);
+          f('bold', 8.2, COL.verde); doc.text('Obligación ' + o.n, mx, y);
+          var et = (z.gen ? 'Obligación general (no se mide)' : ETIQUETA_RED[z.clase] + (z.rep !== null ? ' · ' + z.rep + ' % repetido' + (z.ident ? ' (texto idéntico a la cuenta ' + z.repCon + ')' : (z.rep > 70 ? ' (de la cuenta ' + z.repCon + ', con cambios menores)' : '')) : '')) +
+            (z.anexo ? ' · anexo general de la cuenta' : (z.soporte ? ' · ' + z.soporte + ' soporte(s)' : ''));
+          f('bold', 6.8, !z.gen && (z.clase === 'desc' || (z.rep !== null && z.rep > 70)) ? COL.malo : COL.gris);
+          doc.text(et, W - mx, y, { align: 'right' });
+          y += 4;
+          parrafo(z.texto || 'Sin actividad reportada.', { t: 8.3, col: z.texto ? COL.tinta : COL.gris2, despues: 0.6 });
+          var adj = ((x.adjuntos || [])[i] || []);
+          if (adj.length) parrafo('Adjuntos: ' + adj.join(' · '), { t: 7.4, col: COL.gris, despues: 0.6 });
+          y += 2;
+        });
+        y += 3;
+      });
+    }
 
     /* ───────────── ANEXO B: PAGO Y DOCUMENTOS ───────────── */
     hoja();
-    f('bold', 13, COL.verde); doc.text('Anexo B · Detalle de pago y documentos por cuenta', mx, y + 4); y += 12;
+    f('bold', 13, COL.verde); doc.text((A.avances ? 'Anexo' : 'Anexo B') + ' · Detalle de pago y documentos por cuenta', mx, y + 4); y += 12;
     A.cuentas.forEach(function (x) {
       cabe(22);
       f('bold', 9.2, COL.tinta); doc.text('Cuenta ' + x.informe + (x.total ? ' de ' + x.total : ''), mx, y);
@@ -895,7 +1011,11 @@
     /* ───────────── NOTA METODOLÓGICA ───────────── */
     cabe(40);
     subt('Nota metodológica');
-    [
+    (A.avances ? [
+      'Este contrato se presenta como INFORME DE AVANCES (llave INFORME_AVANCES de la configuración): no se califica la redacción de las actividades ni se compara el texto entre cuentas; se muestran los avances reportados en cada periodo.',
+      'Cifras de gestión: cantidades, porcentajes y entregables que aparecen en las actividades. No se cuentan fechas, años, el número del contrato o de la cuenta, ni los nombres de los archivos.',
+      'Los datos salen de las cuentas registradas en el aplicativo al momento de generar el informe.'
+    ] : [
       'Cuantificación: una actividad "cuantifica" si contiene 2 o más cifras de gestión, "parcial" si tiene 1 y "solo describe" si no tiene ninguna. Puntaje: 100, 60 y 20; el componente es el promedio.',
       'Originalidad: 100 menos el promedio del % repetido. El % repetido es la parte del texto de una actividad (frases de 4 palabras, con las cifras normalizadas) que ya aparecía en alguna cuenta anterior de la misma obligación.',
       'Soporte: % de actividades con contenido que tienen al menos una evidencia o adjunto en su obligación.',
@@ -903,7 +1023,7 @@
       'Calidad del reporte: promedio de los componentes con dato. 80 o más: sólido; 60 a 79: aceptable con mejoras; menos de 60: requiere atención.',
       'Obligaciones generales: las de conducta o de forma (horario, independencia, elementos de trabajo, cronograma, entrega de la cuenta de cobro, aportes). Se muestran, pero no entran en ningún puntaje.',
       'Los datos salen de las cuentas registradas en el aplicativo al momento de generar el informe. Las actividades "no requeridas" o vacías no entran en los puntajes de redacción.'
-    ].forEach(function (t) { parrafo(t, { t: 7.8, col: COL.gris, vineta: true, despues: 1.2 }); });
+    ]).forEach(function (t) { parrafo(t, { t: 7.8, col: COL.gris, vineta: true, despues: 1.2 }); });
 
     /* pie en todas las hojas */
     var total = doc.internal.getNumberOfPages();
@@ -914,7 +1034,7 @@
       ajustar('Documento generado por el sistema. ' + municipio, 'normal', 6.8, util - 30, COL.gris2); doc.text('Documento generado por el sistema. ' + municipio, mx, H - 7);
       doc.text('Página ' + p + ' de ' + total, W - mx, H - 7, { align: 'right' });
     }
-    var archivo = (K.piezas.exportar.nombreArchivo ? K.piezas.exportar.nombreArchivo('Informe gerencial ' + (c.nombre || '') + ' - ' + (c.contrato || '')) : 'Informe gerencial') + '.pdf';
+    var archivo = (K.piezas.exportar.nombreArchivo ? K.piezas.exportar.nombreArchivo((A.avances ? 'Informe de avances ' : 'Informe gerencial ') + (c.nombre || '') + ' - ' + (c.contrato || '')) : 'Informe gerencial') + '.pdf';
     doc.save(archivo);
     return { paginas: total, archivo: archivo };
 
