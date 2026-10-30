@@ -1,0 +1,36 @@
+/* KIT-FLANDES · PIEZA 34 · VARIACIÓN DE ACTIVIDADES (30/10/2026) */
+.var-pas {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: var(--k-r-pill, 999px);
+  font-size: .78rem; font-weight: 700; line-height: 1.3;
+  background: var(--k-linea); color: var(--k-tinta);
+}
+.var-pas--ok { background: var(--k-ok-fondo); color: var(--k-ok); }
+.var-pas--medio { background: var(--k-aviso-fondo); color: var(--k-aviso); }
+.var-pas--alto { background: var(--k-malo-fondo); color: var(--k-malo); }
+.var-pas--gen { background: var(--k-linea); color: var(--k-apagado); font-weight: 600; }
+mark.var-rep { background: var(--k-aviso-fondo); color: inherit; border-bottom: 2px solid var(--k-aviso); border-radius: 2px; padding: 0 1px; }
+.var-nada { margin: 6px 0 0; font-size: .86rem; color: var(--k-apagado); }
+
+/* revisión: lado a lado */
+.var-cmp { margin-top: 10px; padding: 12px; border: 1px solid var(--k-linea); border-radius: var(--k-r-md, 12px); background: var(--k-fondo); }
+.var-cmp__pas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.var-cmp__rej { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.var-cmp__col { min-width: 0; padding: 10px; border-radius: var(--k-r-sm, 8px); background: var(--k-papel); border: 1px solid var(--k-linea); }
+.var-cmp__col--act { border-color: var(--k-marca); }
+.var-cmp__t { margin: 0 0 6px; font-size: .74rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--k-apagado); }
+.var-cmp__txt { font-size: .86rem; line-height: 1.5; overflow-wrap: anywhere; }
+.var-cmp__ley { margin: 8px 0 0; font-size: .74rem; color: var(--k-apagado); }
+@media (max-width: 640px) { .var-cmp__rej { grid-template-columns: 1fr; } }
+
+/* borrador del contratista */
+.var-bor { display: grid; gap: 10px; }
+.var-bor__cab { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.var-bor__t { margin: 0; font-size: .82rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--k-tinta); display: flex; align-items: center; gap: 6px; }
+.var-bor__btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.var-bor__btns .kit-btn { display: inline-flex; align-items: center; gap: 6px; }
+.var-bor__tips { margin: 0; padding-left: 18px; font-size: .84rem; line-height: 1.45; }
+.var-bor__tips li { margin: 2px 0; }
+.var-bor__consejo { margin: 0; padding: 8px 10px; border-radius: var(--k-r-sm, 8px); background: var(--k-aviso-fondo); font-size: .84rem; }
+.var-bor__ver { padding: 10px; border-radius: var(--k-r-sm, 8px); border: 1px dashed var(--k-linea); font-size: .86rem; line-height: 1.5; overflow-wrap: anywhere; }
+.var-bor details summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--k-marca); }

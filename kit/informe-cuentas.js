@@ -1174,6 +1174,8 @@
   K.piezas.informeCuentas = {
     columnas: columnas, cifras: cifras, tono: tono, aExcel: aExcel, aPDF: aPDF,
     aGerencial: aGerencial, analizar: analizar, nivel: nivel, descuentosLegibles: descuentosLegibles,
-    _redaccion: redaccion, _repetido: repetido, _cifrasGestion: cifrasGestion
+    _redaccion: redaccion, _repetido: repetido, _cifrasGestion: cifrasGestion,
+    /* 30/10 · kit/variacion.js marca y mide con estas mismas (una sola regla en todo el ecosistema) */
+    _palabras: palabras, _tejas: tejas, _esGeneral: esGeneral
   };
 }());
