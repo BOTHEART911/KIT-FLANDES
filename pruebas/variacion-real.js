@@ -140,6 +140,25 @@ function ok(c, m) { if (!c) throw new Error(m || 'falló'); }
     ok(r.e === 'amarillo' && /15 de agosto/.test(r.x), JSON.stringify(r));
   });
 
+  await prueba('03/11 · el ejemplo de Oss: entregable con su nombre, cifra completa, sin periodo no se juzga la fecha y soporte en naranja', async () => {
+    const r = await page.evaluate(() => {
+      const I = KIT.piezas.informeCuentas, V = KIT.piezas.variacion;
+      const t = 'Se elaboró un (1) Plan de acción para la secretaría de hacienda el 12 de octubre del presente año, este documento se puede revisar en la carpeta física número 12';
+      const P = V.preparar(I, 'Elaborar el plan de acción de gobierno digital', [], '061');
+      const R = V.medir(I, t, P, { obl: 'Elaborar el plan de acción de gobierno digital', soporte: 0, nContrato: '061', avisarPeriodo: true });
+      const R2 = V.medir(I, t + '. No requiere adjunto.', P, { obl: 'Elaborar el plan de acción de gobierno digital', soporte: 0, nContrato: '061' });
+      const R3 = V.medir(I, 'Asistí a 4 reuniones del comité el 3 de octubre.', V.preparar(I, 'Asistir a las reuniones que convoque la supervisión', [], ''), { obl: 'Asistir a las reuniones que convoque la supervisión', soporte: 0 });
+      return { c: R.b[1].x, r: R.b[3].x, cu: R.b[4].e + ' ' + R.b[4].d, s: R.b[5].e, sx: R.b[5].x, s2: R2.b[5].e, s3: R3.b[5].e,
+        tec: V.tecnico(R, R.b[5]), titulo: (() => { const ul = V.bombillos(R, 'contratista'); return ul.querySelectorAll('.var-bom__tx b')[5].textContent; })() };
+    });
+    ok(r.c === 'un (1) Plan de acción', 'cifra: ' + r.c);
+    ok(r.r === 'Plan de acción', 'entregable: ' + r.r);
+    ok(/^verde .*se determinará cuando ingreses el periodo/.test(r.cu), r.cu);
+    ok(r.s === 'amarillo' && /carpeta física número 12/.test(r.sx), 'soporte: ' + r.s + ' ' + r.sx);
+    ok(r.s2 === 'verde' && r.s3 === 'amarillo', 's2 ' + r.s2 + ' s3 ' + r.s3);
+    ok(/verificar/.test(r.titulo) && /indicó dónde verificar/.test(r.tec), r.titulo + ' | ' + r.tec);
+  });
+
   await prueba('obligación general: los 6 bombillos en gris', async () => {
     const e = await page.evaluate(() => {
       const I = KIT.piezas.informeCuentas, V = KIT.piezas.variacion;

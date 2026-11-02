@@ -237,7 +237,7 @@
     var CONTABLE = /^(document|visita|atencion|proceso|publicacion|informe|oficio|acta|reunion|capacitacion|expediente|tramite|solicitud|peticion|pqr|derecho|tutela|requerimiento|resolucion|contrato|cuenta|factura|predio|contribuyente|usuario|ciudadan|beneficiari|registro|certificad|constancia|listado|formato|archivo|correo|comunicacion|notificacion|liquidacion|acuerdo|convenio|actividad|evidencia|jornada|mesa|comite|taller|campana|caso|evento|reporte|respuesta|minuta|estudio|poliza|encuesta|ficha|paciente|productor|persona|familia|nino|nina|adulto|joven|estudiante|funcionari|servidor|contratista|asistente|participante|hora|dia|semana|mes|pieza|video|boletin|noticia|publicacion|post|contenido|cuna|mensaje|llamada|acto|auto|mandamiento|embargo|titulo|cobro|recibo|pago|radicado|consulta|vacuna|dosis|muestra|animal|bovino|ave|cerdo|perro|gato|arbol|hectarea|metro|kilometro|obra|punto|sede|institucion|colegio|barrio|vereda|grupo|equipo|modulo|vista|app|aplicacion|herramienta|indicador|meta|objetivo|item|matriz|base|tabla|grafica|hoja|plantilla|carpeta|folio|pagina)/;
     var LUGAR_O_GENTE = /^(secretari|alcald|despacho|oficina|dependencia|concejo|personeria|contraloria|procuraduria|gobernacion|dian|juzgado|fiscalia|policia|icbf|comisaria|inspeccion|tesoreria|contabilidad|almacen|hospital|eps|ips|ese|entidad|comunidad|barrio|vereda|poblacion|junta|asociacion|fundacion|colegio|institucion|escuela|contribuyente|ciudadan|usuari|beneficiari|personal|persona|familia|nino|nina|adulto|joven|estudiante|docente|funcionari|servidor|contratista|productor|campesin|victima|lider|madre|padre|paciente|medico|enfermer|area|equipo|grupo|ministerio|superintendencia|registraduria|notaria|banco|empresa|operador|proveedor|supervisor|jefe|director|gerente|alcalde|alcaldesa|secretario|secretaria)/;
     var RESULTADO_V = /^(entreg|elabor|public|radic|aprob|logr|expid|emit|proyect|present|remit|envi|firm|notific|gener|consolid|actualiz|carg|suscrib|adjudic|socializ|diseñ|disen|desarroll|implement|culmin|termin|finaliz|resolv|respond|tramit|archiv|digitaliz|organiz|realiz)(o|e|aron|amos|ado|ada|ados|adas|ido|ida|idos|idas|io|ieron)$/;
-    var RESULTADO_N = /^(informe|acta|oficio|listado|resolucion|registro|certificad|constancia|consolidado|matriz|respuesta|concepto|decreto|circular|minuta|cronograma|boletin|pieza|video|ficha|auto|mandamiento|entregable|producto|presentacion|dashboard|tablero|aplicacion|modulo)/;
+    var RESULTADO_N = /^(informe|acta|oficio|listado|resolucion|registro|certificad|constancia|consolidado|matriz|respuesta|concepto|decreto|circular|minuta|cronograma|plan|programa|protocolo|manual|instructivo|boletin|pieza|video|ficha|auto|mandamiento|entregable|producto|presentacion|dashboard|tablero|aplicacion|modulo)/;
 
     /* las pruebas por palabra se recuerdan (la misma palabra se repite mucho y la regex es larga) */
     function memo(re) { var c = {}; return function (w) { var v = c[w]; if (v === undefined) { v = re.test(w); c[w] = v; } return v; }; }
@@ -392,7 +392,9 @@
           }
           j++;
         }
-        if (que) out.push({ n: String(valor).replace(/^0+(?=\d)/, ''), que: que.w.replace(/(es|s)$/, ''), i: a.i, f: que.f });
+        var ini = a.i;
+        if (/^\d/.test(a.o) && k[i - 1] && k[i - 1].o === '(' && k[i - 2] && (k[i - 2].tipo === 'cifra' || k[i - 2].tipo === 'uno')) ini = k[i - 2].i;
+        if (que) out.push({ n: String(valor).replace(/^0+(?=\d)/, ''), que: que.w.replace(/(es|s)$/, ''), i: ini, f: frase(k, k.indexOf(que)) });
       }
       return out;
     }
@@ -416,9 +418,21 @@
     }
     function hastaFin(k, j) { var f = k[j].f; for (var q = j + 1; q < k.length && q <= j + 4 && palabra(k[q]) && /^[A-ZÁÉÍÓÚÑ]/.test(k[q].o); q++) f = k[q].f; return f; }
 
+    /** El sustantivo con su complemento: "Plan de acción", "informe de visitas", "acta de la reunión". */
+    function frase(k, j) {
+      var f = k[j].f, q = j + 1;
+      if (k[q] && /^(de|del|para)$/.test(k[q].w)) {
+        var r = q + 1;
+        if (k[r] && /^(la|el|los|las)$/.test(k[r].w)) r++;
+        if (k[r] && palabra(k[r]) && !FUN[k[r].w]) f = k[r].f;
+      }
+      return f;
+    }
     function bResultado(k) {
-      for (var i = 0; i < k.length; i++) {
-        var a = k[i]; if (!palabra(a)) continue;
+      /* 03/11 · primero el ENTREGABLE (lo que quedó: «Plan de acción»); si no lo nombra, el verbo de resultado */
+      for (var i = 0; i < k.length; i++) { var a = k[i]; if (palabra(a) && esResN(a.w)) return { i: a.i, f: frase(k, i), que: 'entregable' }; }
+      for (i = 0; i < k.length; i++) {
+        a = k[i]; if (!palabra(a)) continue;
         /* verbo conjugado (se entregó, elaboré, radicaron) o participio con su auxiliar (fue aprobado, quedaron publicados);
            un participio suelto suele ser adjetivo ("los eventos presentados") y no cuenta */
         var aux = k[i - 1] && /^(fue|fueron|quedo|quedaron|quedando|sido|ha|han|he|hemos|esta|estan|queda|quedan)$/.test(k[i - 1].w);
@@ -426,7 +440,6 @@
             (aux && /(ado|ada|ados|adas|ido|ida|idos|idas)$/.test(a.w)))) return { i: a.i, f: a.f, que: 'verbo' };
         if (/^(quedo|quedaron|quedando|logrando|obteniendo|dejando)$/.test(a.w)) return { i: a.i, f: a.f, que: 'verbo' };
       }
-      for (i = 0; i < k.length; i++) { a = k[i]; if (palabra(a) && esResN(a.w)) return { i: a.i, f: a.f, que: 'entregable' }; }
       return null;
     }
 
@@ -459,6 +472,31 @@
     function restar(iso, n) { return sumar(iso, -n); }
 
     var NO_REQ = /(no\s+fue\s+requerid|no\s+(se\s+)?(le\s+)?(ha\s+)?requiri|no\s+se\s+requiri|no\s+fue\s+solicitad|no\s+se\s+solicit|no\s+aplic|no\s+hubo\s+(actividad|requerimiento)|sin\s+actividad|no\s+se\s+present[oó]\s+(ninguna|requerimiento)|no\s+se\s+ejecut|no\s+se\s+realizaron\s+actividades)/i;
+    /* 03/11 · EL SOPORTE (bombillo 6)
+         verde   = hay evidencias o adjuntos cargados, o escribe que la actividad NO requiere adjunto;
+         naranja = no cargó nada, pero dice DÓNDE puede verificarlo el supervisor (carpeta física, expediente,
+                   SECOP, un enlace…), o la obligación, por su redacción, no pide un producto (asistir, atender,
+                   acompañar…): falta decir que no requiere adjunto o subir el soporte;
+         rojo    = obligación que pide un producto (elaborar, presentar, informe, acta…) sin soporte ni dónde
+                   verificarlo, o el texto dice que adjunta algo que no está cargado. */
+    var NO_ADJ = /\bno\s+(requiere|requirio|necesita|genera|genero|aplica|lleva)\s+(de\s+)?(un\s+|una\s+|ningun\s+|ninguna\s+)?(adjunto|anexo|soporte|evidencia|archivo|documento)s?\b|\bsin\s+(adjunto|anexo|soporte)s?\s+(por|porque|ya)\b|\b(adjunto|anexo|soporte|evidencia)s?\s*:?\s*no\s+aplica\b/;
+    var DONDE = /\b(carpeta\s+(fisica|digital|compartida|de\s+\w+|n|no|numero)|archivo\s+(fisico|de\s+gestion|central|digital)|expediente\s+(n|no|numero|fisico|\d)|reposa|se\s+encuentra(n)?\s+(en|disponible)|se\s+puede(n)?\s+(revisar|consultar|verificar|ver)|puede(n)?\s+ser\s+(consultad|verificad|revisad)|disponible(s)?\s+(en|para)|(consultar|verificar|revisar)\s+en|secop|https?:\/\/|www\.|correo\s+(electronico\s+)?(enviado|remitido|del|de\s+la|institucional)|radicad[oa]s?\s+(con|bajo|en|n|no)|oficio\s+(n|no|numero)|folios?\s+\d|libro\s+(de|radicador)|(en|del)\s+(el\s+)?drive\s+(de\s+la|del|institucional|compartido))/;
+    var DICE_ADJ = /\b(se\s+adjunta|adjunto\s+(el|la|los|las)|se\s+anexa|anexo\s+(el|la|los|las)|ver\s+anexo|en\s+el\s+anexo)\b/;
+    var OBL_PRODUCTO = /(elaborar|presentar|entregar|proyectar|rendir|publicar|disenar|consolidar|actualizar|cargar|radicar|levantar|documentar|sistematizar|digitalizar|redactar|construir|formular|producir|generar|informe|documento|acta|base de datos|registro|reporte|matriz|estudio|plan |concepto|respuesta|piezas|contenido)/;
+    function bSoporte(texto, obl, soporte) {
+      var t = st(texto).toLowerCase(), m;
+      if (soporte > 0) return { e: 'verde', d: 'La obligación tiene ' + soporte + (soporte === 1 ? ' soporte cargado.' : ' soportes cargados.'), como: 'cargado' };
+      if ((m = NO_ADJ.exec(t))) return { e: 'verde', d: 'Indicaste que no requiere adjunto. Tu supervisor puede pedirte el soporte si lo necesita.', r: [[m.index, m.index + m[0].length]], como: 'noRequiere' };
+      if ((m = DONDE.exec(t))) {
+        var fin = texto.slice(m.index).search(/[.;\n]/), hasta = m.index + (fin < 0 ? texto.length - m.index : fin);
+        if (hasta - m.index > 90) hasta = m.index + 90;
+        return { e: 'amarillo', d: 'Dices dónde se puede verificar: «' + texto.slice(m.index, hasta).trim() + '». Para el verde: sube el soporte o, si esta obligación no lo requiere, escribe «no requiere adjunto».', r: [[m.index, hasta]], como: 'donde' };
+      }
+      if ((m = DICE_ADJ.exec(t))) return { e: 'rojo', d: 'Tu texto dice que adjunta un soporte, pero esta obligación no tiene nada cargado: súbelo aquí.', r: [[m.index, m.index + m[0].length]], como: 'diceAdjunta' };
+      if (!OBL_PRODUCTO.test(st(obl || '').toLowerCase() + ' ')) return { e: 'amarillo', d: 'Esta obligación puede no requerir adjunto. Si es así, escríbelo («no requiere adjunto»); si no, sube la evidencia o di dónde la puede verificar tu supervisor.', como: 'oblSinProducto' };
+      return { e: 'rojo', d: 'Esta obligación pide un producto y no tiene evidencias ni adjuntos cargados.', como: 'nada' };
+    }
+
 
     /**
      * Analiza UNA actividad.
@@ -545,16 +583,18 @@
       /* 4 · resultado o entregable */
       var rs = bResultado(k);
       R.b.push(rs ? { k: 3, e: 'verde', d: (rs.que === 'verbo' ? 'Resultado: «' : 'Entregable: «') + t.slice(rs.i, rs.f) + '».', r: [[rs.i, rs.f]] } : { k: 3, e: 'rojo', d: 'No dice qué quedó como resultado o entregable.', r: [] });
-      /* 5 · cuándo */
+      /* 5 · cuándo (sin periodo todavía: no se juzga si cae dentro; se dice cuándo se sabrá) */
       var cu = bCuando(k, ctx.desde, ctx.hasta);
+      var sinPer = !(ctx.desde && ctx.hasta);
       R.b.push(!cu ? { k: 4, e: 'rojo', d: 'No ubica la actividad en el tiempo (fechas, semanas, días).', r: [] }
         : cu.fuera.length ? { k: 4, e: 'amarillo', d: 'La fecha «' + t.slice(cu.fuera[0].i, cu.fuera[0].f) + '» cae fuera del periodo de la cuenta.', r: cu.fuera.map(function (z) { return [z.i, z.f]; }) }
-        : { k: 4, e: 'verde', d: 'Ubicada en el tiempo: «' + t.slice(cu.i, cu.f) + '».', r: [[cu.i, cu.f]] });
-      /* 6 · soporte */
-      R.b.push(ctx.soporte > 0 ? { k: 5, e: 'verde', d: 'La obligación tiene ' + ctx.soporte + (ctx.soporte === 1 ? ' soporte cargado.' : ' soportes cargados.'), r: [] }
-                               : { k: 5, e: 'rojo', d: 'La obligación no tiene evidencias ni adjuntos cargados.', r: [] });
+        : { k: 4, e: 'verde', d: 'Ubicada en el tiempo: «' + t.slice(cu.i, cu.f) + '».' + (sinPer && ctx.avisarPeriodo ? ' Si cae dentro del periodo se determinará cuando ingreses el periodo a relacionar.' : ''), r: [[cu.i, cu.f]] });
+      /* 6 · soporte: lo cargado manda; si no hay, se mira si dice DÓNDE verificarlo o que NO requiere adjunto,
+         y si la obligación, por su redacción, pide un producto (informe, acta, base de datos…) */
+      var so = bSoporte(t, P.obl, ctx.soporte);
+      R.b.push({ k: 5, e: so.e, d: so.d, r: so.r || [], como: so.como });
       /* el fragmento que detectó cada bombillo (para el lenguaje del revisor) y por qué se marcó repetida */
-      R.b.forEach(function (b) { if (b.k > 0 && b.k < 5 && b.r.length) b.x = t.slice(b.r[0][0], b.r[0][1]); });
+      R.b.forEach(function (b) { if (b.k > 0 && b.r.length) b.x = t.slice(b.r[0][0], b.r[0][1]); });
       R.b[5].n = ctx.soporte || 0;
       R.tipo = !repetida ? '' : R.ident ? 'identica' : R.pct >= U_EST ? 'estructura' : (R.plantillas && R.plantillas >= Math.max(1, Math.ceil(R.frases / 2))) ? 'plantilla' : 'orden';
       return R;
@@ -677,12 +717,14 @@
     var pVar = comparadas ? (comparadas - repetidas) * 100 / comparadas : null;
     var redV = []; todas.forEach(function (z) { if (!z.b) return; for (var k = 1; k <= 4; k++) if (PUNTO_B[z.b[k]] !== undefined) redV.push(PUNTO_B[z.b[k]]); });
     var pRed = redV.length ? prom(redV) : null;
-    var pSop = todas.length ? todas.filter(function (z) { return z.soporte > 0; }).length * 100 / todas.length : null;
+    /* 03/11 · soporte = bombillo 6: cargado o "no requiere adjunto" 100; dice dónde verificar o la obligación no pide producto 50 */
+    var sopV = []; todas.forEach(function (z) { if (z.b && PUNTO_B[z.b[5]] !== undefined) sopV.push(PUNTO_B[z.b[5]]); });
+    var pSop = sopV.length ? prom(sopV) : null;
     var pOport = prom(porCuenta.map(function (q) { if (q.diasRad === null) return null; return q.diasRad <= 5 ? 100 : (q.diasRad <= 15 ? 60 : 20); }));
     var comps = [
       { k: 'var', t: 'Variación', v: pVar, n: comparadas ? 'Actividades que no repiten la forma de una cuenta anterior' : 'Hace falta más de una cuenta' },
       { k: 'red', t: 'Redacción completa', v: pRed, n: 'Dice cuántos, para quién, qué resultado y cuándo' },
-      { k: 'sop', t: 'Soporte', v: pSop, n: 'Actividades con evidencia o adjunto' },
+      { k: 'sop', t: 'Soporte', v: pSop, n: 'Evidencia cargada o dónde verificarla' },
       { k: 'oport', t: 'Oportunidad', v: pOport, n: 'Radicación tras el cierre del periodo' }
     ];
     var global = prom(comps.map(function (q) { return q.v; }));
@@ -1555,7 +1597,7 @@
       'Variación: % de las actividades comparables que NO repiten la forma de escribir de una cuenta anterior de la misma obligación. Se mide la estructura (conectores, verbos con su forma, orden y puntuación), no el vocabulario: los términos de la obligación, los sustantivos que el contratista usa en 2 o más cuentas, los términos de gestión y las dependencias se igualan a una misma marca, igual que las cifras, fechas, códigos y nombres. Repetida: esqueleto 60 % o más igual (frases de 4 marcas), idéntica, plantilla rellenada en la mitad o más de sus frases, o el mismo orden de frases.',
       'Redacción completa: promedio de cuatro bombillos por actividad: cuántos (una cifra a 3 palabras o menos de lo que se contó; no valen fechas, el número del contrato ni la numeración de anexos), para quién o con quién (una dependencia, comunidad, entidad, población o nombre propio), resultado o entregable (un verbo como se entregó, se elaboró, se radicó, o un entregable como informe, acta, oficio, listado) y cuándo (fechas, meses, semanas o días; una fecha fuera del periodo vale la mitad). Verde 100, rojo 0.',
       'La misma cifra que en la cuenta anterior se informa, pero no se castiga: es válida si es un hecho verídico y la soportan las evidencias.',
-      'Soporte: % de actividades con contenido que tienen al menos una evidencia o adjunto en su obligación.',
+      'Soporte (bombillo 6): 100 si la obligación tiene evidencia o adjunto cargado, o si la actividad dice que no requiere adjunto; 50 si no cargó nada pero dice dónde lo puede verificar el supervisor (carpeta física, expediente, SECOP, enlace…) o si la obligación, por su redacción, no pide un producto; 0 si pide un producto y no hay soporte, o si dice que adjunta algo que no está cargado.',
       'Oportunidad: por cuenta, 100 si se radicó hasta 5 días después del cierre del periodo, 60 entre 6 y 15 días y 20 después; el componente es el promedio.',
       'Calidad del reporte: promedio de los componentes con dato. 80 o más: sólido; 60 a 79: aceptable con mejoras; menos de 60: requiere atención.',
       'Obligaciones generales: las de conducta o de forma (horario, independencia, elementos de trabajo, cronograma, entrega de la cuenta de cobro, aportes). Se muestran, pero no entran en ningún puntaje.',

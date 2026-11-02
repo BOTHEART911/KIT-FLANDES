@@ -90,9 +90,8 @@
     if (a && b) return { desde: a, hasta: b };
     var act = d && d.actual;
     if (act && iso(act.desde) && iso(act.hasta)) return { desde: iso(act.desde), hasta: iso(act.hasta) };
-    var ult = ((d && d.cuentas) || []).slice().sort(function (x, y) { return x.informe - y.informe; }).pop();
-    if (ult && iso(ult.hasta)) { var ini = masDias(iso(ult.hasta), 1); return { desde: ini, hasta: masMes(ini), estimado: true }; }
-    return { desde: '', hasta: '' };
+    /* 03/11 · sin el periodo de la cuenta no se adivina: la fecha no se juzga hasta que lo ingrese */
+    return { desde: '', hasta: '', sinPeriodo: true };
   }
 
   /** Prepara una obligación UNA vez (léxico y esqueletos anteriores). */
@@ -103,7 +102,8 @@
     ctx = ctx || {};
     return I._estr.analizar(texto, P, {
       general: !!(ctx.obl && I._esGeneral(ctx.obl)), desde: iso(ctx.desde), hasta: iso(ctx.hasta),
-      soporte: Number(ctx.soporte) || 0, nContrato: ctx.nContrato
+      soporte: Number(ctx.soporte) || 0, nContrato: ctx.nContrato,
+      avisarPeriodo: !!ctx.avisarPeriodo && !(iso(ctx.desde) && iso(ctx.hasta))
     });
   }
 
@@ -126,7 +126,7 @@
     '¿Para quién o con quién?',
     '¿Qué quedó como resultado o entregable?',
     '¿Cuándo?',
-    'Escribe solo lo que puedes demostrar'
+    'Escribe solo lo que puedes demostrar o tu supervisor puede verificar'
   ];
   var AYUDA_ROJO = [
     'Cuenta lo que hiciste distinto en este periodo. Cambiar solo palabras o cifras no basta.',
@@ -134,7 +134,7 @@
     'Di para quién o con quién: «a la Secretaría de Hacienda», «con la comunidad de la vereda…».',
     'Di qué quedó: «se entregó el informe», «se radicó el oficio», «quedó el listado».',
     'Ubícalo en el tiempo: «el 15 de octubre», «la segunda semana del periodo».',
-    'Carga en esta obligación las evidencias o adjuntos que demuestran lo que escribes.'
+    'Carga en esta obligación las evidencias o adjuntos que demuestren lo que escribes; puedes escribir que no requiere adjunto si no aplica.'
   ];
 
   /** La frase técnica de cada bombillo para Supervisión y Contratación. */
@@ -152,7 +152,13 @@
       case 2: return b.e === 'verde' ? 'Indicó destinatario o participante' + x : 'No indicó destinatario ni participante';
       case 3: return b.e === 'verde' ? 'Dejó entregable verificable' + x : 'No dejó resultado ni entregable verificable';
       case 4: return b.e === 'verde' ? 'Ubicó en el tiempo dentro del periodo' + x : (b.e === 'amarillo' ? 'Fecha fuera del periodo de la cuenta' + x : 'No ubicó la actividad en el tiempo');
-      default: return b.e === 'verde' ? 'Tiene soporte en evidencias (' + b.n + ')' : 'Sin soporte en evidencias ni adjuntos';
+      default:
+        if (b.como === 'cargado') return 'Tiene soporte en evidencias (' + b.n + ')';
+        if (b.como === 'noRequiere') return 'Declaró que no requiere adjunto' + x;
+        if (b.como === 'donde') return 'Sin adjunto: indicó dónde verificar' + x;
+        if (b.como === 'oblSinProducto') return 'Sin adjunto: la obligación puede no requerirlo';
+        if (b.como === 'diceAdjunta') return 'Dice que adjunta un soporte que no está cargado' + x;
+        return 'Sin soporte en evidencias ni adjuntos';
     }
   }
 
@@ -164,7 +170,7 @@
     var ul = K.nodo('<ul class="var-bom" role="list"></ul>');
     R.b.forEach(function (b) {
       var titulo = modo === 'revisor' ? tecnico(R, b) : PREG[b.k];
-      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' ? AYUDA_ROJO[b.k] : b.d);
+      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
       var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + '"><button type="button" class="var-bom__b"' + (b.r.length ? '' : ' aria-disabled="true"') + '>' +
         '<span class="var-bom__luz" aria-hidden="true"></span>' +
         '<span class="var-bom__tx"><b>' + K.esc(titulo) + '</b>' + (det ? '<small>' + K.esc(det) + '</small>' : '') + '</span>' +
@@ -259,7 +265,7 @@
     caja.appendChild(rej);
     caja.appendChild(K.nodo('<p class="var-cmp__ley"><mark class="var-rep">Resaltado</mark> = forma de escribir que ya estaba en la cuenta ' + (R.con || ultima.informe) +
       '. Toca un bombillo para ver el fragmento que lo cumple <mark class="var-hit">así</mark>. Los términos de la obligación y las cifras no cuentan como repetición.' +
-      (per.estimado ? ' El periodo se tomó como el siguiente al de la cuenta anterior.' : '') + '</p>'));
+      (per.sinPeriodo ? ' La cuenta aún no tiene el periodo: las fechas no se juzgan.' : '') + '</p>'));
     return caja;
   }
 
