@@ -34,3 +34,44 @@ mark.var-rep { background: var(--k-aviso-fondo); color: inherit; border-bottom: 
 .var-bor__consejo { margin: 0; padding: 8px 10px; border-radius: var(--k-r-sm, 8px); background: var(--k-aviso-fondo); font-size: .84rem; }
 .var-bor__ver { padding: 10px; border-radius: var(--k-r-sm, 8px); border: 1px dashed var(--k-linea); font-size: .86rem; line-height: 1.5; overflow-wrap: anywhere; }
 .var-bor details summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--k-marca); }
+
+/* 02/11 · los 6 bombillos (borrador y revisión) */
+.var-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.var-bom { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.var-bom__b {
+  width: 100%; display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 8px 10px; border: 1px solid var(--k-linea); border-radius: var(--k-r-sm, 8px);
+  background: var(--k-papel); color: var(--k-tinta); font: inherit; cursor: pointer;
+}
+.var-bom__b[aria-disabled="true"] { cursor: default; }
+.var-bom__b:focus-visible { outline: 2px solid var(--k-marca); outline-offset: 2px; }
+.var-bom__luz { flex: 0 0 auto; width: 14px; height: 14px; margin-top: 2px; border-radius: 50%; background: var(--k-linea); box-shadow: 0 0 0 3px transparent; transition: background .2s, box-shadow .2s; }
+.var-bom__i--verde .var-bom__luz { background: var(--k-ok); box-shadow: 0 0 0 3px var(--k-ok-fondo); }
+.var-bom__i--rojo .var-bom__luz { background: var(--k-malo); box-shadow: 0 0 0 3px var(--k-malo-fondo); }
+.var-bom__i--amarillo .var-bom__luz { background: #eab308; box-shadow: 0 0 0 3px var(--k-aviso-fondo); }
+.var-bom__i--gris .var-bom__luz { background: var(--k-apagado); opacity: .45; }
+.var-bom__i--info .var-bom__luz { background: var(--k-marca); opacity: .7; }
+.var-bom__i--info .var-bom__b { cursor: default; background: var(--k-fondo); }
+.var-bom__i--sel .var-bom__b { border-color: var(--k-marca); box-shadow: 0 0 0 2px var(--k-marca) inset; }
+.var-bom__tx { display: grid; gap: 2px; min-width: 0; font-size: .86rem; line-height: 1.35; overflow-wrap: anywhere; }
+.var-bom__tx small { color: var(--k-apagado); font-size: .8rem; }
+.var-bom__i--gris .var-bom__tx { color: var(--k-apagado); }
+mark.var-hit { background: var(--k-ok-fondo); color: inherit; border-bottom: 2px solid var(--k-ok); border-radius: 2px; padding: 0 1px; }
+.var-cmp .var-bom { margin-bottom: 10px; }
+
+/* 02/11 · resumen en Tomar decisión */
+.var-res { padding: 10px 12px; border: 1px solid var(--k-linea); border-radius: var(--k-r-md, 12px); background: var(--k-fondo); }
+.var-res__t { margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .82rem; font-weight: 800; }
+.var-res__t small { font-weight: 600; color: var(--k-apagado); }
+.var-res__l { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.var-res__i { display: grid; grid-template-columns: 26px auto 1fr; align-items: center; gap: 8px; font-size: .8rem; }
+.var-res__i b { text-align: center; }
+.var-res__i--malo .var-res__nota { color: var(--k-malo); font-weight: 700; }
+.var-res__luces { display: inline-flex; gap: 3px; }
+.var-res__luz { width: 10px; height: 10px; border-radius: 50%; background: var(--k-linea); }
+.var-res__luz--verde { background: var(--k-ok); }
+.var-res__luz--rojo { background: var(--k-malo); }
+.var-res__luz--amarillo { background: #eab308; }
+.var-res__luz--gris { background: var(--k-apagado); opacity: .4; }
+.var-res__nota { min-width: 0; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .var-bom__luz { transition: none; } }
