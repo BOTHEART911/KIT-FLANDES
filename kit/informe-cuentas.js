@@ -480,7 +480,7 @@
          rojo    = obligación que pide un producto (elaborar, presentar, informe, acta…) sin soporte ni dónde
                    verificarlo, o el texto dice que adjunta algo que no está cargado. */
     var NO_ADJ = /\bno\s+(requiere|requirio|necesita|genera|genero|aplica|lleva)\s+(de\s+)?(un\s+|una\s+|ningun\s+|ninguna\s+)?(adjunto|anexo|soporte|evidencia|archivo|documento)s?\b|\bsin\s+(adjunto|anexo|soporte)s?\s+(por|porque|ya)\b|\b(adjunto|anexo|soporte|evidencia)s?\s*:?\s*no\s+aplica\b/;
-    var DONDE = /\b(carpeta\s+(fisica|digital|compartida|de\s+\w+|n|no|numero)|archivo\s+(fisico|de\s+gestion|central|digital)|expediente\s+(n|no|numero|fisico|\d)|reposa|se\s+encuentra(n)?\s+(en|disponible)|se\s+puede(n)?\s+(revisar|consultar|verificar|ver)|puede(n)?\s+ser\s+(consultad|verificad|revisad)|disponible(s)?\s+(en|para)|(consultar|verificar|revisar)\s+en|secop|https?:\/\/|www\.|correo\s+(electronico\s+)?(enviado|remitido|del|de\s+la|institucional)|radicad[oa]s?\s+(con|bajo|en|n|no)|oficio\s+(n|no|numero)|folios?\s+\d|libro\s+(de|radicador)|(en|del)\s+(el\s+)?drive\s+(de\s+la|del|institucional|compartido))/;
+    var DONDE = /\b((se\s+encuentra(n)?\s+)?soportad[oa]s?\s+en|consignad[oa]s?\s+en|registrad[oa]s?\s+en\s+(la|el)\s+(bitacora|plataforma|sistema|libro|aplicativo)|bitacora\s+(denominada|de|del)|carpeta\s+(fisica|digital|compartida|de\s+\w+|n|no|numero)|archivo\s+(fisico|de\s+gestion|central|digital)|expediente\s+(n|no|numero|fisico|\d)|reposa|se\s+encuentra(n)?\s+(en|disponible)|se\s+puede(n)?\s+(revisar|consultar|verificar|ver)|puede(n)?\s+ser\s+(consultad|verificad|revisad)|disponible(s)?\s+(en|para)|(consultar|verificar|revisar)\s+en|secop|https?:\/\/|www\.|correo\s+(electronico\s+)?(enviado|remitido|del|de\s+la|institucional)|radicad[oa]s?\s+(con|bajo|en|n|no)|oficio\s+(n|no|numero)|folios?\s+\d|libro\s+(de|radicador)|(en|del)\s+(el\s+)?drive\s+(de\s+la|del|institucional|compartido))/;
     var DICE_ADJ = /\b(se\s+adjunta|adjunto\s+(el|la|los|las)|se\s+anexa|anexo\s+(el|la|los|las)|ver\s+anexo|en\s+el\s+anexo)\b/;
     var OBL_PRODUCTO = /(elaborar|presentar|entregar|proyectar|rendir|publicar|disenar|consolidar|actualizar|cargar|radicar|levantar|documentar|sistematizar|digitalizar|redactar|construir|formular|producir|generar|informe|documento|acta|base de datos|registro|reporte|matriz|estudio|plan |concepto|respuesta|piezas|contenido)/;
     function bSoporte(texto, obl, soporte) {
@@ -488,7 +488,7 @@
       if (soporte > 0) return { e: 'verde', d: 'La obligación tiene ' + soporte + (soporte === 1 ? ' soporte cargado.' : ' soportes cargados.'), como: 'cargado' };
       if ((m = NO_ADJ.exec(t))) return { e: 'verde', d: 'Indicaste que no requiere adjunto. Tu supervisor puede pedirte el soporte si lo necesita.', r: [[m.index, m.index + m[0].length]], como: 'noRequiere' };
       if ((m = DONDE.exec(t))) {
-        var fin = texto.slice(m.index).search(/[.;\n]/), hasta = m.index + (fin < 0 ? texto.length - m.index : fin);
+        var fin = texto.slice(m.index).search(/\.(\s|$)|[;\n]/), hasta = m.index + (fin < 0 ? texto.length - m.index : fin);
         if (hasta - m.index > 90) hasta = m.index + 90;
         return { e: 'amarillo', d: 'Dices dónde se puede verificar: «' + texto.slice(m.index, hasta).trim() + '». Para el verde: sube el soporte o, si esta obligación no lo requiere, escribe «no requiere adjunto».', r: [[m.index, hasta]], como: 'donde' };
       }
