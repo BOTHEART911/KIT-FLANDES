@@ -55,6 +55,8 @@
     { re: /deport|recreac|torneo|actividad fisica|escuela de formacion|entrenamiento|juegos/, ent: ['listados de asistencia', 'registro fotográfico'], cu: 'participantes', qu: '[grupo o comunidad]' },
     { re: /capacit|taller|socializ|charla|jornada|sensibiliz|formacion/, ent: ['listado de asistencia', 'acta de la jornada'], cu: 'asistentes', qu: '[comunidad o dependencia]' },
     { re: /visita|inspecc|recorrido|verificac/, ent: ['acta de visita', 'registro fotográfico'], cu: 'visitas', qu: '[predio, sector o comunidad]' },
+    /* 03/11 · software y sistemas: antes caía en «atención» por la palabra «usuarios» */
+    { re: /aplicacion|software|plataforma|sistema de informacion|desarrollo web|pagina web|chat ?bot|soporte tecnico|incidencia|codigo fuente|servidor/, ent: ['reporte de incidencias resueltas', 'versión publicada'], cu: 'incidencias o ajustes', qu: '[dependencia o usuarios]' },
     { re: /peticion|pqr|oficio|respuesta|correspondencia|radic|tutela/, ent: ['oficios radicados', 'respuestas enviadas'], cu: 'oficios o respuestas', qu: '[dependencia o peticionario]' },
     { re: /publicac|redes sociales|prensa|comunicac|pieza|video|difusion|contenido/, ent: ['piezas publicadas', 'enlaces de las publicaciones'], cu: 'publicaciones', qu: '[dependencia o público]' },
     { re: /atenc|usuario|ventanilla|orientac|asesor/, ent: ['registro de atenciones', 'planilla de usuarios atendidos'], cu: 'personas atendidas', qu: '[usuarios o dependencia]' },

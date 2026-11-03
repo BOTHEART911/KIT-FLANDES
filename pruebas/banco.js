@@ -145,6 +145,21 @@ ${js}
       cierto(g.indexOf('[número] de [fecha]') < 0 && /el \[fecha\]/.test(g), 'la fecha inventada debía quedar como [fecha]: ' + g);
       cierto(!/\s\./.test(g) && g.indexOf('40') < 0, 'espacio antes del punto o cifra inventada: ' + g);
     });
+    await prueba('03/11 · «contó con 835 espectadores» es para quién; «con 6 acciones» y «con 0 caídas» no', async () => {
+      const r = await page.evaluate(() => [
+        'La publicación de la feria contó con 835 espectadores el 12 de octubre.',
+        'Se cerró el periodo con 6 acciones preventivas el 12 de octubre.',
+        'La plataforma operó con 0 caídas del servicio el 12 de octubre.'
+      ].map(t => MED(t).b[2].e));
+      igual(r, ['verde', 'rojo', 'rojo']);
+    });
+    await prueba('03/11 · obligación de software: pistas de incidencias, no de personas atendidas', async () => {
+      const r = await page.evaluate(() => {
+        const t = 'Se brindó soporte y actualización a las aplicaciones en línea de la Secretaría de Hacienda, corrigiendo errores reportados por los usuarios.';
+        return KIT.piezas.teayudo._tema('Llevar a cabo la creación, soporte y actualización de aplicaciones en línea', t);
+      });
+      igual(r.cu, 'incidencias o ajustes');
+    });
     await prueba('03/11 · Gemini se precalienta UNA vez, al aparecer el botón, y el tope es de 15 s', async () => {
       const r = await page.evaluate(() => {
         let n = 0;
