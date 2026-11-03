@@ -1,0 +1,23 @@
+/* KIT-FLANDES · EVIDENCIAS REPETIDAS (02/11/2026) — revisión de Supervisión y Contratación */
+.rv-evi__f--rep { outline: 3px solid var(--k-malo); outline-offset: 1px; }
+.rv-evi__rep {
+  position: absolute; left: 4px; right: 4px; top: 4px; padding: 2px 6px; border-radius: var(--k-r-pill);
+  background: var(--k-malo); color: #fff; font: 700 .68rem/1.25 var(--k-fuente); font-style: normal; text-align: center;
+}
+.rv-arch__b--rep { border-color: var(--k-malo) !important; box-shadow: 0 0 0 2px var(--k-malo-fondo); }
+.rv-arch__b--rep small { color: var(--k-malo); font-weight: 700; }
+.rv-rep-notas { display: grid; gap: 6px; margin-top: 8px; }
+.rv-rep { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: var(--k-r-md); font-size: .86rem; line-height: 1.35; }
+.rv-rep svg { flex: 0 0 auto; margin-top: 2px; }
+.rv-rep--malo { background: var(--k-malo-fondo); color: var(--k-malo); font-weight: 600; }
+.rv-rep--info { background: var(--k-fondo); color: var(--k-apagado); border: 1px dashed var(--k-linea); }
+.rv-ant { margin-top: 10px; }
+.rv-ant__zona { margin-top: 10px; display: grid; gap: 12px; }
+.rv-ant__c { padding: 10px; border: 1px solid var(--k-linea); border-radius: var(--k-r-md); background: var(--k-papel); }
+.rv-ant__t { margin: 0 0 8px; font: 700 .82rem/1.2 var(--k-fuente); color: var(--k-apagado); text-transform: uppercase; letter-spacing: .04em; }
+.rv-ant__c .rv-arch__lista { margin-top: 8px; }
+/* muy parecida (ámbar): lo decide quien revisa, mirándolas lado a lado */
+.rv-evi__f--par { outline: 3px solid var(--k-aviso); outline-offset: 1px; }
+.rv-evi__rep--par { background: var(--k-aviso); color: #1c1300; }
+.rv-rep--par { background: var(--k-aviso-fondo); color: var(--k-tinta); font-weight: 600; }
+.rv-rep--par svg { color: var(--k-aviso); }

@@ -171,9 +171,11 @@
     R.b.forEach(function (b) {
       var titulo = modo === 'revisor' ? tecnico(R, b) : PREG[b.k];
       var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
-      var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + '"><button type="button" class="var-bom__b"' + (b.r.length ? '' : ' aria-disabled="true"') + '>' +
+      /* 02/11 · el soporte dice si una evidencia es igual a la de una cuenta anterior (huellas) */
+      var rep = b.k === 5 && R.notaSoporte ? '<small class="var-bom__rep">' + K.esc(R.notaSoporte) + '</small>' : '';
+      var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + (rep ? ' var-bom__i--conrep' : '') + '"><button type="button" class="var-bom__b"' + (b.r.length ? '' : ' aria-disabled="true"') + '>' +
         '<span class="var-bom__luz" aria-hidden="true"></span>' +
-        '<span class="var-bom__tx"><b>' + K.esc(titulo) + '</b>' + (det ? '<small>' + K.esc(det) + '</small>' : '') + '</span>' +
+        '<span class="var-bom__tx"><b>' + K.esc(titulo) + '</b>' + (det ? '<small>' + K.esc(det) + '</small>' : '') + rep + '</span>' +
         '<span class="var-sr">' + (b.e === 'verde' ? 'cumple' : b.e === 'rojo' ? 'falta' : b.e === 'amarillo' ? 'revisar' : 'no aplica') + '</span></button></li>');
       li.querySelector('button').addEventListener('click', function () {
         if (!b.r.length) return;

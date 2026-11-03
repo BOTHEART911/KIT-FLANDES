@@ -75,3 +75,6 @@ mark.var-hit { background: var(--k-ok-fondo); color: inherit; border-bottom: 2px
 .var-res__luz--gris { background: var(--k-apagado); opacity: .4; }
 .var-res__nota { min-width: 0; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .var-bom__luz { transition: none; } }
+
+/* 02/11 · evidencia repetida mencionada en el bombillo de soporte */
+.var-bom__tx small.var-bom__rep { display: block; margin-top: 2px; color: var(--k-malo); font-weight: 700; }

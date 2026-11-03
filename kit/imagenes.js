@@ -26,6 +26,7 @@
      KIT.piezas.imagenes.preparar(archivo).then(function (r) {
        r.dataUrl   // 'data:image/jpeg;base64,...' listo para el CORE
        r.ancho, r.alto, r.pesoKB, r.origen
+       r.huella    // 02/11 · {h64, h256} si está kit/huella.js
      });
 
      KIT.piezas.imagenes.collage([a, b, c]).then(...)   // una sola imagen
@@ -156,8 +157,11 @@
       if (mapa.close) try { mapa.close(); } catch (e) {}
 
       var r = aJpeg(l.c);
+      /* 02/11 · la huella visual (kit/huella.js): para avisar si ya se usó en otra cuenta */
+      var hu = null;
+      try { if (K.piezas.huella) hu = K.piezas.huella.deFuente(l.c); } catch (eH) { hu = null; }
       return {
-        dataUrl: r.dataUrl, ancho: d.w, alto: d.h,
+        dataUrl: r.dataUrl, ancho: d.w, alto: d.h, huella: hu,
         pesoKB: r.pesoKB, calidad: r.calidad,
         origen: { ancho: m.w, alto: m.h, pesoKB: Math.round((archivo.size || 0) / 1024) }
       };
