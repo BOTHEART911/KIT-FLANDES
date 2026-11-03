@@ -21,3 +21,8 @@ mark.ta-hueco { background: var(--k-malo-fondo); color: var(--k-malo); font-weig
 @media (prefers-reduced-motion: reduce) { .ta__punto { animation: none; } }
 .ta__btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .ta__btns .kit-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* 02/11 · «Te ayudo» en la revisión */
+.rv-bom__ta { margin-top: 6px; }
+.rv-bom__ta summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; font-weight: 700; color: var(--k-marca); }
+.rv-bom__ta .ta__pistas { margin-top: 8px; }
