@@ -140,6 +140,8 @@
   /** La frase técnica de cada bombillo para Supervisión y Contratación. */
   function tecnico(R, b) {
     var x = b.x ? ': «' + b.x + '»' : '';
+    /* 02/11 · «Te ayudo»: un dato que el contratista dejó sin llenar */
+    if (b.corchete) return 'Dejó sin llenar ' + b.corchete.map(function (z) { return '«[' + z + ']»'; }).join(', ');
     switch (b.k) {
       case 0:
         if (b.e === 'gris') return 'Sin cuenta anterior para comparar';
@@ -170,7 +172,7 @@
     var ul = K.nodo('<ul class="var-bom" role="list"></ul>');
     R.b.forEach(function (b) {
       var titulo = modo === 'revisor' ? tecnico(R, b) : PREG[b.k];
-      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
+      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !b.corchete && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
       /* 02/11 · el soporte dice si una evidencia es igual a la de una cuenta anterior (huellas) */
       var rep = b.k === 5 && R.notaSoporte ? '<small class="var-bom__rep">' + K.esc(R.notaSoporte) + '</small>' : '';
       var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + (rep ? ' var-bom__i--conrep' : '') + '"><button type="button" class="var-bom__b"' + (b.r.length ? '' : ' aria-disabled="true"') + '>' +
@@ -217,6 +219,7 @@
   function consejo(R) {
     if (R.estado === 'general' || R.estado === 'noreq') return '';
     if (R.estado === 'vacia') return 'Escribe la actividad de este periodo para medirla.';
+    if (R.corchetes && R.corchetes.length) return 'Llena lo que está entre [corchetes] con tus datos reales: mientras siga así, ese bombillo queda en rojo.';
     var faltan = R.b.filter(function (b) { return b.k >= 1 && b.k <= 4 && b.e === 'rojo'; }).map(function (b) { return ['', 'cuántos', 'para quién', 'qué resultado', 'cuándo'][b.k]; });
     if (R.estado === 'repetida') return R.b[0].d + ' Cambiar palabras no basta: cuenta qué hiciste distinto en este periodo' + (faltan.length ? ', y di ' + faltan.join(', ') + '.' : '.');
     if (faltan.length) return (R.pct === null ? '' : 'Cambiaste la forma de escribir. ') + 'Ahora enriquécela: di ' + faltan.join(', ') + '.';

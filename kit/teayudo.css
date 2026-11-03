@@ -1,0 +1,23 @@
+/* KIT-FLANDES · PIEZA 36 · «TE AYUDO A REDACTAR» (02/11/2026) */
+.ta { display: grid; gap: 8px; }
+.ta__btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border-color: var(--k-marca); color: var(--k-marca); font-weight: 700; }
+.ta__btn[aria-expanded="true"] { background: var(--k-marca); color: var(--k-papel, #fff); }
+.ta__panel { display: grid; gap: 10px; padding: 12px; border-radius: var(--k-r-md, 12px); border: 1px solid var(--k-marca); background: var(--k-papel); animation: ta-entra .18s ease-out; }
+@keyframes ta-entra { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ta__panel { animation: none; } }
+.ta__t { margin: 0; display: flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--k-tinta); }
+.ta__pistas { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ta__p { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; line-height: 1.45; }
+.ta__p small { display: block; margin-top: 2px; color: var(--k-apagado); font-size: .8rem; }
+.ta__luz { flex: 0 0 auto; width: 10px; height: 10px; margin-top: .4em; border-radius: 50%; background: var(--k-malo); box-shadow: 0 0 0 3px var(--k-malo-fondo); }
+.ta__p--amarillo .ta__luz { background: #f08c00; box-shadow: 0 0 0 3px rgba(240, 140, 0, .18); }
+.ta__prop { display: grid; gap: 8px; }
+.ta__texto { padding: 10px; border-radius: var(--k-r-sm, 8px); background: var(--k-fondo); border: 1px dashed var(--k-marca); font-size: .9rem; line-height: 1.55; overflow-wrap: anywhere; }
+mark.ta-hueco { background: var(--k-malo-fondo); color: var(--k-malo); font-weight: 700; border-radius: 3px; padding: 0 2px; }
+.ta__nota { margin: 0; font-size: .82rem; color: var(--k-apagado); }
+.ta__cargando { margin: 0; display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--k-apagado); }
+.ta__punto { width: 10px; height: 10px; border-radius: 50%; background: var(--k-marca); animation: ta-late 1s ease-in-out infinite; }
+@keyframes ta-late { 0%, 100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ta__punto { animation: none; } }
+.ta__btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.ta__btns .kit-btn { display: inline-flex; align-items: center; gap: 6px; }

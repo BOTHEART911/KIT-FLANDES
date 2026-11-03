@@ -230,6 +230,7 @@
     var NUMW = 'un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veinti[a-z]+|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|mil';
     var RNUM = new RegExp('^(' + NUMW + ')$'), RNUMF = new RegExp('^(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veinti[a-z]+|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|mil)$');
     var RMES = new RegExp('^(' + MESES + ')$');
+    var MES_ABR = { ene: 'enero', feb: 'febrero', mar: 'marzo', abr: 'abril', may: 'mayo', jun: 'junio', jul: 'julio', ago: 'agosto', sep: 'septiembre', sept: 'septiembre', set: 'septiembre', oct: 'octubre', nov: 'noviembre', dic: 'diciembre' };
     var FUN = {};
     ('a al ante bajo con contra de del desde durante en entre hacia hasta mediante para por segun sin sobre tras y e o u ni que como cuando donde cual cuales quien el la los las lo un una unos unas este esta estos estas ese esa esos esas su sus se le les me mi mis nos no si ya mas muy tambien asi cada todo toda todos todas dicha dicho dichas dichos misma mismo mismas mismos otro otra otros otras es son fue fueron ha han he hay ser sido esta estan etc').split(' ').forEach(function (w) { FUN[w] = 1; });
     /* términos de gestión y entidades: nunca cuentan como repetidos */
@@ -255,6 +256,11 @@
     function clasificar(k, nContrato) {
       var i, a;
       var nC = String(nContrato || '').replace(/\D/g, '').replace(/^0+/, '');
+      /* 02/11 · «28 sep», «19 de oct.»: el mes abreviado cuenta como mes cuando lleva el día delante */
+      for (i = 1; i < k.length; i++) {
+        var ab = MES_ABR[k[i].w];
+        if (ab && (/^\d{1,2}$/.test(k[i - 1].o) || (k[i - 1].w === 'de' && k[i - 2] && /^\d{1,2}$/.test(k[i - 2].o)))) k[i].w = ab;
+      }
       for (i = 0; i < k.length; i++) {
         a = k[i]; a.tipo = '';
         if (a.cod) { a.tipo = 'codigo'; continue; }
@@ -410,6 +416,8 @@
         if (a.w === 'al' && k[i + 1] && /^(interior|dia|corte|cierre|respecto)$/.test(k[i + 1].w)) continue;
         var j = i + 1;
         while (j < k.length && palabra(k[j]) && /^(el|la|los|las|un|una|unos|unas|sus|su|del|de|a|al|dicha|dicho|esta|este|estas|estos|todo|toda|todos|todas|cada|diferentes|distintas|distintos|varias|varios)$/.test(k[j].w)) j++;
+        /* 02/11 · «con 32 estudiantes», «a 15 familias»: la cifra entre la preposición y el grupo */
+        if (k[j] && k[j].tipo === 'cifra' && k[j + 1] && palabra(k[j + 1]) && esGente(k[j + 1].w)) j++;
         var b = k[j];
         if (!b || !palabra(b)) continue;
         if (esGente(b.w) || (/^[A-ZÁÉÍÓÚÑ]/.test(b.o) && b.w.length > 2 && !FUN[b.w] && !RMES.test(b.w) && !RNUM.test(b.w) && !SISTEMA.test(b.w) && !esGest(b.w) || /^[A-ZÁÉÍÓÚÑ]/.test(b.o) && esGente(b.w))) return { i: k[ini].i, f: hastaFin(k, j) };
@@ -450,7 +458,7 @@
       for (var i = 0; i < k.length; i++) {
         var a = k[i];
         if (a.tipo === 'mes') {
-          if (!hall || hall.debil) hall = { i: k[i - 2] && k[i - 1] && k[i - 1].w === 'de' && /^\d/.test(k[i - 2].o) ? k[i - 2].i : a.i, f: a.f };
+          if (!hall || hall.debil) hall = { i: k[i - 2] && k[i - 1] && k[i - 1].w === 'de' && /^\d/.test(k[i - 2].o) ? k[i - 2].i : (k[i - 1] && /^\d{1,2}$/.test(k[i - 1].o) ? k[i - 1].i : a.i), f: a.f };
           var d = k[i - 2] && k[i - 1] && k[i - 1].w === 'de' && /^\d{1,2}$/.test(k[i - 2].o) ? +k[i - 2].o : (k[i - 1] && /^\d{1,2}$/.test(k[i - 1].o) ? +k[i - 1].o : null);
           var y = null;
           if (k[i + 1] && /^(de|del)$/.test(k[i + 1].w) && k[i + 2] && /^(19|20)\d\d$/.test(k[i + 2].o)) y = +k[i + 2].o;
@@ -504,11 +512,26 @@
      * -> {estado, pct, con, plantillas, orden, ident, b:[6 bombillos], cifraIgual:[], rep:[[i,f]]}
      * bombillo: {k, e:'verde'|'rojo'|'gris'|'amarillo', d (qué detectó), r:[[i,f]]}
      */
+    /** A qué bombillo pertenece un [dato por llenar]. */
+    function kDeCorchete(x) {
+      var w = st(x).toLowerCase();
+      if (/numero|cantidad|cuant|total|cifra|n°/.test(w)) return 1;
+      if (/fecha|dia|semana|mes\b|cuando|hora|periodo/.test(w)) return 4;
+      if (/adjunt|anex/.test(w)) return 5;
+      if (/listado|registro|acta|informe|entregable|soporte|evidencia|document|fotograf|planilla|oficio|resultado|producto|base de datos|pieza|enlace/.test(w)) return 3;
+      if (/instituc|dependencia|secretar|comunidad|quien|beneficiari|poblacion|entidad|colegio|escuela|nombre|participant|destinatar|grupo|estudiante|vereda|barrio|sector|usuario|lugar/.test(w)) return 2;
+      return 3;
+    }
+
     function analizar(texto, P, ctx) {
       ctx = ctx || {};
-      var t = String(texto || '').trim();
-      var R = { pct: null, con: null, plantillas: 0, frases: 0, orden: false, ident: false, rep: [], cifraIgual: [], b: [] };
-      var vacio = !t || t === '-' || t.length < 3, noreq = !vacio && NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length;
+      var t0 = String(texto || '').trim();
+      /* 02/11 · «Te ayudo»: lo que está entre [corchetes] es un dato que el contratista aún debe llenar.
+         Se mide en blanco (no enciende nada) y deja en rojo el bombillo al que pertenece. */
+      var CORCH = [];
+      var t = t0.replace(/\[[^\[\]\n]{1,80}\]/g, function (m0, i0) { CORCH.push({ i: i0, f: i0 + m0.length, x: m0.slice(1, -1).trim() }); return new Array(m0.length + 1).join(' '); });
+      var R = { pct: null, con: null, plantillas: 0, frases: 0, orden: false, ident: false, rep: [], cifraIgual: [], b: [], corchetes: CORCH };
+      var vacio = !t.trim() || t === '-' || t.length < 3, noreq = !vacio && NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length;
       if (ctx.general || noreq) {
         R.estado = ctx.general ? 'general' : 'noreq';
         for (var g = 0; g < 6; g++) R.b.push({ k: g, e: 'gris', d: ctx.general ? 'Obligación general: no se mide.' : 'Actividad no requerida en el periodo.', r: [] });
@@ -572,35 +595,43 @@
       R.estado = repetida ? 'repetida' : 'nueva';
       R.b.push({ k: 0, e: !hay ? 'gris' : (repetida ? 'rojo' : 'verde'), d: !hay ? 'Primera cuenta: no hay con qué comparar.' : motivo, r: repetida ? (R.plantillas && R.pct < U_EST && !R.ident ? R.plR : R.rep) : [] });
       /* 2 · ¿cuántos? */
-      R.b.push(C.length ? { k: 1, e: 'verde', d: 'Cifra con su qué: «' + t.slice(C[0].i, C[0].f) + '»' + (C.length > 1 ? ' y ' + (C.length - 1) + ' más.' : '.'), r: C.map(function (c) { return [c.i, c.f]; }) }
+      R.b.push(C.length ? { k: 1, e: 'verde', d: 'Cifra con su qué: «' + t0.slice(C[0].i, C[0].f) + '»' + (C.length > 1 ? ' y ' + (C.length - 1) + ' más.' : '.'), r: C.map(function (c) { return [c.i, c.f]; }) }
                          : { k: 1, e: 'rojo', d: 'No hay una cifra acompañada de lo que se contó (visitas, documentos, atenciones…).', r: [] });
       /* misma cifra que la cuenta anterior: aviso informativo */
       var ult = P.previos[P.previos.length - 1];
-      if (ult) C.forEach(function (c) { ult.cifras.forEach(function (o) { if (o.n === c.n && o.que === c.que) R.cifraIgual.push({ i: c.i, f: c.f, texto: t.slice(c.i, c.f), cuenta: ult.informe }); }); });
+      if (ult) C.forEach(function (c) { ult.cifras.forEach(function (o) { if (o.n === c.n && o.que === c.que) R.cifraIgual.push({ i: c.i, f: c.f, texto: t0.slice(c.i, c.f), cuenta: ult.informe }); }); });
       /* 3 · ¿para quién o con quién? */
       var q = bQuien(t, k);
-      R.b.push(q ? { k: 2, e: 'verde', d: 'Destinatario o participante: «' + t.slice(q.i, q.f) + '».', r: [[q.i, q.f]] } : { k: 2, e: 'rojo', d: 'No dice para quién o con quién (dependencia, comunidad, entidad…).', r: [] });
+      R.b.push(q ? { k: 2, e: 'verde', d: 'Destinatario o participante: «' + t0.slice(q.i, q.f) + '».', r: [[q.i, q.f]] } : { k: 2, e: 'rojo', d: 'No dice para quién o con quién (dependencia, comunidad, entidad…).', r: [] });
       /* 4 · resultado o entregable */
       var rs = bResultado(k);
-      R.b.push(rs ? { k: 3, e: 'verde', d: (rs.que === 'verbo' ? 'Resultado: «' : 'Entregable: «') + t.slice(rs.i, rs.f) + '».', r: [[rs.i, rs.f]] } : { k: 3, e: 'rojo', d: 'No dice qué quedó como resultado o entregable.', r: [] });
+      R.b.push(rs ? { k: 3, e: 'verde', d: (rs.que === 'verbo' ? 'Resultado: «' : 'Entregable: «') + t0.slice(rs.i, rs.f) + '».', r: [[rs.i, rs.f]] } : { k: 3, e: 'rojo', d: 'No dice qué quedó como resultado o entregable.', r: [] });
       /* 5 · cuándo (sin periodo todavía: no se juzga si cae dentro; se dice cuándo se sabrá) */
       var cu = bCuando(k, ctx.desde, ctx.hasta);
       var sinPer = !(ctx.desde && ctx.hasta);
       R.b.push(!cu ? { k: 4, e: 'rojo', d: 'No ubica la actividad en el tiempo (fechas, semanas, días).', r: [] }
-        : cu.fuera.length ? { k: 4, e: 'amarillo', d: 'La fecha «' + t.slice(cu.fuera[0].i, cu.fuera[0].f) + '» cae fuera del periodo de la cuenta.', r: cu.fuera.map(function (z) { return [z.i, z.f]; }) }
-        : { k: 4, e: 'verde', d: 'Ubicada en el tiempo: «' + t.slice(cu.i, cu.f) + '».' + (sinPer && ctx.avisarPeriodo ? ' Si cae dentro del periodo se determinará cuando ingreses el periodo a relacionar.' : ''), r: [[cu.i, cu.f]] });
+        : cu.fuera.length ? { k: 4, e: 'amarillo', d: 'La fecha «' + t0.slice(cu.fuera[0].i, cu.fuera[0].f) + '» cae fuera del periodo de la cuenta.', r: cu.fuera.map(function (z) { return [z.i, z.f]; }) }
+        : { k: 4, e: 'verde', d: 'Ubicada en el tiempo: «' + t0.slice(cu.i, cu.f) + '».' + (sinPer && ctx.avisarPeriodo ? ' Si cae dentro del periodo se determinará cuando ingreses el periodo a relacionar.' : ''), r: [[cu.i, cu.f]] });
       /* 6 · soporte: lo cargado manda; si no hay, se mira si dice DÓNDE verificarlo o que NO requiere adjunto,
          y si la obligación, por su redacción, pide un producto (informe, acta, base de datos…) */
       var so = bSoporte(t, P.obl, ctx.soporte);
       R.b.push({ k: 5, e: so.e, d: so.d, r: so.r || [], como: so.como });
       /* el fragmento que detectó cada bombillo (para el lenguaje del revisor) y por qué se marcó repetida */
-      R.b.forEach(function (b) { if (b.k > 0 && b.r.length) b.x = t.slice(b.r[0][0], b.r[0][1]); });
+      R.b.forEach(function (b) { if (b.k > 0 && b.r.length) b.x = t0.slice(b.r[0][0], b.r[0][1]); });
       R.b[5].n = ctx.soporte || 0;
+      CORCH.forEach(function (c) {
+        var b = R.b[kDeCorchete(c.x)];
+        if (!b || b.e === 'gris') return;
+        if (!b.corchete) { b.corchete = []; b.r = []; }
+        b.corchete.push(c.x); b.r.push([c.i, c.f]);
+        b.e = 'rojo'; b.x = t0.slice(c.i, c.f);
+        b.d = 'Llena lo que está entre corchetes: ' + b.corchete.map(function (x) { return '«[' + x + ']»'; }).join(', ') + '.';
+      });
       R.tipo = !repetida ? '' : R.ident ? 'identica' : R.pct >= U_EST ? 'estructura' : (R.plantillas && R.plantillas >= Math.max(1, Math.ceil(R.frases / 2))) ? 'plantilla' : 'orden';
       return R;
     }
 
-    return { st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, U: { N: N, MIN_ESQ: MIN_ESQ, U_EST: U_EST, MIN_FRASE: MIN_FRASE } };
+    return { st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete, U: { N: N, MIN_ESQ: MIN_ESQ, U_EST: U_EST, MIN_FRASE: MIN_FRASE } };
 
   }());
 

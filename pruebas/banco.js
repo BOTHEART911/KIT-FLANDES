@@ -79,6 +79,100 @@ ${js}
 (async () => {
   const browser = await chromium.launch();
 
+  /* ═══════════ 02/11 · TE AYUDO A REDACTAR ═══════════ */
+  grupo('teayudo');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'informe-cuentas', 'variacion', 'teayudo'],
+      '<textarea id="ta-a"></textarea><div id="ta-c"></div>');
+    await page.evaluate(() => {
+      window.OBL = 'Apoyar la realización de actividades deportivas y recreativas en las instituciones educativas del municipio';
+      window.TXT = 'Apoyé las actividades deportivas en la vereda Kamala los días 28 sep, 5 y 19 oct con los niños.';
+      const I = KIT.piezas.informeCuentas, V = KIT.piezas.variacion;
+      const P = V.preparar(I, OBL, [], '061');
+      window.MED = t => V.medir(I, t, P, { obl: OBL, soporte: 0, nContrato: '061' });
+      window.PEDIDOS = [];
+      KIT.pedir = (a, d) => { PEDIDOS.push([a, d]); return Promise.resolve({ ok: true }); };
+      KIT.token = () => 'T';
+    });
+    await prueba('pistas locales del caso Kamala: falta el entregable, con ejemplos del tema', async () => {
+      const r = await page.evaluate(() => KIT.piezas.teayudo.pistas(MED(TXT), OBL, TXT).map(p => [p.k, p.ej || '']));
+      igual(r.map(x => x[0]), [1, 3, 5]);
+      igual(r[0][1], '[número] estudiantes');
+      igual(r[1][1], '[listados de asistencia o registro fotográfico]');
+    });
+    await prueba('un [corchete] sin llenar deja su bombillo en rojo y el resto se mide igual', async () => {
+      const r = await page.evaluate(() => MED('Apoyé con [número] estudiantes de la vereda Kamala el 28 sep; quedaron los listados de asistencia.').b.map(b => b.e + (b.corchete ? '*' : '')));
+      igual(r[1], 'rojo*');
+      igual(r[3], 'verde');
+    });
+    await prueba('la guarda cambia cifras, fechas y nombres inventados por [huecos] y encierra el entregable', async () => {
+      const g = await page.evaluate(() => KIT.piezas.teayudo._guardar(TXT,
+        'Apoyé las actividades deportivas con 45 estudiantes de la Institución Educativa San José en la vereda Kamala los días 28 de septiembre, 5 y 19 de octubre, y se entregaron los listados de asistencia y el registro fotográfico.', OBL, MED).texto);
+      cierto(g.indexOf('45') < 0 && g.indexOf('San José') < 0, 'quedó un dato inventado: ' + g);
+      cierto(g.indexOf('28 de septiembre') >= 0, 'debía respetar «sep» = septiembre: ' + g);
+      cierto(g.indexOf('[listados de asistencia]') >= 0 && g.indexOf('[registro fotográfico]') >= 0, 'el entregable debía ir entre corchetes: ' + g);
+    });
+    await prueba('panel: pistas al instante, versión de fondo, «Usar esta versión» la pega sin guardar y se mide', async () => {
+      const r = await page.evaluate(async () => {
+        localStorage.clear();
+        const area = document.getElementById('ta-a'); area.value = TXT;
+        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5,
+          mejorar: () => new Promise(ok => setTimeout(() => ok('Apoyé las actividades deportivas en la vereda Kamala los días 28 sep, 5 y 19 oct con los niños; quedaron [listados de asistencia o registro fotográfico].'), 50)) };
+        let pegado = null;
+        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, informe: 7, obligacion: OBL, area, medir: MED, alUsar: t => { pegado = t; area.value = t; } });
+        document.getElementById('ta-c').appendChild(ta.nodo);
+        ta.actualizar(MED(TXT));
+        const visible = !ta.nodo.hidden;
+        const t0 = performance.now();
+        ta.nodo.querySelector('.ta__btn').click();
+        const pistasYa = ta.nodo.querySelectorAll('.ta__p').length, msPistas = performance.now() - t0;
+        await new Promise(ok => setTimeout(ok, 200));
+        const hayProp = !!ta.nodo.querySelector('.ta__texto');
+        [...ta.nodo.querySelectorAll('.ta__btns button')].find(b => /Usar/.test(b.textContent)).click();
+        ta.actualizar(MED(area.value.replace('[listados de asistencia o registro fotográfico]', 'los listados de asistencia')));
+        const cola = JSON.parse(localStorage.getItem('flandes.contratista.teayudo.cola') || '[]').map(e => e.tipo + (e.k !== undefined ? e.k : ''));
+        return { visible, pistasYa, msPistas, hayProp, pegado: !!pegado, cerrado: ta.nodo.querySelector('.ta__panel').hidden, cola };
+      });
+      cierto(r.visible, 'el botón debía verse con un bombillo en rojo');
+      cierto(r.pistasYa >= 1 && r.msPistas < 50, 'las pistas debían salir al instante: ' + r.msPistas + ' ms');
+      cierto(r.hayProp && r.pegado && r.cerrado, 'la versión debía mostrarse y pegarse: ' + JSON.stringify(r));
+      igual(r.cola.slice(0, 3), ['toque', 'propuesta', 'usada']);
+      cierto(r.cola.indexOf('verde3') >= 0, 'debía medir el bombillo que pasó a verde: ' + r.cola);
+    });
+    await prueba('sin Gemini o si falla: quedan las pistas y no se cuelga', async () => {
+      const r = await page.evaluate(async () => {
+        const area = document.getElementById('ta-a'); area.value = TXT;
+        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, mejorar: () => Promise.reject(new Error('X')) };
+        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, obligacion: OBL, area, medir: MED, alUsar: () => {} });
+        document.getElementById('ta-c').appendChild(ta.nodo);
+        ta.actualizar(MED(TXT)); ta.nodo.querySelector('.ta__btn').click();
+        await new Promise(ok => setTimeout(ok, 50));
+        return [ta.nodo.querySelectorAll('.ta__p').length, !!ta.nodo.querySelector('.ta__texto'), /No alcancé/.test(ta.nodo.textContent)];
+      });
+      igual(r, [1 + 0 + (r[0] - 1), false, true]);
+    });
+    await prueba('todo verde: el botón no aparece', async () => {
+      const r = await page.evaluate(() => {
+        const area = document.getElementById('ta-a');
+        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, obligacion: OBL, area, medir: MED, alUsar: () => {} });
+        const R = MED('Apoyé con 32 estudiantes de la Institución Educativa Kamala el 28 sep; quedaron los listados de asistencia. No requiere adjunto.');
+        ta.actualizar(R);
+        return [ta.nodo.hidden, R.b.map(b => b.e).join(',')];
+      });
+      cierto(r[0], 'no debía mostrarse: ' + r[1]);
+    });
+    await prueba('la medición sale en UN viaje de fondo con su rid y se vacía la cola', async () => {
+      const r = await page.evaluate(async () => {
+        PEDIDOS.length = 0;
+        KIT.piezas.teayudo._enviar();
+        await new Promise(ok => setTimeout(ok, 30));
+        return [PEDIDOS.length, PEDIDOS[0] && PEDIDOS[0][0], /^TA/.test(PEDIDOS[0] && PEDIDOS[0][1].rid), localStorage.getItem('flandes.contratista.teayudo.envio')];
+      });
+      igual(r, [1, 'teAyudoRegistrar', true, null]);
+    });
+    await ctx.close();
+  }
+
   /* ═══════════ NÚCLEO ═══════════ */
   grupo('nucleo');
   {
