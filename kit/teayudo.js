@@ -43,7 +43,10 @@
   if (!K) return;
 
   var COLA_K = 'teayudo.cola', ENVIO_K = 'teayudo.envio';
-  var TOPE_MS = 8000;
+  /* 03/11 · medido en vivo: Gemini contesta en 0,7–3,6 s en caliente, pero con picos de 10–16 s
+     (cola del plan gratuito). Las pistas ya están en pantalla, así que esperar más no frena a nadie. */
+  var TOPE_MS = 15000;
+  var CALIENTE = false;   /* el SDK y App Check se piden una vez, cuando aparece el botón */
 
   /* ══════════════ el tema de la obligación (para los ejemplos) ══════════════ */
   function st(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -170,6 +173,8 @@
       });
     });
     t = t.replace(/\[(número|fecha|nombre)\](\s*\[\1\])+/g, '[$1]');
+    /* 03/11 · «el [número] de [fecha]» (día y mes inventados) es UNA fecha; y sin espacio antes del punto */
+    t = t.replace(/\[número\]\s+de\s+\[fecha\]/g, '[fecha]').replace(/\s+([.,;:])/g, '$1');
     /* lo que la versión enciende y él no escribió: entre corchetes, para que lo confirme */
     var R0 = medir(orig), envueltos = 0;
     for (var vuelta = 0; vuelta < 6; vuelta++) {
@@ -344,6 +349,8 @@
       });
       var mostrar = hayRojo(R);
       nodo.hidden = !mostrar;
+      /* 03/11 · el primer toque esperaba ~4 s el token de App Check: se pide al aparecer el botón */
+      if (mostrar && !CALIENTE && ayudaIA(R) && K.piezas.gemini && K.piezas.gemini.precalentar) { CALIENTE = true; K.piezas.gemini.precalentar(); }
       if (!mostrar && !panel.hidden) cerrar();
       else if (!panel.hidden && !propuesta) {
         /* las pistas siguen al texto mientras escribe */

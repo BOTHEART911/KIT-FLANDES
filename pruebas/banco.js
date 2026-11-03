@@ -139,6 +139,26 @@ ${js}
       igual(r.cola.slice(0, 3), ['toque', 'propuesta', 'usada']);
       cierto(r.cola.indexOf('verde3') >= 0, 'debía medir el bombillo que pasó a verde: ' + r.cola);
     });
+    await prueba('03/11 · la guarda junta «el [número] de [fecha]» en una fecha y quita el espacio antes del punto', async () => {
+      const g = await page.evaluate(() => KIT.piezas.teayudo._guardar('Atendí usuarios en la ventanilla de impuestos.',
+        'Atendí a 40 personas en la ventanilla de impuestos el 3 de noviembre, y quedó el registro de atenciones .', 'Apoyar la atención al ciudadano', MED).texto);
+      cierto(g.indexOf('[número] de [fecha]') < 0 && /el \[fecha\]/.test(g), 'la fecha inventada debía quedar como [fecha]: ' + g);
+      cierto(!/\s\./.test(g) && g.indexOf('40') < 0, 'espacio antes del punto o cifra inventada: ' + g);
+    });
+    await prueba('03/11 · Gemini se precalienta UNA vez, al aparecer el botón, y el tope es de 15 s', async () => {
+      const r = await page.evaluate(() => {
+        let n = 0;
+        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, precalentar: () => { n++; return Promise.resolve(true); }, mejorar: () => new Promise(() => {}) };
+        const area = document.getElementById('ta-a'); area.value = TXT;
+        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, obligacion: OBL, area, medir: MED, alUsar: () => {} });
+        ta.actualizar(MED(TXT)); ta.actualizar(MED(TXT + ' ')); 
+        const ta2 = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 5, obligacion: OBL, area, medir: MED, alUsar: () => {} });
+        ta2.actualizar(MED(TXT));
+        return n;
+      });
+      cierto(r <= 1, 'precalentó ' + r + ' veces');
+      cierto(/TOPE_MS = 15000/.test(require('fs').readFileSync(require('path').join(RAIZ, 'kit', 'teayudo.js'), 'utf8')), 'el tope debía ser 15000');
+    });
     await prueba('sin Gemini o si falla: quedan las pistas y no se cuelga', async () => {
       const r = await page.evaluate(async () => {
         const area = document.getElementById('ta-a'); area.value = TXT;
