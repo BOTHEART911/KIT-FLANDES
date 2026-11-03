@@ -122,6 +122,18 @@
     });
     return f;
   }
+  /** 03/11 · versión mejorada sin IA: su texto tal cual + una frase con [corchete] por cada bombillo en rojo. */
+  function versionLocal(R, obl, texto) {
+    var T = tema(obl, texto), t = String(texto || '').trim().replace(/\s+$/, '');
+    if (t && !/[.!?…]$/.test(t)) t += '.';
+    var rojo = {}; (R && R.b || []).forEach(function (b) { if (b.e === 'rojo' && !b.corchete) rojo[b.k] = 1; });
+    var mas = [];
+    if (rojo[4]) mas.push('Lo realicé el [fecha].');
+    if (rojo[1]) mas.push('En total fueron [número] ' + T.cu + '.');
+    if (rojo[2]) mas.push('Se benefició ' + (/^\[/.test(T.qu) ? T.qu : '[' + T.qu + ']') + '.');
+    if (rojo[3]) mas.push('Como resultado quedó [' + T.ent.join(' o ') + '].');
+    return mas.length ? (t + ' ' + mas.join(' ')).trim() : t;
+  }
   function ayudaIA(R) { return !!(R && R.b && R.b.some(function (b) { return b.k >= 1 && b.k <= 4 && b.e === 'rojo' && !b.corchete; })); }
   function hayRojo(R) { return !!(R && R.b && R.estado !== 'general' && R.estado !== 'noreq' && R.estado !== 'vacia' && R.b.some(function (b) { return b.e === 'rojo'; })); }
 
@@ -315,6 +327,22 @@
           if (mio !== vuelo || !nodo.isConnected) return;
           ev('propuesta', { ms: Date.now() - t0, ok: 0, error: String((e && e.message) || 'ERROR').slice(0, 40) });
           zona.innerHTML = '';
+          /* 03/11 · si Google no respondió, la versión mejorada se arma aquí mismo con sus
+             [corchetes]: «Te ayudo» siempre entrega una propuesta (Oss: no debe fallar). */
+          if (!(e && e.message === 'IGUAL')) {
+            var gl = guardar_(texto, versionLocal(R, o.obligacion, texto), o.obligacion, o.medir);
+            if (gl.texto && st(gl.texto) !== st(texto)) {
+              propuesta = gl.texto;
+              ev('propuesta', { ms: Date.now() - t0, ok: 1, envueltos: gl.envueltos, error: 'LOCAL' });
+              var V2 = K.piezas.variacion, v2 = V2 ? V2.verdes(gl.R) : null;
+              zona.appendChild(K.nodo('<p class="ta__t">' + K.icono('lapiz', 16) + ' Tu texto, mejorado</p>'));
+              zona.appendChild(K.nodo('<div class="ta__texto">' + resaltarCorchetes(propuesta) + '</div>'));
+              zona.appendChild(K.nodo('<p class="ta__nota">Llena lo que está entre <mark class="ta-hueco">[corchetes]</mark> con tus datos reales y ajusta la redacción a tu gusto; mientras siga así, su bombillo queda en rojo. ' +
+                'Solo debe decir lo que hiciste y puedes demostrar.' + (v2 ? ' Así como está: ' + v2.v + ' de ' + v2.n + ' en verde.' : '') + '</p>'));
+              zona.appendChild(botones(propuesta));
+              return;
+            }
+          }
           zona.appendChild(K.nodo('<p class="ta__nota">' + (e && e.message === 'IGUAL' ? 'Tu texto ya dice lo que se puede decir sin datos nuevos: completa con las pistas.' : 'No alcancé a preparar la versión mejorada. Las pistas de arriba te dicen qué agregar.') + '</p>'));
           zona.appendChild(botones(null));
         });

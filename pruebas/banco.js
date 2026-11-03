@@ -174,7 +174,7 @@ ${js}
       cierto(r <= 1, 'precalentó ' + r + ' veces');
       cierto(/TOPE_MS = 15000/.test(require('fs').readFileSync(require('path').join(RAIZ, 'kit', 'teayudo.js'), 'utf8')), 'el tope debía ser 15000');
     });
-    await prueba('sin Gemini o si falla: quedan las pistas y no se cuelga', async () => {
+    await prueba('si Gemini falla: quedan las pistas Y una versión mejorada armada en el teléfono (03/11)', async () => {
       const r = await page.evaluate(async () => {
         const area = document.getElementById('ta-a'); area.value = TXT;
         KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, mejorar: () => Promise.reject(new Error('X')) };
@@ -182,9 +182,10 @@ ${js}
         document.getElementById('ta-c').appendChild(ta.nodo);
         ta.actualizar(MED(TXT)); ta.nodo.querySelector('.ta__btn').click();
         await new Promise(ok => setTimeout(ok, 50));
-        return [ta.nodo.querySelectorAll('.ta__p').length, !!ta.nodo.querySelector('.ta__texto'), /No alcancé/.test(ta.nodo.textContent)];
+        const p = ta.nodo.querySelector('.ta__texto');
+        return [ta.nodo.querySelectorAll('.ta__p').length, !!p, /No alcancé/.test(ta.nodo.textContent), !!p && /\[/.test(p.textContent), !!ta.nodo.querySelector('.ta__btns .kit-btn--marca')];
       });
-      igual(r, [1 + 0 + (r[0] - 1), false, true]);
+      igual(r, [1 + 0 + (r[0] - 1), true, false, true, true]);
     });
     await prueba('todo verde: el botón no aparece', async () => {
       const r = await page.evaluate(() => {

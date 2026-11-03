@@ -51,6 +51,8 @@
   var G = M.GEMINI || {};
   var SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
   var MODELO = G.modelo || 'gemini-3.1-flash-lite';   /* 24/10: medido ~0,7–1,6 s; el 3.5-lite daba 3–8 s */
+  /* 03/11 · si el principal está saturado, «Te ayudo» prueba con estos (otra cola del plan gratuito) */
+  var MODELOS_RESPALDO = G.respaldo || ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
   var TOPE_DIA = 30;
   var CUPO_K = 'gemini.cupo';
   var MEDIDAS = [];
@@ -263,18 +265,32 @@
     if (!quedanMejora()) return Promise.reject(new Error('SIN_CUPO'));
     var act = proteger(String(o.actividad || '').slice(0, 2500));
     var obl = proteger(String(o.obligacion || '').slice(0, 800));
-    var t0 = Date.now();
-    return preparar().then(function (S) {
+    var t0 = Date.now(), total = o.ms || 8000;
+    var texto = 'Obligación del contrato: «' + obl.t + '»\n' +
+      'Actividad que él escribió: «' + act.t + '»\n' +
+      'Lo que le falta (ponlo entre corchetes si él no lo dijo):\n- ' + (o.faltan || []).join('\n- ');
+    /* 03/11 · medido: de 9 intentos fallaron 5 (3 por más de 15 s, 2 «AI Error fetching»: el plan gratuito
+       saturado). Ahora un intento corto y, si falla, OTRO modelo con lo que quede de tiempo. */
+    var modelos = [MODELO].concat(MODELOS_RESPALDO.filter(function (m) { return m !== MODELO; }));
+    function intento(S, k) {
+      var resta = total - (Date.now() - t0);
+      var ms = k < modelos.length - 1 ? Math.min(resta, Math.max(4000, Math.round(total * 0.45))) : resta;
+      if (ms < 1500) return Promise.reject(new Error('TIEMPO'));
       var model = S.I.getGenerativeModel(S.ai, {
-        model: MODELO,
+        model: modelos[k],
         systemInstruction: INSTR_MEJORA,
         generationConfig: { temperature: 0.2, maxOutputTokens: 700 }
-      }, { timeout: o.ms || 8000 });
-      var texto = 'Obligación del contrato: «' + obl.t + '»\n' +
-        'Actividad que él escribió: «' + act.t + '»\n' +
-        'Lo que le falta (ponlo entre corchetes si él no lo dijo):\n- ' + (o.faltan || []).join('\n- ');
+      }, { timeout: ms });
+      var corte = new Promise(function (ok, no) { setTimeout(function () { no(new Error('TIEMPO')); }, ms); });
+      return Promise.race([model.generateContent(texto), corte])['catch'](function (e) {
+        MEDIDAS.push({ que: 'mejorarFallo', modelo: modelos[k], ms: Date.now() - t0, error: String((e && e.message) || e).slice(0, 60) });
+        if (k + 1 < modelos.length) return intento(S, k + 1);
+        throw e;
+      });
+    }
+    return preparar().then(function (S) {
       gastarMejora();
-      return model.generateContent(texto);
+      return intento(S, 0);
     }).then(function (r) {
       var out = '';
       try { out = String(r.response.text() || '').trim(); } catch (e) {}
