@@ -399,9 +399,108 @@
   }
   function corchetesSinLlenar(texto) { return (String(texto || '').match(/\[[^\[\]\n]{1,80}\]/g) || []); }
 
+  /* ══════════════ 5 · 05/11 · EL BOMBILLO ROJO EN LA REVISIÓN ══════════════
+     Supervisión y Contratación tocan un bombillo en rojo (o en ámbar) y ven:
+     qué falta en una línea + la frase sugerida armada con el texto del
+     contratista y [corchetes] donde él debe completar (la misma lógica de
+     «Te ayudo», sin viajes) + «Pasar a la observación para el contratista». */
+  var CORTO = 260;   /* el texto del contratista se muestra completo hasta aquí; más largo, su final */
+  function finalDe(t) {
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    if (t.length <= CORTO) return t;
+    var c = t.slice(-CORTO), i = c.indexOf(' ');
+    return '… ' + (i > 0 && i < 40 ? c.slice(i + 1) : c);
+  }
+  function conPunto(t) { t = String(t || '').replace(/\s+/g, ' ').trim(); return t && !/[.!?…]$/.test(t) ? t + '.' : t; }
+
+  /**
+   * receta(R, obl, texto, b) -> null | {k, e, falta, agrega, accion, frase, obs}
+   *   falta  : qué le falta, en una línea (lenguaje del revisor)
+   *   agrega : la frase nueva con [corchetes] (si se arregla escribiendo)
+   *   accion : lo que debe hacer (si no se arregla escribiendo: soporte, fecha, corchetes)
+   *   frase  : su texto + la frase nueva (la «frase sugerida armada»)
+   *   obs    : el texto listo para la OBSERVACIÓN PARA EL CONTRATISTA
+   */
+  function receta(R, obl, texto, b) {
+    if (!R || !R.b || !b || b.e === 'verde' || b.e === 'gris') return null;
+    if (R.estado === 'general' || R.estado === 'noreq' || R.estado === 'vacia') return null;
+    var T = tema(obl, texto), qu = /^\[/.test(T.qu) ? T.qu : '[' + T.qu + ']';
+    var ent = '[' + T.ent.join(' o ') + ']', falta = '', agrega = '', accion = '';
+    if (b.corchete) {
+      falta = 'Dejó sin llenar ' + b.corchete.map(function (x) { return '[' + x + ']'; }).join(', ') + '.';
+      accion = 'Reemplace lo que está entre corchetes por sus datos reales.';
+    } else switch (b.k) {
+      case 0:
+        falta = 'Repite la forma de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ': no dice qué fue distinto en este periodo.';
+        agrega = 'En este periodo, a diferencia de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ', [qué fue distinto: lugar, grupo o resultado].';
+        break;
+      case 1: falta = 'No dice cuántos: falta la cifra junto a lo que se contó.'; agrega = 'En total fueron [número] ' + T.cu + '.'; break;
+      case 2: falta = 'No dice para quién ni con quién lo hizo.'; agrega = 'Se benefició ' + qu + '.'; break;
+      case 3: falta = 'No dejó resultado ni entregable verificable.'; agrega = 'Como resultado quedó ' + ent + '.'; break;
+      case 4:
+        if (b.e === 'amarillo') { falta = 'La fecha' + (b.x ? ' «' + b.x + '»' : '') + ' cae fuera del periodo de esta cuenta.'; accion = 'Corrija la fecha por una del periodo: [fecha dentro del periodo].'; }
+        else { falta = 'No dice cuándo lo hizo.'; agrega = 'Lo realicé el [fecha].'; }
+        break;
+      default:
+        if (b.como === 'diceAdjunta') { falta = 'Dice que adjunta un soporte que no está cargado.'; accion = 'Cargue en esta obligación el soporte que menciona.'; }
+        else if (b.como === 'donde') { falta = 'No cargó soporte: solo dice dónde verificarlo.'; accion = 'Cargue el soporte en esta obligación (' + T.ent.join(' o ') + ') o, si no aplica, escriba «no requiere adjunto».'; }
+        else if (b.como === 'oblSinProducto') { falta = 'No tiene soporte ni dice si la actividad lo requiere.'; accion = 'Si no deja documento, escriba «no requiere adjunto»; si lo deja, cárguelo en esta obligación.'; }
+        else { falta = 'La obligación pide un producto y no tiene evidencias ni adjuntos cargados.'; accion = 'Cargue en esta obligación ' + ent + ' o, si no aplica, escriba «no requiere adjunto».'; }
+    }
+    if (!falta) return null;
+    var su = conPunto(texto), frase = agrega ? (su ? su + ' ' : '') + agrega : '';
+    var obs = falta + ' ' + (agrega
+      ? (su.length <= 400 ? 'Puede quedar así (llene lo que está entre corchetes con sus datos reales): «' + frase + '»'
+        : 'Agregue al final de su actividad, con sus datos reales en lugar de los corchetes: «' + agrega + '»')
+      : accion);
+    return { k: b.k, e: b.e, falta: falta, agrega: agrega, accion: accion, frase: frase, obs: obs.trim() };
+  }
+
+  /**
+   * panelRevisor({R, obl, texto, b, app, n, informe, puede, yaPasada(obs), alPasar(obs) -> bool})
+   * -> nodo con la receta y el botón «Pasar a la observación para el contratista».
+   */
+  function panelRevisor(o) {
+    var x = receta(o.R, o.obl, o.texto, o.b);
+    if (!x) return null;
+    var nodo = K.nodo('<div class="ta-rev ta-rev--' + x.e + '" role="region" aria-label="Qué falta y frase sugerida"></div>');
+    nodo.appendChild(K.nodo('<p class="ta-rev__falta"><span class="ta__luz" aria-hidden="true"></span><span><b>Qué falta:</b> ' + K.esc(x.falta) + '</span></p>'));
+    if (x.agrega) {
+      nodo.appendChild(K.nodo('<p class="ta-rev__et">' + K.icono('lapiz', 14) + ' Frase sugerida con su texto</p>'));
+      var su = finalDe(conPunto(o.texto));
+      nodo.appendChild(K.nodo('<div class="ta__texto ta-rev__frase"><span class="ta-rev__suyo">' + K.esc(su) + '</span> <span class="ta-rev__nuevo">' + resaltarCorchetes(x.agrega) + '</span></div>'));
+    } else if (x.accion) {
+      nodo.appendChild(K.nodo('<p class="ta__texto ta-rev__frase">' + resaltarCorchetes(x.accion) + '</p>'));
+    }
+    var base = { app: o.app || '', obl: o.n, informe: o.informe || '', k: x.k };
+    function ev(tipo) { var e = { tipo: tipo }; for (var p in base) e[p] = base[p]; encolar(e); }
+    ev('rojo.toque');
+    var ya = !!(o.yaPasada && o.yaPasada(x.obs));
+    var btn = K.nodo('<button type="button" class="kit-btn ta-rev__pasar">' + K.icono(ya ? 'check' : 'enviar', 15) + ' <span>' + (ya ? 'Ya está en la observación para el contratista' : 'Pasar a la observación para el contratista') + '</span></button>');
+    var pie = K.nodo('<p class="ta__nota ta-rev__pie"></p>');
+    if (ya || o.puede === false) btn.disabled = true;
+    pie.textContent = o.puede === false && !ya ? 'Esta cuenta no está en revisión: no se agregan observaciones.' : 'Queda en la observación de esta obligación; si devuelves la cuenta, sale en el motivo. Puedes editarla antes.';
+    btn.addEventListener('click', function () {
+      if (btn.disabled) return;
+      btn.disabled = true;   /* escudo desde el primer toque: una sola nota por toque */
+      var ok = false;
+      try { ok = o.alPasar ? o.alPasar(x.obs) !== false : false; } catch (e) { ok = false; }
+      if (!ok) { btn.disabled = false; return; }
+      K.vibrar(8);
+      ev('rojo.pasar');
+      btn.innerHTML = K.icono('check', 15) + ' <span>Pasada a la observación para el contratista</span>';
+      btn.classList.add('ta-rev__pasar--hecho');
+    });
+    var acc = K.nodo('<div class="ta__btns"></div>');
+    acc.appendChild(btn);
+    nodo.appendChild(acc);
+    nodo.appendChild(pie);
+    return nodo;
+  }
+
   K.piezas.teayudo = {
     crear: crear, pistas: pistas, hayRojo: hayRojo, ayudaIA: ayudaIA, irAlHueco: irAlHueco,
-    corchetesSinLlenar: corchetesSinLlenar,
+    corchetesSinLlenar: corchetesSinLlenar, receta: receta, panelRevisor: panelRevisor,
     /* para las pruebas */
     _guardar: guardar_, _tema: tema, _faltan: faltanParaIA, _enviar: enviar, COLA_K: COLA_K, ENVIO_K: ENVIO_K
   };

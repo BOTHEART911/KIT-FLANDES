@@ -26,3 +26,17 @@ mark.ta-hueco { background: var(--k-malo-fondo); color: var(--k-malo); font-weig
 .rv-bom__ta { margin-top: 6px; }
 .rv-bom__ta summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; font-weight: 700; color: var(--k-marca); }
 .rv-bom__ta .ta__pistas { margin-top: 8px; }
+
+/* 05/11 · bombillo rojo en la revisión: qué falta + frase sugerida + pasar a la observación */
+.ta-rev { display: grid; gap: 8px; margin-top: 8px; padding: 10px; border-radius: var(--k-r-sm, 8px); background: var(--k-papel); border: 1px solid var(--k-malo); animation: ta-entra .18s ease-out; }
+.ta-rev--amarillo { border-color: #f08c00; }
+.ta-rev--amarillo .ta__luz { background: #f08c00; box-shadow: 0 0 0 3px rgba(240, 140, 0, .18); }
+@media (prefers-reduced-motion: reduce) { .ta-rev { animation: none; } }
+.ta-rev__falta { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; line-height: 1.45; color: var(--k-tinta); }
+.ta-rev__et { margin: 0; display: flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--k-apagado); }
+.ta-rev__frase { margin: 0; }
+.ta-rev__suyo { color: var(--k-apagado); }
+.ta-rev__nuevo { color: var(--k-tinta); font-weight: 600; }
+.ta-rev__pasar { display: inline-flex; align-items: center; gap: 6px; border-color: var(--k-marca); color: var(--k-marca); font-weight: 700; }
+.ta-rev__pasar--hecho, .ta-rev__pasar:disabled { opacity: .85; border-color: var(--k-linea); color: var(--k-apagado); }
+.ta-rev__pie { font-size: .78rem; }

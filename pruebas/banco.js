@@ -206,6 +206,86 @@ ${js}
       });
       igual(r, [1, 'teAyudoRegistrar', true, null]);
     });
+    /* ═══ 05/11 · bombillo rojo en la revisión ═══ */
+    await prueba('receta del caso real (5 de 6): «No dejó resultado» trae qué falta, frase armada con su texto y [corchetes]', async () => {
+      const r = await page.evaluate(() => {
+        const T = 'Apoyé las actividades deportivas en la vereda Kamala con 32 estudiantes el 28 sep; participaron los niños de la sede rural.';
+        const R = MED(T), b = R.b[3];
+        const x = KIT.piezas.teayudo.receta(R, OBL, T, b);
+        return { e: b.e, x };
+      });
+      igual(r.e, 'rojo');
+      igual(r.x.falta, 'No dejó resultado ni entregable verificable.');
+      cierto(r.x.frase.indexOf('Kamala con 32 estudiantes') >= 0, 'la frase debe llevar su texto: ' + r.x.frase);
+      cierto(/\[listados de asistencia o registro fotográfico\]\.$/.test(r.x.frase), 'la frase debe cerrar con el corchete: ' + r.x.frase);
+      cierto(r.x.obs.indexOf('No dejó resultado') === 0 && r.x.obs.indexOf('«') > 0, 'observación: ' + r.x.obs);
+    });
+    await prueba('receta: verde y gris no tienen; soporte y fecha fuera del periodo dan acción, no frase', async () => {
+      const r = await page.evaluate(() => {
+        const TA = KIT.piezas.teayudo, R = MED(TXT);
+        const verde = R.b.find(b => b.e === 'verde');
+        return {
+          verde: verde ? TA.receta(R, OBL, TXT, verde) : null,
+          soporte: TA.receta(R, OBL, TXT, R.b[5]),
+          fecha: TA.receta(R, OBL, TXT, { k: 4, e: 'amarillo', x: '3 dic', r: [[0, 1]] })
+        };
+      });
+      igual(r.verde, null);
+      cierto(r.soporte && !r.soporte.frase && /no requiere adjunto/.test(r.soporte.accion), JSON.stringify(r.soporte));
+      cierto(r.fecha && /fuera del periodo/.test(r.fecha.falta) && /\[fecha dentro del periodo\]/.test(r.fecha.accion), JSON.stringify(r.fecha));
+    });
+    await prueba('texto largo: la observación pide agregar al final (no repite 2.000 caracteres)', async () => {
+      const r = await page.evaluate(() => {
+        const T = Array(40).fill('Apoyé las actividades deportivas en la vereda Kamala con los niños de la sede.').join(' ');
+        const R = MED(T); return KIT.piezas.teayudo.receta(R, OBL, T, R.b[3]).obs;
+      });
+      cierto(/^No dejó resultado.*Agregue al final/.test(r) && r.length < 300, r);
+    });
+    await prueba('panelRevisor: pinta, «Pasar» llama una sola vez (escudo), queda hecho y se mide', async () => {
+      const r = await page.evaluate(async () => {
+        localStorage.clear();
+        const T = 'Apoyé las actividades deportivas en la vereda Kamala con 32 estudiantes el 28 sep.';
+        const R = MED(T); let llamadas = 0, ultima = '';
+        const t0 = performance.now();
+        const n = KIT.piezas.teayudo.panelRevisor({ R, obl: OBL, texto: T, b: R.b[3], app: 'SUPERVISION', n: 4, informe: 9, puede: true,
+          yaPasada: () => false, alPasar: t => { llamadas++; ultima = t; return true; } });
+        const ms = performance.now() - t0;
+        document.body.appendChild(n);
+        const b = n.querySelector('.ta-rev__pasar');
+        b.click(); b.click(); b.click();
+        const cola = JSON.parse(localStorage.getItem('flandes.contratista.teayudo.cola') || '[]').map(e => e.tipo + ':' + e.k);
+        return { ms, falta: n.querySelector('.ta-rev__falta').textContent, hueco: !!n.querySelector('.ta-rev__nuevo mark.ta-hueco'),
+          llamadas, ultima, dis: b.disabled, txt: b.textContent, cola };
+      });
+      cierto(r.ms < 20, 'panel lento: ' + r.ms + ' ms');
+      cierto(/No dejó resultado/.test(r.falta) && r.hueco, 'panel incompleto');
+      igual(r.llamadas, 1, 'doble envío');
+      cierto(r.dis && /Pasada/.test(r.txt), 'no quedó hecho');
+      igual(r.cola, ['rojo.toque:3', 'rojo.pasar:3']);
+    });
+    await prueba('panelRevisor: ya pasada o cuenta fuera de revisión deja el botón quieto', async () => {
+      const r = await page.evaluate(() => {
+        const T = 'Apoyé las actividades deportivas en la vereda Kamala con 32 estudiantes el 28 sep.';
+        const R = MED(T), TA = KIT.piezas.teayudo;
+        const a = TA.panelRevisor({ R, obl: OBL, texto: T, b: R.b[3], puede: true, yaPasada: () => true, alPasar: () => true });
+        const c = TA.panelRevisor({ R, obl: OBL, texto: T, b: R.b[3], puede: false, yaPasada: () => false, alPasar: () => true });
+        return [a.querySelector('button').disabled, /Ya está/.test(a.textContent), c.querySelector('button').disabled, /no está en revisión/.test(c.textContent)];
+      });
+      igual(r, [true, true, true, true]);
+    });
+    await prueba('variacion revisor: el bombillo rojo sin fragmento ahora se toca y entrega el bombillo; en el contratista sigue quieto', async () => {
+      const r = await page.evaluate(() => {
+        const R = MED('Apoyé las actividades deportivas en la vereda Kamala con 32 estudiantes el 28 sep.');
+        const V = KIT.piezas.variacion; let got = null, gotC = null;
+        const ul = V.bombillos(R, 'revisor', (k, rg, b) => { got = [k, rg.length, b && b.e]; });
+        const ulC = V.bombillos(R, 'contratista', (k, rg, b) => { gotC = k; });
+        ul.querySelectorAll('button')[3].click();
+        ulC.querySelectorAll('button')[3].click();
+        return { got, gotC, dis: ul.querySelectorAll('button')[3].getAttribute('aria-disabled') };
+      });
+      igual(r.got, [3, 0, 'rojo']); igual(r.gotC, null); igual(r.dis, null);
+    });
+
     await ctx.close();
   }
 

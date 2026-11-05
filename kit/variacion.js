@@ -166,7 +166,8 @@
 
   /**
    * La lista de bombillos. modo 'contratista' | 'revisor'.
-   * alTocar(k, rangos) se llama al tocar uno (para resaltar el fragmento).
+   * alTocar(k, rangos, b) se llama al tocar uno (para resaltar el fragmento;
+   * 05/11: en modo revisor también el rojo/ámbar sin fragmento, para la receta).
    */
   function bombillos(R, modo, alTocar) {
     var ul = K.nodo('<ul class="var-bom" role="list"></ul>');
@@ -175,17 +176,19 @@
       var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !b.corchete && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
       /* 02/11 · el soporte dice si una evidencia es igual a la de una cuenta anterior (huellas) */
       var rep = b.k === 5 && R.notaSoporte ? '<small class="var-bom__rep">' + K.esc(R.notaSoporte) + '</small>' : '';
-      var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + (rep ? ' var-bom__i--conrep' : '') + '"><button type="button" class="var-bom__b"' + (b.r.length ? '' : ' aria-disabled="true"') + '>' +
+      /* 05/11 · en la revisión, el rojo y el ámbar también se tocan: muestran qué falta y la frase sugerida (teayudo.panelRevisor) */
+      var tocable = b.r.length || (modo === 'revisor' && b.e !== 'verde' && b.e !== 'gris');
+      var li = K.nodo('<li class="var-bom__i var-bom__i--' + b.e + (rep ? ' var-bom__i--conrep' : '') + '"><button type="button" class="var-bom__b"' + (tocable ? '' : ' aria-disabled="true"') + '>' +
         '<span class="var-bom__luz" aria-hidden="true"></span>' +
         '<span class="var-bom__tx"><b>' + K.esc(titulo) + '</b>' + (det ? '<small>' + K.esc(det) + '</small>' : '') + rep + '</span>' +
         '<span class="var-sr">' + (b.e === 'verde' ? 'cumple' : b.e === 'rojo' ? 'falta' : b.e === 'amarillo' ? 'revisar' : 'no aplica') + '</span></button></li>');
       li.querySelector('button').addEventListener('click', function () {
-        if (!b.r.length) return;
+        if (!tocable) return;
         K.vibrar(6);
         var activo = li.classList.contains('var-bom__i--sel');
         Array.prototype.forEach.call(ul.querySelectorAll('.var-bom__i--sel'), function (z) { z.classList.remove('var-bom__i--sel'); });
         if (!activo) li.classList.add('var-bom__i--sel');
-        if (alTocar) alTocar(activo ? -1 : b.k, activo ? [] : b.r);
+        if (alTocar) alTocar(activo ? -1 : b.k, activo ? [] : b.r, b);
       });
       ul.appendChild(li);
     });
