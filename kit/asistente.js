@@ -788,7 +788,9 @@
               m.votado = v;
               t.querySelectorAll('button').forEach(function (x) { x.classList.toggle('kit-as__voto--on', x === b); });
               encolar({ id: m.idPregunta, app: CFG.app, vista: vista, fecha: new Date().toISOString(),
-                pregunta: String(m.pregunta || '').slice(0, 200), resolucion: m.resolucion || (m.tema ? 'LOCAL' : 'SIN RESPUESTA'), tema: m.tema || '', voto: v === 'SI' ? '👍' : '👎' });
+                pregunta: String(m.pregunta || '').slice(0, 200), resolucion: m.resolucion || (m.tema ? 'LOCAL' : 'SIN RESPUESTA'), tema: m.tema || '', voto: v === 'SI' ? '👍' : '👎',
+                /* 05/11 · el texto que la persona leyó (con sus datos ya puestos): ADMIN lo ve en MARCAS 👍/👎 */
+                texto: String(m.texto || '').slice(0, 2500) });
               if (v === 'NO') {
                 decir({ quien: 'as', texto: 'Gracias, lo voy a aprender. Si quieres, cuéntaselo a soporte.',
                   botones: [{ texto: 'Hablar con soporte', icono: 'salvavidas', soporte: true, lleva: true, hacer: function () { soporte(m.pregunta || ''); } }] });
