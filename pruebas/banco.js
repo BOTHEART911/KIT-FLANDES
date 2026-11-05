@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const RAIZ = path.resolve(__dirname, '..', 'salida', 'KIT-FLANDES');
+const RAIZ = process.env.KIT_RAIZ || path.resolve(__dirname, '..', 'salida', 'KIT-FLANDES');
 const soloPieza = process.argv[2] || '';
 
 let verdes = 0, rojas = 0;
@@ -4001,7 +4001,8 @@ ${js}
     await prueba('dos pendientes: al calificar el primero sale el segundo', async () => {
       await limpiar();
       const r = await page.evaluate(async (caso) => {
-        KIT.pedir = () => Promise.resolve({ reabierto: false, pendientes: [] });
+        /* 05/11 · el CORE devuelve lo que QUEDA por calificar: el segundo */
+        KIT.pedir = () => Promise.resolve({ reabierto: false, pendientes: [Object.assign({}, caso, { id: 'SOP0121' })] });
         KIT.piezas.soporte.pendientes({ pendientes: [Object.assign({}, caso, { id: 'SOP0120' }), Object.assign({}, caso, { id: 'SOP0121' })] });
         const uno = document.querySelector('.kit-est-capa .kit-est__cab b').textContent;
         document.querySelectorAll('.kit-est__b')[4].click();
@@ -4109,6 +4110,254 @@ ${js}
       }, CASO);
       igual(r.slice(0, 2), ['rgb(245, 167, 10)', true]);
       cierto(r[2] !== 'rgb(255, 255, 255)', 'la hoja no debía quedar blanca en oscuro: ' + r[2]);
+    });
+
+    await ctx.close();
+  }
+
+  /* ═══════════ 05/11 · SOPORTE: calificar insistente y sin repetidos ═══════════ */
+  grupo('soporte1105');
+  {
+    const { page, ctx } = await pagina(browser, ['soporte', 'adjuntos', 'imagenes', 'esqueletos', 'personas']);
+    const CASO = { id: 'SOP0200', app: 'CONTRATISTA', tipo: 'SOLICITUD', fecha: '03/11/2026 12:00:00',
+                   solicitud: 'No me deja guardar la cuenta 3', respuesta: 'Se corrigieron las fechas del periodo',
+                   respondidoPor: 'OSCAR MAURICIO POLANIA GUERRA', fechaRespuesta: '03/11/2026 13:18:53', reabierto: 0 };
+    const limpiar = () => page.evaluate(() => {
+      document.querySelectorAll('.kit-capa').forEach(x => x.remove());
+      document.querySelectorAll('.kit-aviso').forEach(x => x.remove());
+      const S = KIT.piezas.soporte; S.pendientes({ pendientes: [] }); const I = S._ins(); I.ultima = 0; I.vistas = 0; clearTimeout(I.t);
+    });
+
+    await prueba('al abrir la app: la capa dice por qué calificar y el botón es «Ahora no»', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        KIT.piezas.soporte.pendientes({ pendientes: [caso], vistasInsistir: 3, minutosInsistir: 3 });
+        const h = document.querySelector('.kit-est-capa');
+        return [!!h, /Calificar es importante/.test(h.textContent) && /a tiempo la próxima vez/.test(h.textContent),
+                h.querySelector('.kit-est__luego').textContent, !!document.querySelector('.kit-sop-cinta--oculta')];
+      }, CASO);
+      igual(r, [true, true, 'Ahora no', true]);
+    });
+
+    await prueba('«Ahora no»: queda la cinta en todas las vistas y no se abre otra capa encadenada', async () => {
+      const r = await page.evaluate(async () => {
+        document.querySelector('.kit-est__luego').click();
+        await new Promise(r => setTimeout(r, 600));
+        const c = document.querySelector('.kit-sop-cinta');
+        return [!!c, c && c.textContent.indexOf('Califica SOP0200') >= 0, c && c.classList.contains('kit-sop-cinta--oculta'),
+                document.querySelectorAll('.kit-est-capa').length, document.documentElement.classList.contains('kit-sop-cinta-on')];
+      });
+      igual(r, [true, true, false, 0, true]);
+    });
+
+    await prueba('un toque en la cinta abre las estrellas al instante (sin esperar al servidor)', async () => {
+      const r = await page.evaluate(() => {
+        let llamadas = 0; KIT.pedir = () => { llamadas++; return new Promise(() => {}); };
+        const t0 = performance.now();
+        document.querySelector('.kit-sop-cinta').click();
+        const ms = performance.now() - t0;
+        const h = document.querySelector('.kit-est-capa');
+        const out = [!!h, h && h.querySelector('.kit-est__cab b').textContent, llamadas, ms < 50];
+        h.querySelector('.kit-est__luego').click();
+        return out;
+      });
+      igual(r, [true, 'SOP0200', 0, true]);
+    });
+
+    await prueba('cambiar de vista: la cinta late; a la 3.ª vista (y pasados los minutos) vuelve la capa, después de pintar', async () => {
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(async () => {
+        const I = KIT.piezas.soporte._ins(); I.ultima = Date.now() - 4 * 60000; I.vistas = 0;
+        const t0 = performance.now();
+        KIT.disparar('kit:vista', { vista: 'a' });
+        const msVista = performance.now() - t0;
+        const late = document.querySelector('.kit-sop-cinta').classList.contains('kit-sop-cinta--late');
+        KIT.disparar('kit:vista', { vista: 'b' });
+        await new Promise(r => setTimeout(r, 1000));
+        const antes = document.querySelectorAll('.kit-est-capa').length;
+        KIT.disparar('kit:vista', { vista: 'c' });
+        const inmediato = document.querySelectorAll('.kit-est-capa').length;
+        await new Promise(r => setTimeout(r, 1100));
+        const despues = document.querySelectorAll('.kit-est-capa').length;
+        document.querySelector('.kit-est__luego').click();
+        return [late, antes, inmediato, despues, msVista < 5];
+      });
+      igual(r, [true, 0, 0, 1, true]);
+    });
+
+    await prueba('no vuelve antes de los minutos aunque se cambie mucho de vista', async () => {
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(async () => {
+        for (let i = 0; i < 8; i++) KIT.disparar('kit:vista', { vista: 'v' + i });
+        await new Promise(r => setTimeout(r, 1100));
+        return document.querySelectorAll('.kit-est-capa').length;
+      });
+      igual(r, 0);
+    });
+
+    await prueba('no se abre mientras la persona escribe ni encima de otra capa', async () => {
+      const r = await page.evaluate(async () => {
+        const I = KIT.piezas.soporte._ins();
+        const inp = document.createElement('input'); document.body.appendChild(inp); inp.focus();
+        I.ultima = 0; I.vistas = 5; KIT.disparar('kit:vista', { vista: 'x' });
+        await new Promise(r => setTimeout(r, 1100));
+        const escribiendo = document.querySelectorAll('.kit-est-capa').length;
+        inp.blur(); inp.remove();
+        const otra = document.createElement('div'); otra.className = 'kit-capa kit-capa--on'; document.body.appendChild(otra);
+        I.ultima = 0; I.vistas = 5; KIT.disparar('kit:vista', { vista: 'y' });
+        await new Promise(r => setTimeout(r, 1100));
+        const encima = document.querySelectorAll('.kit-est-capa').length;
+        otra.remove();
+        return [escribiendo, encima];
+      });
+      igual(r, [0, 0]);
+    });
+
+    await prueba('al volver a la app tras 10 minutos, se vuelve a pedir', async () => {
+      const r = await page.evaluate(async () => {
+        const I = KIT.piezas.soporte._ins(); I.ultima = Date.now() - 11 * 60000;
+        document.dispatchEvent(new Event('visibilitychange'));
+        await new Promise(r => setTimeout(r, 1100));
+        const n = document.querySelectorAll('.kit-est-capa').length;
+        document.querySelector('.kit-est__luego') && document.querySelector('.kit-est__luego').click();
+        return n;
+      });
+      igual(r, 1);
+    });
+
+    await prueba('al calificar, la cinta se va (el CORE dice que no queda nada)', async () => {
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(async () => {
+        KIT.pedir = (a, d) => { window.__cal = [a, d.id, d.estrellas]; return Promise.resolve({ reabierto: false, pendientes: [] }); };
+        document.querySelector('.kit-sop-cinta').click();
+        document.querySelectorAll('.kit-est__b')[4].click();
+        document.querySelector('.kit-est__si').click();
+        await new Promise(r => setTimeout(r, 300));
+        return [window.__cal, !!document.querySelector('.kit-sop-cinta'), document.documentElement.classList.contains('kit-sop-cinta-on')];
+      });
+      igual(r, [['soporteCalificar', 'SOP0200', 5], false, false]);
+    });
+
+    await prueba('dos por calificar: la cinta lo dice y el toque abre el más viejo', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        const S = KIT.piezas.soporte;
+        S.pendientes({ pendientes: [Object.assign({}, caso, { id: 'SOP0201' }), Object.assign({}, caso, { id: 'SOP0202' })] });
+        document.querySelector('.kit-est__luego').click();
+        await new Promise(r => setTimeout(r, 700));
+        if (document.querySelector('.kit-est-capa')) return ['se encadenó la segunda capa tras «Ahora no»'];
+        const txt = document.querySelector('.kit-sop-cinta b').textContent;
+        document.querySelector('.kit-sop-cinta').click();
+        const id = document.querySelector('.kit-est-capa .kit-est__cab b').textContent;
+        document.querySelector('.kit-est__luego').click();
+        return [txt, id];
+      }, CASO);
+      igual(r, ['Califica tus 2 soportes', 'SOP0201']);
+    });
+
+    await prueba('en el teléfono la cinta no tapa el botón del robot (derecha libre)', async () => {
+      await page.setViewportSize({ width: 375, height: 760 });
+      const r = await page.evaluate(() => { const b = document.querySelector('.kit-sop-cinta').getBoundingClientRect(); return [Math.round(innerWidth - b.right) >= 80, b.left >= 10, b.bottom <= innerHeight]; });
+      await page.setViewportSize({ width: 1200, height: 900 });
+      igual(r, [true, true, true]);
+    });
+
+    await prueba('modo oscuro: la cinta usa el papel oscuro', async () => {
+      const r = await page.evaluate(() => {
+        document.documentElement.setAttribute('data-tema', 'oscuro');
+        const bg = getComputedStyle(document.querySelector('.kit-sop-cinta')).backgroundColor;
+        document.documentElement.setAttribute('data-tema', 'claro');
+        return bg;
+      });
+      cierto(r !== 'rgb(255, 255, 255)', 'la cinta no debía quedar blanca en oscuro: ' + r);
+    });
+
+    const REPETIDO = (caso) => { const e = new Error('Ya tienes este mismo caso abierto'); e.codigo = 'SOPORTE_REPETIDO'; e.datos = { caso: caso }; return e; };
+
+    await prueba('repetido y abierto: muestra ESE caso y «Agregar a SOP…» manda lo escrito a ese caso, una sola vez', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (ab) => {
+        const llamadas = [];
+        KIT.pedir = (a, d) => {
+          llamadas.push([a, d.id || '', d.nota || d.mensaje]);
+          if (a === 'soporte') { const e = new Error('rep'); e.codigo = 'SOPORTE_REPETIDO'; e.datos = { caso: ab }; return Promise.reject(e); }
+          return new Promise(ok => setTimeout(() => ok({ id: ab.id, avisado: true }), 120));
+        };
+        KIT.piezas.soporte.abrir({ vista: 'Inicio' });
+        document.querySelector('.kit-sop textarea').value = 'Buenas tardes envio soporte del RP para sustitucion de fuente de mi contrato 259';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const h = document.querySelector('.kit-sop');
+        const titulo = h.querySelector('.kit-capa__h').textContent.trim();
+        const btn = [...h.querySelectorAll('.kit-capa__pie .kit-btn')].find(b => /Agregar a/.test(b.textContent));
+        const vista = [titulo, h.querySelector('.kit-mias__cab b').textContent, h.querySelector('.kit-mias__est').textContent, !!btn && btn.textContent.trim(), !h.querySelector('.kit-sop__wa')];
+        btn.click(); btn.click();
+        await new Promise(r => setTimeout(r, 400));
+        return [vista, llamadas, !!document.querySelector('.kit-sop'), (document.querySelector('.kit-aviso') || {}).textContent];
+      }, { id: 'SOP0068', app: 'CONTRATISTA', estado: 'PENDIENTE', fecha: '04/11/2026 17:26:53', solicitud: 'Buenas tardes envió soportes CDP para sustitución de fuente de mi contrato 259..', puedeInsistir: true, porCalificar: false, parecido: 87 });
+      igual(r[0], ['Ya tienes este caso abierto', 'SOP0068', 'PENDIENTE', 'Agregar a SOP0068', true]);
+      igual(r[1].map(x => x[0] + ' ' + x[1]), ['soporte ', 'soporteInsistir SOP0068']);
+      igual(r[2], false);
+      cierto(/SOP0068/.test(r[3] || ''), 'debía avisar que se agregó: ' + r[3]);
+    });
+
+    await prueba('repetido y ya resuelto: el botón es «Calificar» y abre las estrellas', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (ab) => {
+        KIT.pedir = (a) => { const e = new Error('rep'); e.codigo = 'SOPORTE_REPETIDO'; e.datos = { caso: ab }; return Promise.reject(e); };
+        KIT.piezas.soporte.abrir({});
+        document.querySelector('.kit-sop textarea').value = 'No me deja guardar la cuenta 3 otra vez';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const btn = [...document.querySelectorAll('.kit-sop .kit-capa__pie .kit-btn')].find(b => /Calificar/.test(b.textContent));
+        const t = btn && btn.textContent.trim();
+        btn.click();
+        return [t, document.querySelector('.kit-est-capa .kit-est__cab b').textContent, document.querySelectorAll('.kit-sop:not(.kit-est-capa)').length];
+      }, Object.assign({}, CASO, { estado: 'RESUELTO', puedeInsistir: false, porCalificar: true }));
+      igual(r, ['Calificar SOP0200', 'SOP0200', 0]);
+    });
+
+    await prueba('agregar falla: dice por qué y deja reintentar', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (ab) => {
+        KIT.pedir = (a) => { if (a === 'soporte') { const e = new Error('rep'); e.codigo = 'SOPORTE_REPETIDO'; e.datos = { caso: ab }; return Promise.reject(e); }
+          return Promise.reject(new Error('El soporte SOP0068 ya está cerrado.')); };
+        KIT.piezas.soporte.abrir({});
+        document.querySelector('.kit-sop textarea').value = 'Un texto de prueba suficientemente largo';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const btn = [...document.querySelectorAll('.kit-sop .kit-capa__pie .kit-btn')].find(b => /Agregar a/.test(b.textContent));
+        btn.click();
+        await new Promise(r => setTimeout(r, 150));
+        return [document.querySelector('.kit-sop .kit-sop__error').textContent, btn.disabled];
+      }, { id: 'SOP0068', app: 'CONTRATISTA', estado: 'PENDIENTE', fecha: '', solicitud: 'x', puedeInsistir: true });
+      igual(r, ['El soporte SOP0068 ya está cerrado.', false]);
+    });
+
+    await prueba('sin red: sigue ofreciendo WhatsApp (no confunde con repetido)', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = () => { const e = new Error('Sin conexión'); e.codigo = 'SIN_RED'; return Promise.reject(e); };
+        KIT.piezas.soporte.abrir({});
+        document.querySelector('.kit-sop textarea').value = 'Un texto de prueba suficientemente largo';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        return [!!document.querySelector('.kit-sop__wa'), document.querySelector('.kit-sop .kit-capa__h').textContent.trim()];
+      });
+      igual(r, [true, 'Contar un problema']);
+    });
+
+    await prueba('el caso repetido entra como texto, no como HTML', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = () => { const e = new Error('rep'); e.codigo = 'SOPORTE_REPETIDO'; e.datos = { caso: { id: '<b>X</b>', estado: 'PENDIENTE', solicitud: '<img src=x onerror="window.__xss2=1">', puedeInsistir: true } }; return Promise.reject(e); };
+        KIT.piezas.soporte.abrir({});
+        document.querySelector('.kit-sop textarea').value = 'Un texto de prueba suficientemente largo';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 200));
+        return [!!window.__xss2, !document.querySelector('.kit-sop img')];
+      });
+      igual(r, [false, true]);
     });
 
     await ctx.close();

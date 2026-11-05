@@ -34,6 +34,21 @@
        KIT.piezas.soporte.mias();
        KIT.piezas.soporte.calificar(caso, { reabreHasta: 2 });
 
+   05/11 · CALIFICAR INSISTENTE Y SIN REPETIDOS
+     · Mientras haya un soporte RESUELTO sin calificar, la calificación no se
+       queda en "Después": al abrir la app sale la capa de estrellas; si la
+       cierra, queda una CINTA abajo a la izquierda en todas las vistas
+       ("Califica SOP…", un toque y abre las estrellas). Cada
+       `vistasInsistir` cambios de vista (3) y con al menos `minutosInsistir`
+       (3) desde la última vez, la capa vuelve a abrirse sola, siempre DESPUÉS
+       de que la vista nueva se pintó, nunca encima de otra capa ni mientras
+       la persona escribe. Al volver a la app tras 10 minutos, también.
+       Los botones no esperan nada de esto.
+     · REPETIDO: si el CORE contesta SOPORTE_REPETIDO (ya tiene abierto un
+       caso igual o casi igual), el modal muestra ESE caso en vez de crear
+       otro: si sigue abierto, "Agregar a SOP…" (lo nuevo y las fotos van a
+       ese caso, ruta soporteInsistir); si está resuelto, "Calificar".
+
    Pareja: kit/soporte.css
    ============================================================ */
 (function () {
@@ -150,6 +165,11 @@
         .catch(function (e) {
           b.disabled = false;
           b.classList.remove('kit-ocupado');
+          /* 05/11 · ya tiene ese mismo caso abierto: se le muestra, no se crea otro */
+          if (e && e.codigo === 'SOPORTE_REPETIDO' && e.datos && e.datos.caso) {
+            repetido(hoja, e.datos.caso, msj, adj, fuera);
+            return;
+          }
           /* el CORE no contesta: se ofrece WhatsApp, que es justo cuando
              el usuario más necesita que el reporte salga */
           marcar('No se pudo enviar por la aplicación. Puedes mandarlo por WhatsApp.');
@@ -179,6 +199,79 @@
     }));
   }
 
+  /**
+   * 05/11 · El CORE encontró un caso abierto igual o casi igual. El cuerpo del
+   * modal cambia a ESE caso: lo que pidió, en qué va y la respuesta si la hay.
+   * Si sigue abierto, lo nuevo (texto y fotos) se le agrega a ese caso; si ya
+   * está resuelto, se califica (con 1 o 2 estrellas se vuelve a abrir).
+   */
+  function repetido(hoja, caso, msj, adj, fuera) {
+    var cuerpo = hoja.querySelector('.kit-sop__cuerpo');
+    var pie = hoja.querySelector('.kit-capa__pie');
+    hoja.querySelector('.kit-capa__h').firstChild.nodeValue = 'Ya tienes este caso abierto';
+    cuerpo.innerHTML = '';
+    var abierto = !!caso.puedeInsistir;
+    var tarjeta = K.nodo(
+      '<div class="kit-sop-rep">' +
+      '  <p class="kit-sop-rep__intro"></p>' +
+      '  <article class="kit-mias__c">' +
+      '    <div class="kit-mias__cab"><b></b><span class="kit-mias__est"></span></div>' +
+      '    <small class="kit-mias__meta"></small>' +
+      '    <p class="kit-mias__sol"></p>' +
+      '  </article>' +
+      '</div>');
+    tarjeta.querySelector('.kit-sop-rep__intro').textContent = abierto
+      ? 'No hace falta enviarlo otra vez: ese caso ya está en manos de soporte. Si tienes algo nuevo (un dato, otra captura), agrégalo a ese mismo caso y le avisamos al equipo.'
+      : 'Ese caso ya quedó resuelto y falta que lo califiques. Si sigue fallando, califícalo con 1 o 2 estrellas y se vuelve a abrir con tu comentario.';
+    tarjeta.querySelector('b').textContent = caso.id;
+    var est = tarjeta.querySelector('.kit-mias__est');
+    est.textContent = caso.estado;
+    est.classList.add('kit-mias__est--' + (TONO[caso.estado] || 'nada'));
+    tarjeta.querySelector('.kit-mias__meta').textContent = [APP_T[caso.app] || caso.app, caso.fecha].filter(Boolean).join(' · ');
+    tarjeta.querySelector('.kit-mias__sol').textContent = dato(caso.solicitud);
+    if (caso.respuesta) {
+      var rsp = K.nodo('<div class="kit-mias__resp"><span class="kit-sop__et">Respuesta</span><p></p></div>');
+      rsp.querySelector('p').textContent = caso.respuesta;
+      tarjeta.querySelector('article').appendChild(rsp);
+    }
+    cuerpo.appendChild(tarjeta);
+    var err = K.nodo('<p class="kit-sop__error" role="alert"></p>');
+    cuerpo.appendChild(err);
+    function marcar(t) { err.textContent = t || ''; err.classList.toggle('kit-sop__error--on', !!t); }
+
+    pie.innerHTML = '';
+    var no = K.nodo('<button type="button" class="kit-btn">Cerrar</button>');
+    no.addEventListener('click', fuera);
+    pie.appendChild(no);
+    if (!abierto) {
+      var cal = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('estrella', 16) + ' Calificar ' + K.esc(caso.id) + '</button>');
+      cal.addEventListener('click', function () { fuera(); calificar(caso, CFG); });
+      pie.appendChild(cal);
+      return;
+    }
+    var nFotos = adj && adj.archivos ? adj.archivos().length : 0;
+    var ag = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('mas', 16) + ' Agregar a ' + K.esc(caso.id) + '</button>');
+    if (nFotos) tarjeta.appendChild(K.nodo('<p class="kit-sop-rep__nota">Se agregan también tus ' + nFotos + (nFotos === 1 ? ' captura.' : ' capturas.') + '</p>'));
+    ag.addEventListener('click', function () {
+      if (ag.disabled) return;
+      ag.disabled = true;
+      ag.classList.add('kit-ocupado');
+      no.disabled = true;
+      marcar('');
+      fotosListas(adj)
+        .then(function (fotos) { return K.pedir('soporteInsistir', { id: caso.id, nota: msj, fotos: fotos }, { ms: 90000 }); })
+        .then(function (r) {
+          fuera();
+          K.aviso('Listo: lo agregamos al soporte ' + caso.id + (r && r.avisado ? ' y le avisamos al equipo.' : '.'), 'ok', 6500);
+        }, function (e) {
+          ag.disabled = false; no.disabled = false;
+          ag.classList.remove('kit-ocupado');
+          marcar((e && e.message) || 'No se pudo agregar. Intenta otra vez.');
+        });
+    });
+    pie.appendChild(ag);
+  }
+
   function porWhatsapp(msj, ctx, hoja) {
     if (hoja.querySelector('.kit-sop__wa')) return;
     var numero = String((window.MARCA && window.MARCA.SOPORTE_WHATSAPP) || '').replace(/\D/g, '');
@@ -201,24 +294,104 @@
   var ETIQUETAS = ['', 'Muy mala', 'Mala', 'Regular', 'Buena', 'Excelente'];
   var APP_T = { CONTRATISTA: 'Contratista', CONTRATACION: 'Contratación', SUPERVISION: 'Supervisión',
                 CONTABILIDAD: 'Contabilidad', TESORERIA: 'Tesorería', COMUNICACIONES: 'Comunicaciones', ADMIN: 'Admin' };
-  var VISTOS = {};          /* casos ya ofrecidos en esta visita: "Después" no insiste */
+  var VISTOS = {};          /* casos que ya se abrieron solos en esta visita */
   var COLA = [];
   var ABIERTA = null;
-  var CFG = { reabreHasta: 2, comentarioHasta: 3 };
+  var CFG = { reabreHasta: 2, comentarioHasta: 3, vistasInsistir: 3, minutosInsistir: 3 };
+  /* 05/11 · lo que falta por calificar (del más viejo al más nuevo) y cuándo se insistió */
+  var PEND = [];
+  var INS = { ultima: 0, vistas: 0, t: null };
+  var VOLVER_MIN = 10;      /* al volver a la app tras este rato, se vuelve a pedir */
 
   function dato(t) { return String(t === null || t === undefined ? '' : t); }
 
-  /** Lo que llega con 'inicio': se encolan los que no se han ofrecido. */
+  /**
+   * Lo que llega con 'inicio' (o con una calificación): la lista COMPLETA de
+   * lo que esa persona tiene por calificar. Se pone la cinta y se abren solos
+   * los que no se han ofrecido en esta visita.
+   */
   function pendientes(d) {
     d = d || {};
-    if (d.reabreHasta) CFG.reabreHasta = Number(d.reabreHasta);
-    if (d.comentarioHasta) CFG.comentarioHasta = Number(d.comentarioHasta);
-    (d.pendientes || []).forEach(function (c) {
-      if (!c || !c.id || VISTOS[c.id]) return;
+    ['reabreHasta', 'comentarioHasta', 'vistasInsistir', 'minutosInsistir'].forEach(function (k) { if (Number(d[k]) > 0) CFG[k] = Number(d[k]); });
+    if (d.pendientes) PEND = (d.pendientes || []).filter(function (c) { return c && c.id; });
+    PEND.forEach(function (c) {
+      if (VISTOS[c.id]) return;
       VISTOS[c.id] = 1;
       COLA.push(c);
     });
+    COLA = COLA.filter(function (c) { return esPendiente(c.id); });
+    cinta();
     siguiente();
+  }
+
+  function esPendiente(id) { for (var i = 0; i < PEND.length; i++) if (PEND[i].id === id) return true; return false; }
+  function quitar(id) {
+    PEND = PEND.filter(function (c) { return c.id !== id; });
+    COLA = COLA.filter(function (c) { return c.id !== id; });
+    cinta();
+  }
+
+  /* ── la cinta: siempre visible mientras haya algo por calificar ── */
+  var CINTA = null;
+  function cinta() {
+    if (!PEND.length) {
+      if (CINTA) { CINTA.remove(); CINTA = null; }
+      document.documentElement.classList.remove('kit-sop-cinta-on');
+      return;
+    }
+    if (!CINTA) {
+      CINTA = K.nodo(
+        '<button type="button" class="kit-sop-cinta" aria-live="polite">' +
+        '  <span class="kit-sop-cinta__ico">' + K.icono('estrella', 18) + '</span>' +
+        '  <span class="kit-sop-cinta__txt"><b></b><small>Así te respondemos a tiempo la próxima vez.</small></span>' +
+        '  <span class="kit-sop-cinta__ir">Calificar</span>' +
+        '</button>');
+      CINTA.addEventListener('click', function () { K.vibrar(6); abrirPendiente(true); });
+      document.body.appendChild(CINTA);
+      document.documentElement.classList.add('kit-sop-cinta-on');
+    }
+    CINTA.querySelector('b').textContent = PEND.length === 1
+      ? 'Califica ' + PEND[0].id
+      : 'Califica tus ' + PEND.length + ' soportes';
+    CINTA.classList.toggle('kit-sop-cinta--oculta', !!ABIERTA);
+  }
+  function latido() {
+    if (!CINTA) return;
+    CINTA.classList.remove('kit-sop-cinta--late');
+    void CINTA.offsetWidth;
+    CINTA.classList.add('kit-sop-cinta--late');
+  }
+
+  /** Abre la calificación del más viejo. tocado: lo pidió la persona (sin esperas). */
+  function abrirPendiente(tocado) {
+    if (!PEND.length) return false;
+    if (ABIERTA && document.body.contains(ABIERTA)) return false;
+    if (!tocado) {
+      /* nunca encima de otra capa, mientras escribe o con la app en segundo plano */
+      if (document.querySelector('.kit-capa--on')) return false;
+      var a = document.activeElement;
+      if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return false;
+      if (document.visibilityState === 'hidden') return false;
+    }
+    calificar(PEND[0], CFG);
+    return true;
+  }
+
+  /** Cambio de vista: la cinta late y, cada tantas vistas y minutos, vuelve la capa. */
+  function alCambiarVista() {
+    if (!PEND.length) return;
+    INS.vistas++;
+    latido();
+    if (INS.vistas < CFG.vistasInsistir || (Date.now() - INS.ultima) < CFG.minutosInsistir * 60000) return;
+    clearTimeout(INS.t);
+    /* después de que la vista nueva se pinta: los botones no esperan por esto */
+    INS.t = setTimeout(function () { if (abrirPendiente(false)) INS.vistas = 0; }, 900);
+  }
+  function alVolver() {
+    if (document.visibilityState !== 'visible' || !PEND.length) return;
+    if ((Date.now() - INS.ultima) < VOLVER_MIN * 60000) return;
+    clearTimeout(INS.t);
+    INS.t = setTimeout(function () { if (abrirPendiente(false)) INS.vistas = 0; }, 900);
   }
 
   function siguiente() {
@@ -248,9 +421,10 @@
       '<div class="kit-capa kit-sop kit-est-capa kit-capa--on" role="dialog" aria-modal="true" aria-labelledby="kitEstT">' +
       '  <div class="kit-capa__velo"></div>' +
       '  <section class="kit-capa__hoja kit-sop__hoja">' +
-      '    <header class="kit-capa__h" id="kitEstT">Califica la atención<button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></header>' +
+      '    <header class="kit-capa__h" id="kitEstT">Califica el soporte que recibiste<button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <div class="kit-capa__cuerpo kit-sop__cuerpo">' +
       '      <p class="kit-est__cab"><b></b><span></span></p>' +
+      '      <p class="kit-est__importa">' + K.icono('estrella', 16) + '<span><b>Calificar es importante.</b> Nos dice qué funcionó y qué no, y así te respondemos a tiempo la próxima vez que necesites soporte. Te toma un toque.</span></p>' +
       '      <div class="kit-est__bloque"><span class="kit-sop__et">Lo que pediste</span><p class="kit-est__sol"></p></div>' +
       '      <div class="kit-est__bloque kit-est__bloque--resp"><span class="kit-sop__et">Lo que hicimos</span><p class="kit-est__resp"></p><small class="kit-est__quien"></small></div>' +
       '      <div class="kit-est" role="radiogroup" aria-label="Calificación de 1 a 5 estrellas"></div>' +
@@ -262,7 +436,7 @@
       '      <p class="kit-sop__error" role="alert"></p>' +
       '    </div>' +
       '    <footer class="kit-capa__pie">' +
-      '      <button type="button" class="kit-btn kit-est__luego">Después</button>' +
+      '      <button type="button" class="kit-btn kit-est__luego">Ahora no</button>' +
       '      <button type="button" class="kit-btn kit-btn--marca kit-est__si" disabled>Calificar</button>' +
       '    </footer>' +
       '  </section>' +
@@ -332,6 +506,9 @@
       document.removeEventListener('keydown', tecla);
       hoja.remove();
       ABIERTA = null;
+      /* 05/11 · calificado: sale de la lista y sigue el próximo. "Ahora no":
+         queda la cinta y se vuelve a pedir más adelante (no se encadenan capas) */
+      if (r) quitar(caso.id); else { COLA = []; cinta(); latido(); }
       if (alTerminar) alTerminar(r || null);
       setTimeout(siguiente, 450);
     }
@@ -353,8 +530,8 @@
           K.aviso(r && r.reabierto
             ? 'Volvimos a abrir el caso ' + caso.id + '. Soporte ya lo tiene con tu comentario.'
             : '¡Gracias! Calificaste el soporte ' + caso.id + ' con ' + elegido + (elegido === 1 ? ' estrella.' : ' estrellas.'), r && r.reabierto ? 'aviso' : 'ok', 6500);
-          if (r && r.pendientes) pendientes({ pendientes: r.pendientes });
           fuera(r);
+          if (r && r.pendientes) pendientes({ pendientes: r.pendientes });
         }, function (e) {
           si.disabled = false;
           si.classList.remove('kit-ocupado');
@@ -363,7 +540,11 @@
     });
 
     ABIERTA = hoja;
+    INS.ultima = Date.now();
+    INS.vistas = 0;
+    VISTOS[caso.id] = 1;
     document.body.appendChild(hoja);
+    cinta();
     setTimeout(function () { if (botones[0]) botones[0].focus(); }, 80);
     return { cerrar: function () { fuera(null); } };
   }
@@ -471,9 +652,14 @@
     return { cerrar: fuera };
   }
 
-  if (K.cuando) K.cuando('kit:soporte', pendientes);
+  if (K.cuando) {
+    K.cuando('kit:soporte', pendientes);
+    K.cuando('kit:vista', alCambiarVista);
+  }
+  document.addEventListener('visibilitychange', alVolver);
 
   K.piezas.soporte = { abrir: abrir, contexto: contexto, calificar: calificar, pendientes: pendientes, mias: mias,
-                       _cola: function () { return COLA.slice(); }, _vistos: function () { return VISTOS; } };
+                       _cola: function () { return COLA.slice(); }, _vistos: function () { return VISTOS; },
+                       _pend: function () { return PEND.slice(); }, _ins: function () { return INS; }, _cfg: function () { return CFG; } };
 }());
 
