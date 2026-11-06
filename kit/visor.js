@@ -95,6 +95,7 @@
     return id ? 'https://drive.google.com/uc?export=download&id=' + id : url;
   }
 
+  /* 06/11 · DRV_MS (8 s) es solo hasta que Drive CONTESTE; el cuerpo tiene DRV_MS_CUERPO. */
   /* ── 30/09 · DIRECTO DE DRIVE (el de REVISAR CUENTAS de Contratación) ──
      Medido en producción: abrir un documento por el CORE es 0,5 s de
      servidor y 2 a 22 s de fila de Apps Script. Con la llave de Google
@@ -110,7 +111,7 @@
      KIT.drive.deBoleto(t) saca el id de un boleto del CORE (6.3/5.4). */
 
   var DRV = { cache: {}, malo: {}, pend: {}, cola: [], vuelo: 0, peso: 0, orden: [], medidas: [], ctrl: [] };
-  var DRV_A_LA_VEZ = 3, DRV_MS = 15000, DRV_TOPE = 40 * 1024 * 1024;
+  var DRV_A_LA_VEZ = 3, DRV_MS = 8000, DRV_TOPE = 40 * 1024 * 1024;
   /* 07/10 · LO GUARDADO EN MEMORIA SE CONFIRMA CON DRIVE. ADMIN puede rehacer un
      documento (informe de supervisión, acta) en el MISMO archivo: mismo id y
      enlace, contenido nuevo. El visor lo guardaba por id y, mientras la app
@@ -119,7 +120,7 @@
      de DRV_FRESCO ms, antes de mostrarla se pregunta solo esa fecha (~0,1 s,
      sin bajar el archivo): igual = se muestra la de memoria; distinta = se
      baja de nuevo. Si la pregunta falla (red), se muestra la de memoria. */
-  var DRV_FRESCO = 20000, DRV_MS_META = 4000;
+  var DRV_FRESCO = 20000, DRV_MS_META = 4000, DRV_MS_CUERPO = 90000;
   var DRV_API = 'https://www.googleapis.com/drive/v3/files/';
 
   function drvLlave() { return String((window.MARCA && window.MARCA.DRIVE_LLAVE) || '').trim(); }
@@ -175,7 +176,7 @@
   function drvSalir(p) {
     DRV.vuelo++;
     var t0 = Date.now(), ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
-    var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, DRV_MS);
+    var corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, DRV_MS), estado = 0;
     if (ctrl) DRV.ctrl.push(ctrl);
     var k = encodeURIComponent(drvLlave());
     function url(exportar) {
@@ -183,6 +184,12 @@
     }
     function bajar(exportar) {
       return fetch(url(exportar), { signal: ctrl ? ctrl.signal : undefined, credentials: 'omit' }).then(function (r) {
+        /* 06/11 · los DRV_MS son para que Drive CONTESTE. Con la respuesta en
+           mano, el cuerpo tiene su propio plazo: en datos móviles lentos un
+           PDF de varios MB no cabía en 15 s, se cortaba y quedaba como "Drive
+           no lo entregó" (caso MARIO LOZANO 336, plan de pagos). */
+        if (r.ok) { clearTimeout(corte); corte = setTimeout(function () { if (ctrl) ctrl.abort(); }, DRV_MS_CUERPO); }
+        if (!r.ok) estado = r.status;
         if (r.ok) {
           var mime = exportar ? 'application/pdf' : String(r.headers.get('content-type') || p.mime || '').split(';')[0].trim();
           return r.arrayBuffer().then(function (ab) { return { mime: mime, bytes: new Uint8Array(ab) }; });
@@ -212,7 +219,10 @@
     }, function (e) {
       var cortado = !!(ctrl && ctrl.signal.aborted && ctrl.__cortado);
       DRV.medidas.push({ id: p.id.slice(0, 6), via: 'drive', ms: Date.now() - t0, error: cortado ? 'cortado' : ((e && e.message) || 'red') });
-      if (!cortado) DRV.malo[p.id] = true;     /* este ya no se intenta directo */
+      /* 06/11 · solo un NO de Drive (403/404: no compartido, no existe) lo
+         descarta para la sesión. Un corte por tiempo o una caída de red NO:
+         antes quedaba vetado y "Reintentar" fallaba al instante sin salir a la red. */
+      if (!cortado && estado >= 400 && estado < 500 && estado !== 429) DRV.malo[p.id] = true;
       var err = new Error(cortado ? 'cortado' : 'Drive no lo entregó');
       err.cortado = cortado;
       p.rej(err);
@@ -326,6 +336,8 @@
     bytes: function (ref, nombre) { return drvBytes(ref, nombre, true); },
     precargar: function (ref) { if (drvNorm(ref) && drvListo()) drvBytes(ref, '', false)['catch'](function () {}); },
     cortar: drvCortar,
+    /* 06/11 · "Reintentar" de verdad: vuelve a salir a Drive con ese id */
+    reintentar: function (ref) { var r = drvNorm(ref); if (r) { delete DRV.malo[r.id]; drvOlvidar(r.id); } },
     medidas: function () { return DRV.medidas.slice(); }
   };
 
