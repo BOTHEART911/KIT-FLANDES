@@ -18,7 +18,7 @@
    Quién la usa
      · CONTRATISTA (borrador): bombillos en vivo mientras escribe (espera de
        300 ms), cada uno dice qué detectó y resalta el fragmento al tocarlo;
-       traer la actividad anterior, ver qué se repite y las preguntas para
+       ver qué se repite y las preguntas para
        variar. No genera texto: no puede inventar actividades. No bloquea
        radicar: es una guía.
      · SUPERVISIÓN y CONTRATACIÓN (revisión): "Comparar con la cuenta
