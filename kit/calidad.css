@@ -1,0 +1,96 @@
+/* KIT-FLANDES · PIEZA 39 · CALIDAD DEL PRIMER FILTRO (10/11/2026) */
+
+/* la pastilla de la tarjeta de Revisar cuentas */
+.cal-pas {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: var(--k-r-pill, 999px);
+  font-size: .76rem; font-weight: 700; line-height: 1.3;
+  background: var(--k-linea); color: var(--k-tinta);
+}
+.cal-pas svg { flex: none; }
+.cal-pas--alta { background: var(--k-ok-fondo); color: var(--k-ok); }
+.cal-pas--media { background: var(--k-aviso-fondo); color: var(--k-aviso); }
+.cal-pas--baja { background: var(--k-malo-fondo); color: var(--k-malo); }
+
+/* el bloque del detalle de la cuenta */
+.cal-det {
+  margin: 12px 0; padding: 12px 14px; border-radius: var(--k-r-md, 14px);
+  background: var(--k-papel); border: 1px solid var(--k-linea); border-left: 5px solid var(--k-linea);
+}
+.cal-det--alta { border-left-color: var(--k-ok); }
+.cal-det--media { border-left-color: var(--k-aviso); }
+.cal-det--baja { border-left-color: var(--k-malo); }
+.cal-det__cab { display: flex; gap: 12px; align-items: center; }
+.cal-det__pct { font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--k-tinta); min-width: 70px; }
+.cal-det--alta .cal-det__pct { color: var(--k-ok); }
+.cal-det--media .cal-det__pct { color: var(--k-aviso); }
+.cal-det--baja .cal-det__pct { color: var(--k-malo); }
+.cal-det__t { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: .9rem; }
+.cal-det__t small { color: var(--k-apagado); font-size: .8rem; }
+.cal-det__obls { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-det__o {
+  display: inline-flex; flex-direction: column; align-items: center; min-width: 44px;
+  padding: 4px 6px; border-radius: var(--k-r-sm, 8px); font-size: .72rem; line-height: 1.2;
+  background: var(--k-linea); color: var(--k-tinta); cursor: help;
+}
+.cal-det__o b { font-size: .8rem; }
+.cal-det__o--alta { background: var(--k-ok-fondo); color: var(--k-ok); }
+.cal-det__o--media { background: var(--k-aviso-fondo); color: var(--k-aviso); }
+.cal-det__o--baja { background: var(--k-malo-fondo); color: var(--k-malo); }
+.cal-det__ley { margin: 8px 0 0; font-size: .76rem; color: var(--k-apagado); }
+
+/* la vista del ranking */
+.cal-intro { margin: 4px 0 12px; font-size: .92rem; color: var(--k-tinta-2, var(--k-tinta)); }
+.cal-intro p { margin: 0 0 8px; }
+.cal-ley { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.cal-barra__eq { font-size: .88rem; color: var(--k-apagado); }
+.cal-rej > .kit-esq { grid-column: 1 / -1; }
+.cal-vacio { grid-column: 1 / -1; color: var(--k-apagado); text-align: center; padding: 24px 8px; }
+
+.cal-t { display: flex; flex-direction: column; gap: 10px; border-top: 5px solid var(--k-linea); }
+.cal-t--alta { border-top-color: var(--k-ok); }
+.cal-t--media { border-top-color: var(--k-aviso); }
+.cal-t--baja { border-top-color: var(--k-malo); }
+.cal-t__cab { display: flex; align-items: center; gap: 10px; }
+.cal-t__quien { flex: 1 1 auto; min-width: 0; }
+.cal-t__n { margin: 0; font-size: 1rem; line-height: 1.25; }
+.cal-t__sub { margin: 2px 0 0; font-size: .8rem; color: var(--k-apagado); }
+.cal-t__puesto {
+  flex: none; font-weight: 800; font-size: .9rem; padding: 4px 9px;
+  border-radius: var(--k-r-pill, 999px); background: var(--k-marca-clara, var(--k-linea)); color: var(--k-marca);
+}
+.cal-t__pct { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.cal-t__pct b { font-size: 2.1rem; line-height: 1; font-weight: 800; }
+.cal-t--alta .cal-t__pct b { color: var(--k-ok); }
+.cal-t--media .cal-t__pct b { color: var(--k-aviso); }
+.cal-t--baja .cal-t__pct b { color: var(--k-malo); }
+.cal-t__nivel { font-weight: 700; font-size: .9rem; }
+.cal-t__tend { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: var(--k-r-pill, 999px); background: var(--k-linea); }
+.cal-t__tend--sube { background: var(--k-ok-fondo); color: var(--k-ok); }
+.cal-t__tend--baja { background: var(--k-aviso-fondo); color: var(--k-aviso); }
+.cal-t__datos { margin: 0; display: grid; gap: 4px; font-size: .84rem; }
+.cal-t__datos > div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--k-linea); padding-bottom: 3px; }
+.cal-t__datos dt { color: var(--k-apagado); }
+.cal-t__datos dd { margin: 0; font-weight: 700; text-align: right; }
+.cal-t__datos small { font-weight: 400; color: var(--k-apagado); }
+.cal-t__nota, .cal-t__falta { margin: 0; font-size: .78rem; color: var(--k-apagado); display: flex; gap: 6px; align-items: center; }
+
+.cal-bom { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cal-bom__i { display: grid; grid-template-columns: 104px 1fr 38px; align-items: center; gap: 6px; font-size: .76rem; }
+.cal-bom__t { color: var(--k-apagado); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-bom__b { height: 7px; border-radius: 99px; background: var(--k-linea); overflow: hidden; }
+.cal-bom__r { display: block; height: 100%; border-radius: 99px; background: var(--k-apagado); }
+.cal-bom__r--alta { background: var(--k-ok); }
+.cal-bom__r--media { background: var(--k-aviso); }
+.cal-bom__r--baja { background: var(--k-malo); }
+.cal-bom__i b { text-align: right; }
+
+.cal-mia { display: grid; gap: 12px; max-width: 560px; }
+.cal-comp h3 { margin: 0 0 8px; font-size: 1rem; display: flex; gap: 6px; align-items: center; }
+.cal-comp ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .9rem; }
+
+@media (max-width: 420px) {
+  .cal-bom__i { grid-template-columns: 92px 1fr 34px; }
+  .cal-t__pct b { font-size: 1.8rem; }
+}

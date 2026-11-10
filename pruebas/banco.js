@@ -4189,6 +4189,164 @@ ${js}
   }
 
   /* ═══════════ INFORME DE CUENTAS (pieza 23) ═══════════ */
+  /* ═══════════ 10/11 · CALIDAD DEL PRIMER FILTRO (pieza 39) ═══════════ */
+  grupo('calidad');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'esqueletos', 'informe-cuentas', 'variacion', 'calidad'], '<div id="cal-c"></div>');
+    page.on('pageerror', e => { rojas++; fallos.push('[calidad] error de página: ' + e.message); });
+    const JSPDF = process.env.JSPDF_LOCAL || '';
+    if (JSPDF && fs.existsSync(JSPDF)) await page.route(/cdn\.jsdelivr\.net\/npm\/jspdf/, r => r.fulfill({ path: JSPDF, contentType: 'application/javascript' }));
+    await page.route(/^https?:\/\/(?!cdn\.jsdelivr)/, r => r.abort());
+    /* datos REALES (fuera del repo: tienen datos personales). Sin ellos, estas pruebas se saltan. */
+    const REALES = process.env.CAL_DATOS && fs.existsSync(process.env.CAL_DATOS) ? JSON.parse(fs.readFileSync(process.env.CAL_DATOS, 'utf8')) : null;
+
+    await prueba('código de una obligación: general/noreq fuera, vacía = x, bombillos a letras', async () => {
+      const r = await page.evaluate(() => {
+        const C = KIT.piezas.calidad;
+        const b = e => e.map((x, k) => ({ k, e: x }));
+        return [C.codigo({ estado: 'general', b: [] }), C.codigo({ estado: 'noreq', b: [] }), C.codigo({ estado: 'vacia', b: [] }),
+                C.codigo({ estado: 'nueva', b: b(['verde', 'amarillo', 'rojo', 'gris', 'verde', 'verde']) })];
+      });
+      igual(r, [null, null, 'x', 'varg' + 'vv']);
+    });
+    await prueba('puntaje igual al del CORE (100/0/75/0 = 44)', async () => {
+      const r = await page.evaluate(() => KIT.piezas.calidad.resumir({ 1: 'vvvvvv', 2: 'rrrrrr', 3: 'vagggg', 4: 'x' }));
+      igual(r.p, 44);
+    });
+    await prueba('niveles sin castigo: Sólida, En camino, Por fortalecer', async () => {
+      const r = await page.evaluate(() => [80, 79, 60, 59, null].map(v => KIT.piezas.calidad.nivel(v).t));
+      igual(r, ['Sólida', 'En camino', 'En camino', 'Por fortalecer', 'Sin medir']);
+    });
+
+    if (REALES) {
+      await prueba('datos reales: la foto sale por el MISMO camino que la revisión y coincide con el informe gerencial', async () => {
+        const r = await page.evaluate(async (D) => {
+          const C = KIT.piezas.calidad, V = KIT.piezas.variacion, I = await V.ic();
+          const LET = { verde: 'v', amarillo: 'a', rojo: 'r', gris: 'g' };
+          let cuentas = 0, obls = 0, iguales = 0, ms = 0, sinP = 0; const dif = [];
+          Object.keys(D).forEach(id => {
+            const d = D[id]; if (d.error) return;
+            const A = I.analizar(d);
+            A.cuentas.forEach((x, j) => {
+              const t0 = performance.now();
+              const f = C.deInforme(I, V, d, x.informe);
+              ms += performance.now() - t0; cuentas++;
+              if (f.p === null) sinP++;
+              A.obl.forEach((o, i) => {
+                const z = A.celdas[i][j];
+                const esperado = z.gen ? null : (z.clase === 'sin' ? 'x' : (z.b ? z.b.map(e => LET[e]).join('') : null));
+                const real = f.o[o.n] || null;
+                if (esperado === null && real === null) return;
+                obls++;
+                if (esperado === real) iguales++; else if (dif.length < 6) dif.push(id + ' c' + x.informe + ' o' + o.n + ' ' + esperado + '≠' + real);
+              });
+            });
+          });
+          return { cuentas, obls, iguales, msPorObl: ms / Math.max(obls, 1), sinP, dif };
+        }, REALES);
+        console.log('    calidad·reales', JSON.stringify(r));
+        cierto(r.cuentas >= 30, 'pocas cuentas: ' + r.cuentas);
+        cierto(r.iguales / r.obls >= 0.97, 'coinciden ' + r.iguales + ' de ' + r.obls + ': ' + r.dif.join(' | '));
+        cierto(r.msPorObl < 5, 'lento: ' + r.msPorObl.toFixed(2) + ' ms por obligación');
+      });
+    }
+
+    const RANK = { minimo: 5, supervisores: [
+      { nombre: 'DAMARA HAIDY LEAL LEAL', pasos: 66, medidas: 30, aprox: 30, calidad: 71, promedio: 74, omision: 17, decididas: 64, devCont: 11, devSup: 60, bomb: [80, 55, 40, 70, 30, 90], vacias: 2, oblMedidas: 300, tendencia: 4, n30: 10, contratos: 20, ultima: '20261110', suficiente: true, puesto: 2 },
+      { nombre: 'JOSE ARCESIO VARGAS BENITEZ', pasos: 47, medidas: 25, aprox: 0, calidad: 83, promedio: 85, omision: 28, decididas: 46, devCont: 13, devSup: 20, bomb: [90, 85, 80, 85, 75, 95], vacias: 0, oblMedidas: 200, tendencia: -3, n30: 8, contratos: 15, ultima: '20261109', suficiente: true, puesto: 1 },
+      { nombre: 'LIDA ERIKA SANCHEZ PEÑA', pasos: 1, medidas: 1, aprox: 1, calidad: 60, promedio: 60, omision: null, decididas: 0, devCont: 0, devSup: 1, bomb: [50, 50, 50, 50, 50, 50], vacias: 0, oblMedidas: 5, tendencia: null, n30: 0, contratos: 1, ultima: '20261101', suficiente: false, puesto: null }
+    ] };
+    await prueba('ranking: una tarjeta por supervisor, puesto, % y «aún sin datos suficientes»', async () => {
+      const r = await page.evaluate(async (R) => {
+        localStorage.clear();
+        KIT.token = () => 'T';
+        window.PEDIDOS = [];
+        KIT.pedir = (a, d) => { PEDIDOS.push(a); return Promise.resolve(a === 'calidadSupervisores' ? R : null); };
+        const c = document.getElementById('cal-c'); c.innerHTML = '';
+        const t0 = performance.now();
+        KIT.piezas.calidad.vistaRanking(c, { accionLista: 'calidadSupervisores', accionUno: 'calidadSupervisor', app: 'Contratación' });
+        await new Promise(ok => setTimeout(ok, 50));
+        const ts = [...c.querySelectorAll('.cal-t')];
+        return { ms: performance.now() - t0, n: ts.length, puestos: ts.map(t => (t.querySelector('.cal-t__puesto') || {}).textContent || ''),
+                 pct: ts.map(t => (t.querySelector('.cal-t__pct b') || {}).textContent || ''), falta: !!ts[2].querySelector('.cal-t__falta'),
+                 eq: c.querySelector('.cal-barra__eq').textContent, aprox: !!ts[0].querySelector('.cal-t__nota'), inf: ts.map(t => !!t.querySelector('.cal-t__inf')),
+                 barras: ts[0].querySelectorAll('.cal-bom__i').length, pedidos: PEDIDOS.slice() };
+      }, RANK);
+      igual([r.n, r.puestos, r.pct, r.falta, r.aprox, r.inf, r.barras], [3, ['#2', '#1', ''], ['71 %', '83 %', ''], true, true, [true, true, true], 6]);
+      cierto(/Promedio del equipo: 77 %/.test(r.eq), r.eq);
+      igual(r.pedidos.filter(x => /^calidad/.test(x)), ['calidadSupervisores']);   /* «config» es la marca del PDF: una vez al día por equipo */
+    });
+    await prueba('la vista se pinta al instante con lo recordado y renueva por detrás', async () => {
+      const r = await page.evaluate(async (R) => {
+        KIT.piezas.personas = KIT.piezas.personas || null;
+        KIT.ponerToken('T-banco');
+        let soltar; KIT.pedir = () => new Promise(ok => { soltar = () => ok(R); });
+        KIT.recordado.guardar('calidad.ranking', R);
+        const c = document.getElementById('cal-c'); c.innerHTML = '';
+        KIT.piezas.calidad.vistaRanking(c, { accionLista: 'calidadSupervisores', accionUno: 'calidadSupervisor' });
+        const ya = c.querySelectorAll('.cal-t').length;
+        soltar(); await new Promise(ok => setTimeout(ok, 30));
+        return [ya, c.querySelectorAll('.cal-t').length];
+      }, RANK);
+      igual(r, [3, 3]);
+    });
+    await prueba('compromisos: los bombillos más débiles y la omisión', async () => {
+      const r = await page.evaluate((R) => KIT.piezas.calidad.lectura({ supervisor: R.supervisores[0] }, 77), RANK);
+      cierto(r.compromisos.length === 5, 'compromisos ' + r.compromisos.length + ': ' + r.compromisos.join(' / '));
+      cierto(/fechas/.test(r.compromisos[0]) && /para quién/.test(r.compromisos[1]), r.compromisos.join(' / '));
+      cierto(/Pasar a la observación/.test(r.compromisos.join(' ')), 'falta el de la omisión');
+      cierto(!/peor|sanci[oó]n|castig/i.test(r.hallazgos.join(' ') + r.conclusion), 'lenguaje de castigo');
+    });
+    await prueba('pastilla y bloque del detalle', async () => {
+      const r = await page.evaluate(() => {
+        const C = KIT.piezas.calidad;
+        const p = KIT.nodo('<div>' + C.pastilla({ cal: 72, origen: 'APROX' }) + '</div>');
+        const b = C.bloqueDetalle({ cal: 64, origen: 'FOTO', sup: 'ANA PEREZ', ronda: 2, o: { 1: 'vvvvvv', 2: 'rrrrrr', 5: 'x' } }, { 1: 'Obligación uno' });
+        return [p.querySelector('.cal-pas').className, p.textContent.trim(), b.className, b.querySelectorAll('.cal-det__o').length, b.querySelector('.cal-det__pct').textContent, C.pastilla(null)];
+      });
+      igual(r, ['cal-pas cal-pas--media', 'Primer filtro ≈72 %', 'cal-det cal-det--media', 3, '64 %', '']);
+    });
+    if (JSPDF && fs.existsSync(JSPDF)) {
+      await prueba('Informe: un toque arma el PDF gerencial del supervisor (con datos reales si están)', async () => {
+        const D = { supervisor: RANK.supervisores[0], pasos: [], devoluciones: [] };
+        const nombres = REALES ? Object.values(REALES).filter(x => !x.error).map(x => x.contrato) : [{ nombre: 'CONTRATISTA UNO', contrato: '001', secretaria: 'SECRETARIA DE HACIENDA' }];
+        for (let i = 0; i < 40; i++) {
+          const c = nombres[i % nombres.length];
+          D.pasos.push({ f: ('0' + (1 + i % 28)).slice(-2) + '/' + (i < 20 ? '10' : '11') + '/2026 10:0' + (i % 10) + ':00', id: 'X-' + i, inf: 1 + i % 6, nom: c.nombre, con: c.contrato, sec: c.secretaria, cal: 40 + (i * 7) % 60, org: i % 3 ? 'FOTO' : 'APROX',
+                         res: i % 5 === 0 ? 'DEVUELTA' : (i % 7 === 0 ? '' : 'APROBADA'), fres: '05/11/2026 09:00:00', mot: i % 5 === 0 ? 'La actividad no dice cuántos ni para quién; falta el soporte de la obligación 3.' : '' });
+        }
+        for (let i = 0; i < 12; i++) D.devoluciones.push({ f: '0' + (1 + i % 9) + '/11/2026 08:00:00', inf: 2, nom: nombres[i % nombres.length].nombre, con: '00' + i, sec: 'S', mot: 'Falta la planilla de seguridad social.' });
+        const espera = page.waitForEvent('download', { timeout: 20000 });
+        const r = await page.evaluate(async (D) => {
+          KIT.pedir = (a) => Promise.resolve(a === 'calidadSupervisor' ? D : null);
+          const t0 = performance.now();
+          const out = await KIT.piezas.calidad.informe(D, { app: 'Contratación', equipo: 77 });
+          return { paginas: out.paginas, ms: performance.now() - t0, nombre: out.nombre };
+        }, D);
+        const dl = await espera;
+        console.log('    calidad·informe', JSON.stringify(r));
+        cierto(r.paginas >= 5, 'páginas ' + r.paginas);
+        cierto(/Calidad_primer_filtro_Damara/.test(r.nombre), r.nombre);
+        cierto(r.ms < 6000, 'lento ' + r.ms);
+        const ruta = await dl.path();
+        cierto(fs.statSync(ruta).size > 20000, 'PDF muy chico');
+        if (process.env.CAL_PDF) fs.copyFileSync(ruta, process.env.CAL_PDF);
+      });
+    }
+    await prueba('vista del supervisor: solo su tarjeta (sin puesto) y «Para tu próxima revisión»', async () => {
+      const r = await page.evaluate(async (R) => {
+        localStorage.clear();
+        KIT.pedir = (a) => Promise.resolve(a === 'calidadMia' ? { supervisor: R.supervisores[0], pasos: [], devoluciones: [] } : null);
+        const c = document.getElementById('cal-c'); c.innerHTML = '';
+        KIT.piezas.calidad.vistaMia(c, {});
+        await new Promise(ok => setTimeout(ok, 50));
+        return [c.querySelectorAll('.cal-t').length, !!c.querySelector('.cal-t__puesto'), c.querySelectorAll('.cal-comp li').length];
+      }, RANK);
+      igual(r, [1, false, 5]);
+    });
+    await ctx.close();
+  }
+
   grupo('informeCuentas');
   {
     const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'informe-cuentas']);

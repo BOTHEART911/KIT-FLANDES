@@ -28,6 +28,9 @@
        secciones: [{ titulo, intro, kpis, graficas: [{ titulo, tipo: 'barras'|'barrasH'|'proporcion',
                      datos: [{ etiqueta, valor, tono }], formato: 'numero'|'pesos', nota }] }],
        hallazgos: ['...'],               // opcional: se suman a los automáticos
+       // 10/11 · opcionales (calidad del primer filtro): subtitulo (portada), sintesis (texto propio),
+       // soloHallazgos: [...] (reemplaza los automáticos), y en secciones: vinetas, subtituloVinetas,
+       // tablas: [{titulo, nota, cols, filas}]; en graficas: formato 'porciento', tope, sinParte.
        // 11/10 · opcionales (SEC-HACIENDA): ecosistema: 'FLANDES-CORE' (portada y nota),
        // notaAnexo: '...' (texto cuando el anexo no cabe entero),
        // sujetos: { n: 3120, top: [{ etiqueta, valor }] } — el servidor ya contó los
@@ -64,8 +67,8 @@
     return plata(v);
   }
   function pct(a, b) { return b ? (Math.round(a / b * 1000) / 10).toLocaleString('es-CO') + ' %' : '0 %'; }
-  function fmt(v, f) { return f === 'pesos' ? plata(v) : ent(v); }
-  function fmtCorto(v, f) { return f === 'pesos' ? plataCorta(v) : ent(v); }
+  function fmt(v, f) { return f === 'pesos' ? plata(v) : (f === 'porciento' ? ent(v) + ' %' : ent(v)); }   /* 10/11 · porciento: calidad del primer filtro */
+  function fmtCorto(v, f) { return f === 'pesos' ? plataCorta(v) : (f === 'porciento' ? ent(v) + ' %' : ent(v)); }
 
   function aFecha(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : null; }
   function aIso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -184,6 +187,7 @@
   }
 
   function hallazgos(sp, A) {
+    if (sp.soloHallazgos && sp.soloHallazgos.length) return sp.soloHallazgos.slice(0, 8);   /* 10/11 · la app trae los suyos */
     var pal = sp.palabra || ['registro', 'registros'], E = sp.etiquetas || {}, TT = tonosTxt(sp);
     var h = [];
     if (!A.total) return ['En el periodo no hay ' + pal[1] + ' para analizar.'];
@@ -211,6 +215,7 @@
   function tonosTxt(sp) { var t = {}, k; for (k in TONOS_TXT) t[k] = (sp.tonos && sp.tonos[k]) || TONOS_TXT[k]; return t; }
 
   function sintesis(sp, A) {
+    if (sp.sintesis) return sp.sintesis;   /* 10/11 · la app trae la suya */
     var pal = sp.palabra || ['registro', 'registros'];
     if (!A.total) return 'Entre el ' + largo(A.desde) + ' y el ' + largo(A.hasta) + ' no hay ' + pal[1] + ' de ' + sp.persona + ' en ' + sp.app + '.';
     var colectivo = /^(todo|toda|solicitudes sin)/i.test(sp.persona);
@@ -311,7 +316,7 @@
       relleno(C.oro); doc.rect(mx, 66, 30, 1.2, 'F');
       fuente('bold', 11, [214, 233, 222]); doc.text('INFORME', mx, 78);
       fuente('bold', 34, C.blanco); doc.text('Gerencial', mx, 93);
-      fuente('normal', 12.5, [214, 233, 222]); doc.text('Gestión registrada en el aplicativo ' + sp.app, mx, 104);
+      fuente('normal', 12.5, [214, 233, 222]); doc.text(sp.subtitulo || ('Gestión registrada en el aplicativo ' + sp.app), mx, 104);   /* 10/11 · subtitulo propio */
 
       /* la tarjeta de datos */
       var ty = alto + 18, th = 64;
@@ -438,7 +443,7 @@
       var lista = datos.slice(0, op.max || 10), resto = datos.slice(op.max || 10);
       if (resto.length) lista.push({ etiqueta: 'Otros (' + resto.length + ')', valor: resto.reduce(function (s, d) { return s + d.valor; }, 0), monto: resto.reduce(function (s, d) { return s + (d.monto || 0); }, 0), otros: true });
       var total = datos.reduce(function (s, d) { return s + d[campo]; }, 0) || 1;
-      var max = Math.max.apply(null, lista.map(function (d) { return d[campo]; }).concat([1]));
+      var max = op.tope || Math.max.apply(null, lista.map(function (d) { return d[campo]; }).concat([1]));   /* 10/11 · tope fijo (100 %) */
       var rh = 7, lw = op.ancho || 62, bw = util - lw - 34;
       lista.forEach(function (d, i) {
         cabe(rh);
@@ -450,7 +455,7 @@
         relleno(d.tono ? (C[d.tono] || C.verde2) : (i === 0 && !d.otros ? C.oro : (d.otros ? C.gris2 : C.verde2)));
         doc.roundedRect(mx + lw, yy + 0.6, bl, 3.8, 0.8, 0.8, 'F');
         fuente('bold', 7.6, C.tinta); doc.text(fmt(d[campo], f), mx + lw + bl + 1.8, yy + 3.4);
-        fuente('normal', 7.2, C.gris); doc.text(pct(d[campo], total), W - mx - 1, yy + 3.4, { align: 'right' });
+        if (!op.sinParte) { fuente('normal', 7.2, C.gris); doc.text(pct(d[campo], total), W - mx - 1, yy + 3.4, { align: 'right' }); }
         y += rh;
       });
       y += 4;
@@ -658,9 +663,12 @@
         subtitulo(g.titulo, g.nota, g.tipo === 'barras' ? 90 : (g.tipo === 'proporcion' ? 30 : 40));
         if (g.tipo === 'barras') barrasV(g.datos, { formato: g.formato, alto: g.alto });
         else if (g.tipo === 'proporcion') proporcion(g.datos, { formato: g.formato });
-        else barrasH(g.datos, { formato: g.formato, max: g.max, titular: g.titular });
+        else barrasH(g.datos, { formato: g.formato, max: g.max, titular: g.titular, tope: g.tope, sinParte: g.sinParte });
       });
       if (s.tabla) { subtitulo(s.tabla.titulo, s.tabla.nota); tabla(s.tabla.cols, s.tabla.filas); }
+      /* 10/11 · secciones de texto (conclusiones, compromisos) */
+      if (s.vinetas && s.vinetas.length) { if (s.subtituloVinetas) subtitulo(s.subtituloVinetas); vinetas(s.vinetas); }
+      if (s.tablas) s.tablas.forEach(function (tb) { if (!tb.filas || !tb.filas.length) return; subtitulo(tb.titulo, tb.nota); tabla(tb.cols, tb.filas); });
     });
 
     if (A.total) {
