@@ -42,7 +42,7 @@
   var K = window.KIT;
   if (!K) return;
 
-  var MOTOR = 'C2026.11.10b';   /* b: tres partes como el informe gerencial */
+  var MOTOR = 'C2026.11.10c';   /* b: tres partes como el informe gerencial · c: soporte gris si la obligación no pide producto */
   var LETRA = { verde: 'v', amarillo: 'a', rojo: 'r', gris: 'g' };
   var BOMBILLOS = ['Qué hizo distinto', 'Cuántos', 'Para quién', 'Resultado', 'Cuándo', 'Soporte'];
   var BOMB_LARGO = ['Diferencia lo hecho frente a la cuenta anterior', 'Dice cuántos (cifras de lo hecho)', 'Dice para quién o con quién',
@@ -63,7 +63,8 @@
   function codigo(R) {
     if (!R || R.estado === 'general' || R.estado === 'noreq') return null;
     if (R.estado === 'vacia') return 'x';
-    return (R.b || []).map(function (b) { return LETRA[b.e] || 'g'; }).join('');
+    /* 10/11 c · sin adjunto en una obligación que no pide producto: el soporte no aplica (gris), no resta */
+    return (R.b || []).map(function (b) { return b.k === 5 && b.como === 'oblSinProducto' ? 'g' : (LETRA[b.e] || 'g'); }).join('');
   }
   /** Puntos de un código: verde 100, ámbar 50, rojo 0, gris fuera; 'x' = 0. */
   function puntos(c) {
@@ -291,8 +292,11 @@
     });
     var MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     var serieMes = Object.keys(mes).sort().map(function (k) { return { etiqueta: MES[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4), valor: prom(mes[k]) }; });
-    var conLista = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]), n = porCon[k].length; return { etiqueta: nombrePropio(k) + ' (' + n + (n === 1 ? ' cuenta)' : ' cuentas)'), valor: v, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
+    /* 10/11 · solo cuentan las que pasó desde que se registra quién las pasa (28/09); con menos de 3 es dato inicial, aparte */
+    var MIN_CON = 3, desdeTxt = fechas.length ? fechas[0].slice(8, 10) + '/' + fechas[0].slice(5, 7) : '';
+    var conTodos = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]), n = porCon[k].length; return { etiqueta: nombrePropio(k) + ' (' + n + (n === 1 ? ' cuenta' : ' cuentas') + (desdeTxt ? ' desde el ' + desdeTxt : '') + ')', valor: v, n: n, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
       .sort(function (a, b) { return a.valor - b.valor; });
+    var conLista = conTodos.filter(function (x) { return x.n >= MIN_CON; }), conInicial = conTodos.filter(function (x) { return x.n < MIN_CON; });
     var omis = pasos.filter(function (p) { return String(p.res || '').toUpperCase() === 'DEVUELTA'; });
     function tono(v) { var k = nivel(v).k; return k === 'alta' ? 'ok' : (k === 'media' ? 'aviso' : 'malo'); }
 
@@ -321,13 +325,14 @@
       secciones: [
         {
           titulo: 'Calidad de lo que aprueba',
-          intro: 'Cada barra es el porcentaje de actividades que pasaron con ese bombillo en verde (ámbar vale la mitad). La calidad de cada cuenta usa los mismos componentes del informe gerencial del contratista, menos la oportunidad de radicación: Variación, Redacción completa y Soporte, en partes iguales. La última gráfica no es un ranking de contratistas: dice con qué calidad el supervisor aprobó las cuentas de cada uno en el periodo.',
+          intro: 'Cada barra es el porcentaje de actividades que pasaron con ese bombillo en verde (ámbar vale la mitad). La calidad de cada cuenta usa los mismos componentes del informe gerencial del contratista, menos la oportunidad de radicación: Variación, Redacción completa y Soporte, en partes iguales. Las gráficas por contratista no son un ranking de contratistas: dicen con qué calidad el supervisor aprobó las cuentas de cada uno desde que el sistema registra quién las pasa (28/09), no su historial completo. Si una obligación no pide un producto y no tiene adjunto, el soporte no aplica y no resta.',
           graficas: [
             { titulo: 'Los 6 bombillos en lo que aprueba', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, titular: false,
               datos: BOMB_LARGO.map(function (t, i) { var v = (s.bomb || [])[i]; return { etiqueta: t, valor: v === null || v === undefined ? 0 : v, tono: tono(v) }; }) },
             { titulo: 'Calidad por mes', tipo: 'barras', formato: 'porciento', datos: serieMes },
-            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: 'de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conLista }
-          ]
+            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: 'de menor a mayor · ' + MIN_CON + ' o más cuentas', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conLista },
+            { titulo: 'Dato inicial: contratistas con menos de ' + MIN_CON + ' cuentas medidas', nota: 'no se comparan', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conInicial }
+          ].filter(function (g) { return g.datos.length; })
         },
         {
           titulo: 'Lo que se le escapa y lo que devuelve',

@@ -4216,11 +4216,22 @@ ${js}
     await prueba('mismos componentes del informe gerencial: la cuenta 9 del 061 (real) da 62, no 49', async () => {
       const r = await page.evaluate(() => {
         const C = KIT.piezas.calidad;
-        const o = { 1: 'vvrvrv', 2: 'vvrrrr', 3: 'vvrvrv', 4: 'vvrrrv', 5: 'vvrvrv', 6: 'vvrvrr', 7: 'vrrvrr', 8: 'vvrrrr', 10: 'vvrrra' };
+        const o = { 1: 'vvrvrv', 2: 'vvrrrr', 3: 'vvrvrv', 4: 'vvrrrv', 5: 'vvrvrv', 6: 'vvrvrr', 7: 'vrrvrr', 8: 'vvrrrr', 10: 'vvrrrg' };   /* 10: no pide producto → soporte gris */
         const P = C.partes(o);
         return [Math.round(P.variacion), Math.round(P.redaccion), Math.round(P.soporte), C.resumir(o).p];
       });
       igual(r, [100, 36, 50, 62]);
+    });
+    await prueba('soporte: sin adjunto en una obligación que no pide producto = gris (no resta); si pide producto, sigue en rojo', async () => {
+      const r = await page.evaluate(() => {
+        const C = KIT.piezas.calidad;
+        const b = (s5) => [0, 1, 2, 3, 4].map(k => ({ k, e: 'verde' })).concat([s5]);
+        return [C.codigo({ estado: 'nueva', b: b({ k: 5, e: 'amarillo', como: 'oblSinProducto' }) }),
+                C.codigo({ estado: 'nueva', b: b({ k: 5, e: 'amarillo', como: 'donde' }) }),
+                C.codigo({ estado: 'nueva', b: b({ k: 5, e: 'rojo', como: 'nada' }) }),
+                C.resumir({ 1: 'vvvvvg' }).p];
+      });
+      igual(r, ['vvvvvg', 'vvvvva', 'vvvvvr', 100]);
     });
     await prueba('primera cuenta: sin variación, la cuenta es el promedio de redacción y soporte', async () => {
       const r = await page.evaluate(() => KIT.piezas.calidad.resumir({ 1: 'gvvvvv', 2: 'grrrrr' }).p);
@@ -4248,7 +4259,9 @@ ${js}
               A.obl.forEach((o, i) => {
                 const z = A.celdas[i][j];
                 const esperado = z.gen ? null : (z.clase === 'sin' ? 'x' : (z.b ? z.b.map(e => LET[e]).join('') : null));
-                const real = f.o[o.n] || null;
+                let real = f.o[o.n] || null;
+                /* 10/11 c · la calidad pone en gris el soporte que el informe deja en ámbar cuando la obligación no pide producto */
+                if (real && esperado && real.length === 6 && real.charAt(5) === 'g' && esperado.charAt(5) === 'a' && real.slice(0, 5) === esperado.slice(0, 5)) real = esperado;
                 if (esperado === null && real === null) return;
                 obls++;
                 if (esperado === real) iguales++; else if (dif.length < 6) dif.push(id + ' c' + x.informe + ' o' + o.n + ' ' + esperado + '≠' + real);
@@ -4338,6 +4351,18 @@ ${js}
         }, D);
         const dl = await espera;
         console.log('    calidad·informe', JSON.stringify(r));
+        /* 10/11 · gráficas por contratista: «desde el dd/mm» y los de menos de 3 cuentas aparte */
+        const g = await page.evaluate(async (D) => {
+          const ex = KIT.piezas.exportar, orig = ex.aGerencial; let spec = null;
+          ex.aGerencial = (s) => { spec = s; return Promise.resolve({ paginas: 1, nombre: 'x' }); };
+          D.pasos.push({ f: '30/09/2026 10:00:00', id: 'U', inf: 9, nom: 'UNA SOLA CUENTA', con: '061', sec: 'S', cal: 62, org: 'APROX', res: 'APROBADA' });
+          try { await KIT.piezas.calidad.informe(D, { app: 'Contratación', equipo: 77 }); } finally { ex.aGerencial = orig; }
+          const gs = spec.secciones[0].graficas;
+          const a = gs.find(x => /cada contratista/.test(x.titulo)), b = gs.find(x => /Dato inicial/.test(x.titulo));
+          return { a: a.datos.map(x => x.etiqueta), b: b ? b.datos.map(x => x.etiqueta) : [] };
+        }, D);
+        cierto(g.b.some(x => /^Una Sola Cuenta \(1 cuenta desde el \d\d\/\d\d\)$/.test(x)), 'dato inicial: ' + g.b.join(' | '));
+        cierto(!g.a.some(x => /Una Sola Cuenta/.test(x)) && g.a.every(x => /\((\d+) cuentas desde el/.test(x) && Number(/\((\d+)/.exec(x)[1]) >= 3), 'comparables: ' + g.a.join(' | '));
         cierto(r.paginas >= 5, 'páginas ' + r.paginas);
         cierto(/Calidad_primer_filtro_Damara/.test(r.nombre), r.nombre);
         cierto(r.ms < 6000, 'lento ' + r.ms);
