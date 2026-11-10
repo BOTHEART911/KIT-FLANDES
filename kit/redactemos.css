@@ -102,3 +102,19 @@
 .rd-nota[hidden] { display: none; }
 .rd-env--listo { animation: rd-late 1.2s ease-in-out infinite; box-shadow: 0 0 0 5px rgba(var(--k-marca-rgb), .18); }
 @media (prefers-reduced-motion: reduce) { .rd-env--listo { animation: none; } }
+
+/* 10/11 · pendiente de evidencia («La subo después») */
+.rd-pend { display: grid; gap: 8px; margin: 8px 0 2px; padding: 10px 12px; border-radius: var(--k-r-sm); border: 1.5px dashed var(--k-aviso); background: var(--k-aviso-fondo); color: var(--k-tinta); }
+.rd-pend[hidden] { display: none; }
+.rd-pend--lista { border-style: solid; border-color: var(--k-marca); background: var(--k-papel-2); }
+.rd-pend__fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.rd-pend__ico { color: var(--k-aviso); display: grid; place-items: center; }
+.rd-pend--lista .rd-pend__ico { color: var(--k-marca); }
+.rd-pend__t { margin: 0; flex: 1 1 220px; font-size: .88rem; line-height: 1.45; }
+.rd-pend__b { display: inline-flex; align-items: center; gap: 6px; }
+.rd-pend__f { display: grid; gap: 8px; }
+.rd-pend__q { margin: 0; font-size: .86rem; font-weight: 600; }
+.rd-pend__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rd-pend__chips:empty { display: none; }
+.rd-pend__in { display: flex; gap: 8px; flex-wrap: wrap; }
+.rd-pend__txt { flex: 1 1 200px; min-height: 42px; padding: 8px 12px; border-radius: var(--k-r-sm); border: 1px solid var(--k-linea); background: var(--k-papel); color: var(--k-tinta); font: inherit; font-size: 16px; }

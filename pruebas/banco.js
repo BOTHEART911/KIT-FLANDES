@@ -347,6 +347,44 @@ ${js}
       igual(r.chips[0], 'para el municipio de Flandes');
       cierto(r.chips.length === 3, 'debían salir 3 botones: ' + r.chips);
     });
+    await prueba('10/11 · «La subo después»: no pregunta qué, no dice que ya quedó, deja el pendiente y «Ya la subí» lo anota en pasado', async () => {
+      const r = await page.evaluate(async () => {
+        const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION),
+          redactar: () => Promise.resolve('Gestioné 3 actualizaciones en los aplicativos para la secretaría de Hacienda los días 24 y 28 de octubre, que quedaron documentadas en el reporte de incidencias resueltas, el cual será cargado próximamente.') };
+        const { area } = abrirRD(gem); area.value = '';
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot())); await decir('3 actualizaciones');
+        await esperar(() => /para quién/i.test(ultimoBot())); await decir('para la secretaría de Hacienda');
+        await esperar(() => /en qué días/i.test(ultimoBot())); await decir('el 24 y el 28 de octubre');
+        await tocar('La subo después');
+        const sigue = ultimoBot();
+        await decir('atendí las dificultades que reportaron los contratistas y supervisores en los aplicativos');
+        const P = KIT.piezas.redactemos.PENDIENTE;
+        await esperar(() => area.value.indexOf(P) >= 0, 4000);
+        const parrafo = area.value, fin = document.querySelector('.rd-fin').textContent;
+        await new Promise(ok => setTimeout(ok, 2800));
+        /* el pendiente en el borrador */
+        let cargadas = 0;
+        const caja = document.getElementById('rd-c');
+        const pe = KIT.piezas.redactemos.pendiente({ n: 1, area, soporte: () => cargadas, evidencias: ['reporte de incidencias resueltas', 'versión publicada'] });
+        caja.appendChild(pe.nodo);
+        const visible = !pe.nodo.hidden, bulbo = MED(parrafo).b[5].e;
+        pe.nodo.querySelector('.rd-pend__b').click();
+        const sinSoporte = !pe.nodo.querySelector('.rd-pend__f');
+        cargadas = 1; pe.actualizar();
+        const lista = pe.nodo.classList.contains('rd-pend--lista');
+        pe.nodo.querySelector('.rd-pend__b').click();
+        [...pe.nodo.querySelectorAll('.rd-chip')].find(b => /versión/.test(b.textContent)).click();
+        return { sigue, parrafo, fin, visible, bulbo, sinSoporte, lista, final: area.value, oculto: pe.nodo.hidden };
+      });
+      cierto(/Enséñame/.test(r.sigue), 'con «La subo después» debía pasar directo a los detalles: ' + r.sigue);
+      cierto(!/documentad|cargad|próximamente/.test(r.parrafo), 'no debía decir que ya quedó o que se cargará: ' + r.parrafo);
+      cierto(/\[Pendiente: subir el adjunto de evidencia\]$/.test(r.parrafo), 'debía terminar con el pendiente: ' + r.parrafo);
+      cierto(/pendiente/i.test(r.fin) && /Ya la subí/.test(r.fin), 'el final debía explicar el pendiente: ' + r.fin);
+      cierto(r.visible && r.bulbo === 'rojo' && r.sinSoporte && r.lista, 'pendiente visible, soporte en rojo y sin evidencia no deja anotar: ' + JSON.stringify(r));
+      cierto(/Se cargó la versión publicada como evidencia de la gestión realizada\.$/.test(r.final) && r.final.indexOf('[') < 0 && r.oculto, 'debía quedar en pasado y sin corchetes: ' + r.final);
+    });
     await prueba('«No» lo realicé: pide el motivo y queda «No requerida» aunque traiga cifras', async () => {
       const r = await page.evaluate(async () => {
         const { area, fin } = abrirRD({ disponible: () => false }); area.value = '';

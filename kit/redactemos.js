@@ -308,6 +308,11 @@
     t = t.replace(/^(porque|por que|debido a que|ya que|pues|es que|fue porque|no se hizo porque|no lo hice porque|no la hice porque)\s+/i, '');
     return { ok: true, texto: t.charAt(0).toLowerCase() + t.slice(1) };
   }
+  /* 10/11 · «La subo después»: NO se pregunta qué va a subir ni se escribe que ya quedó. Queda un PENDIENTE
+     entre corchetes en su actividad: viaja con lo guardado (se ve en cualquier equipo), deja en rojo el
+     bombillo de soporte y no deja ingresar la cuenta hasta resolverlo. Al subir la evidencia toca
+     «Ya la subí», dice qué subió y se anota en pasado: «Se cargó … como evidencia de la gestión realizada». */
+  var PENDIENTE = '[Pendiente: subir el adjunto de evidencia]';
   var NO_EJEC = 'Durante el periodo no se ejecutaron actividades en esta obligación debido a que ';
   function parrafoNo(mot) { return conPunto(NO_EJEC + mot); }
 
@@ -320,13 +325,14 @@
     var out = [p1];
     if (A.detalle) out.push(conPunto(capital(A.detalle)));
     if (A.evid === 'noreq') out.push('No requiere adjunto.');
+    else if (A.evid === 'despues') out.push(PENDIENTE);
     else if (A.evidQue) out.push(al(['Como evidencia quedó ', 'Como soporte de lo anterior queda ', 'La evidencia de esta actividad es ']) + A.evidQue + '.');
     return out.join(' ').replace(/\s{2,}/g, ' ');
   }
 
   /* ══════════════ la guarda: nada que él no haya dicho ══════════════ */
   function revisar(texto, fuentes, A) {
-    var t = limpio(texto), F = st(fuentes);
+    var t = limpio(String(texto || '').split(PENDIENTE).join('')), F = st(fuentes);
     if (!t || t.length < 50 || t.length > 1600) return 'largo';
     if (/[\[\]⟦⟧]/.test(t)) return 'corchetes';
     var nums = {}; (F.match(/\d+/g) || []).forEach(function (n) { nums[String(Number(n))] = 1; });
@@ -665,10 +671,11 @@
           A.cuando = r.frase; A.fechas = r.fechas;
           return ir(4);
         case 'evidencia':
-          if (valor === 'si' || valor === 'despues') { A.evid = valor; sub = 'evidQue'; luz('evidencia', 'ya'); return preguntas.evidQue(); }
+          if (valor === 'si') { A.evid = 'si'; sub = 'evidQue'; luz('evidencia', 'ya'); return preguntas.evidQue(); }
+          if (valor === 'despues') { A.evid = 'despues'; A.evidQue = ''; return ir(5); }
           if (valor === 'noreq') { sub = 'evidSeguro'; return preguntas.evidSeguro(); }
           if (/^si\b/.test(st(valor))) { A.evid = 'si'; sub = 'evidQue'; return preguntas.evidQue(); }
-          if (/(despues|luego|mas tarde)/.test(st(valor))) { A.evid = 'despues'; sub = 'evidQue'; return preguntas.evidQue(); }
+          if (/(despues|luego|mas tarde)/.test(st(valor))) { A.evid = 'despues'; A.evidQue = ''; return ir(5); }
           if (/(no requiere|no aplica|^no\b)/.test(st(valor))) { sub = 'evidSeguro'; return preguntas.evidSeguro(); }
           return no_entendi('Elige una opción: <b>Sí, la subo</b>, <b>La subo después</b> o <b>No requiere</b>.', valor);
         case 'detalle':
@@ -690,7 +697,7 @@
         var fuentes = [o.obligacion, textoCantidades(A.cantidades), A.quien, A.cuando, A.evidQue, A.detalle, 'no requiere adjunto'].join(' • ');
         var datos = {
           obligacion: o.obligacion, cantidades: textoCantidades(A.cantidades), quien: A.quien, cuando: A.cuando,
-          evidencia: A.evid === 'noreq' ? 'No requiere adjunto' : (A.evidQue ? A.evidQue + (A.evid === 'despues' ? ' (la sube después)' : '') : ''),
+          evidencia: A.evid === 'noreq' ? 'No requiere adjunto' : (A.evid === 'despues' ? 'Todavía no la tiene: NO menciones evidencias, documentos, reportes ni soportes cargados' : (A.evidQue || '')),
           detalle: A.detalle, anteriores: (ctx.anteriores || []).slice(-3), ms: 8000
         };
         function repetida(t) {
@@ -706,6 +713,12 @@
           return '';
         }
         function completar(t) {
+          if (A.evid === 'despues') {
+            /* no puede decir que ya quedó documentado lo que aún no sube */
+            if (/(evidencia|documentad|cargad|adjunt|quedo registrad|quedaron registrad|se carg|se subi|proximamente)/.test(st(t))) throw new Error('GUARDA:evidenciaFutura');
+            if (t.indexOf(PENDIENTE) < 0) t = conPunto(t) + ' ' + PENDIENTE;
+            return t;
+          }
           if (A.evid === 'noreq' && !/no requiere adjunto/.test(st(t))) t = conPunto(t) + ' No requiere adjunto.';
           if (A.evidQue && st(t).indexOf(st(A.evidQue).slice(0, 18)) < 0) t = conPunto(t) + ' Como evidencia quedó ' + A.evidQue + '.';
           return t;
@@ -754,7 +767,7 @@
       var fin = K.nodo('<div class="rd-fin" role="status">' +
         '<span class="rd-fin__ico">' + K.icono('check', 34) + '</span>' +
         '<p class="rd-fin__t">¡Hemos terminado!</p>' +
-        '<p class="rd-fin__s">Puedes editar el texto' + (subir ? ' y <b>no olvides subir tu evidencia</b>' : '') + '.</p>' +
+        '<p class="rd-fin__s">' + (evid === 'despues' ? 'Puedes editar el texto. Te dejé un <b>pendiente</b>: cuando subas tu evidencia, toca <b>Ya la subí</b> y la anoto.' : 'Puedes editar el texto' + (subir ? ' y <b>no olvides subir tu evidencia</b>' : '') + '.') + '</p>' +
         '<button type="button" class="kit-btn kit-btn--marca rd-fin__b">Ver mi actividad</button></div>');
       capa.querySelector('.rd-hoja').appendChild(fin);
       K.vibrar && K.vibrar([12, 40, 12]);
@@ -787,7 +800,7 @@
       setTimeout(function () { capa.remove(); }, 200);
       if (fin) {
         var subir = A.evid === 'si' || A.evid === 'despues';
-        K.aviso('¡Hemos terminado! Puedes editar el texto' + (subir ? ' y no olvides subir tu evidencia.' : '.'), 'ok', 6000);
+        K.aviso(A.evid === 'despues' ? '¡Hemos terminado! Quedó un pendiente: cuando subas tu evidencia, toca «Ya la subí».' : '¡Hemos terminado! Puedes editar el texto' + (subir ? ' y no olvides subir tu evidencia.' : '.'), 'ok', 7000);
         try { o.area.focus({ preventScroll: false }); o.area.setSelectionRange(o.area.value.length, o.area.value.length); } catch (e) {}
       }
       if (alCerrar) alCerrar();
@@ -864,8 +877,67 @@
     return { cerrar: cerrar, _A: A };
   }
 
+  /* ══════════════ el pendiente de evidencia en el borrador ══════════════
+     pendiente({ area, soporte: fn -> nº cargado, evidencias: [sugerencias], alSubir: fn })
+       -> { nodo, actualizar }   (actualizar() tras cada cambio del texto o de las evidencias) */
+  function pendiente(o) {
+    var nodo = K.nodo('<div class="rd-pend" hidden role="status"></div>');
+    function hay() { return String(o.area.value || '').indexOf(PENDIENTE) >= 0; }
+    function pintar() {
+      if (!hay()) { nodo.hidden = true; nodo.innerHTML = ''; return; }
+      if (nodo.querySelector('.rd-pend__f')) return;   /* está anotando: no se repinta */
+      var n = o.soporte ? o.soporte() : 0;
+      nodo.hidden = false;
+      nodo.innerHTML = '<div class="rd-pend__fila"><span class="rd-pend__ico">' + K.icono('reloj', 18) + '</span>' +
+        '<p class="rd-pend__t"><b>Pendiente:</b> ' + (n ? 'ya hay evidencia cargada. Toca <b>Ya la subí</b> para anotarla en tu actividad.' : 'sube la evidencia de esta actividad (abajo, en imágenes o archivo). Mientras siga pendiente, no se puede ingresar la cuenta.') + '</p>' +
+        '<button type="button" class="kit-btn ' + (n ? 'kit-btn--marca' : 'kit-btn--plano') + ' rd-pend__b">' + K.icono('check', 16) + ' Ya la subí</button></div>';
+      nodo.classList.toggle('rd-pend--lista', !!n);
+      nodo.querySelector('.rd-pend__b').addEventListener('click', function () {
+        if (!(o.soporte ? o.soporte() : 0)) {
+          K.aviso('Primero sube la imagen o el archivo de evidencia (abajo). Luego toca «Ya la subí».', 'aviso', 6000);
+          if (o.alSubir) o.alSubir();
+          return;
+        }
+        anotar();
+      });
+    }
+    function anotar() {
+      var f = K.nodo('<div class="rd-pend__f"><p class="rd-pend__q">¿Qué evidencia subiste? Así lo anoto en tu actividad, en pasado.</p>' +
+        '<div class="rd-pend__chips"></div><div class="rd-pend__in"><input type="text" class="rd-pend__txt" placeholder="Por ejemplo: el reporte de incidencias resueltas" maxlength="120">' +
+        '<button type="button" class="kit-btn kit-btn--marca rd-pend__ok">Anotar</button></div></div>');
+      nodo.appendChild(f);
+      var inp = f.querySelector('.rd-pend__txt');
+      (o.evidencias || []).slice(0, 4).forEach(function (x) {
+        var c = K.nodo('<button type="button" class="rd-chip"></button>'); c.textContent = x;
+        c.addEventListener('click', function () { inp.value = x; listo(); });
+        f.querySelector('.rd-pend__chips').appendChild(c);
+      });
+      function listo() {
+        var r = evidenciaQue(inp.value);
+        if (!r.ok) { K.aviso('Escribe en pocas palabras qué evidencia subiste.', 'aviso', 4000); inp.focus(); return; }
+        var que = r.que.replace(/^(el|la|los|las|un|una)\s+/i, function (m) { return m.toLowerCase(); });
+        if (!/^(el|la|los|las|un|una|unos|unas)\s/i.test(que)) {
+          var w0 = st(que.split(' ')[0]);
+          que = (/as$/.test(w0) ? 'las ' : /s$/.test(w0) ? 'los ' : /(a|ion|dad)$/.test(w0) ? 'la ' : 'el ') + que;
+        }
+        var frase = 'Se cargó ' + que + ' como evidencia de la gestión realizada.';
+        o.area.value = String(o.area.value).split(PENDIENTE).join(frase).replace(/[ \t]{2,}/g, ' ');
+        try { o.area.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        registrar({ tipo: 'rd.pendiente', obl: o.n, informe: o.informe || '', app: o.app || '' });
+        f.remove(); pintar();
+        K.aviso('Listo: quedó anotada la evidencia. Guarda cuando termines.', 'ok', 5000);
+      }
+      f.querySelector('.rd-pend__ok').addEventListener('click', listo);
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); listo(); } });
+      setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
+    }
+    o.area.addEventListener('input', pintar);
+    pintar();
+    return { nodo: nodo, actualizar: pintar };
+  }
+
   K.piezas.redactemos = {
-    crear: crear,
+    crear: crear, pendiente: pendiente, PENDIENTE: PENDIENTE,
     /* para las pruebas */
     _cantidades: cantidades, _cuando: cuando, _quien: quien, _detalle: detalle, _motivo: motivo, _enCifras: enCifras,
     _local: local, _revisar: revisar, _guionLocal: guionLocalDe, _parrafoNo: parrafoNo, _nombreCorto: nombreCorto, NO_EJEC: NO_EJEC
