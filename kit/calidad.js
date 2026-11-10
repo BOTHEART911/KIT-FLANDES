@@ -330,8 +330,8 @@
             { titulo: 'Los 6 bombillos en lo que aprueba', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, titular: false,
               datos: BOMB_LARGO.map(function (t, i) { var v = (s.bomb || [])[i]; return { etiqueta: t, valor: v === null || v === undefined ? 0 : v, tono: tono(v) }; }) },
             { titulo: 'Calidad por mes', tipo: 'barras', formato: 'porciento', datos: serieMes },
-            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + MIN_CON + ' o más · de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, ancho: 70, datos: conLista },
-            { titulo: 'Dato inicial: menos de ' + MIN_CON + ' cuentas medidas', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + 'no se comparan', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, ancho: 70, datos: conInicial }
+            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + MIN_CON + ' o más · de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 60, titular: false, ancho: 70, datos: conLista },
+            { titulo: 'Dato inicial: menos de ' + MIN_CON + ' cuentas medidas', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + 'no se comparan', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 60, titular: false, ancho: 70, datos: conInicial }
           ].filter(function (g) { return g.datos.length; })
         },
         {

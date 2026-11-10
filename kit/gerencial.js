@@ -442,7 +442,11 @@
       op = op || {};
       var f = op.formato, campo = op.campo || 'valor';
       var lista = datos.slice(0, op.max || 10), resto = datos.slice(op.max || 10);
-      if (resto.length) lista.push({ etiqueta: 'Otros (' + resto.length + ')', valor: resto.reduce(function (s, d) { return s + d.valor; }, 0), monto: resto.reduce(function (s, d) { return s + (d.monto || 0); }, 0), otros: true });
+      if (resto.length) {
+        var sumaR = resto.reduce(function (s, d) { return s + d.valor; }, 0);
+        /* 10/11 · con tope (porcentajes) «Otros» es el promedio, no la suma: sumar porcentajes pasa de 100 */
+        lista.push({ etiqueta: 'Otros (' + resto.length + ')' + (op.tope ? ' · promedio' : ''), valor: op.tope ? Math.round(sumaR / resto.length) : sumaR, monto: resto.reduce(function (s, d) { return s + (d.monto || 0); }, 0), otros: true });
+      }
       var total = datos.reduce(function (s, d) { return s + d[campo]; }, 0) || 1;
       var max = op.tope || Math.max.apply(null, lista.map(function (d) { return d[campo]; }).concat([1]));   /* 10/11 · tope fijo (100 %) */
       var rh = 7, lw = op.ancho || 62, bw = util - lw - 34;
@@ -452,7 +456,7 @@
         if (i % 2 === 0) { relleno(C.fondo); doc.rect(mx, yy - 1.2, util, rh, 'F'); }
         fuente(d.otros ? 'italic' : 'normal', 7.8, C.tinta);
         doc.text(recorte(op.titular === false ? d.etiqueta : titular(d.etiqueta), d.otros ? 'italic' : 'normal', 7.8, lw - 3), mx + 2, yy + 3.4);
-        var bl = Math.max((d[campo] / max) * bw, d[campo] > 0 ? 0.8 : 0);
+        var bl = Math.min(Math.max((d[campo] / max) * bw, d[campo] > 0 ? 0.8 : 0), bw);   /* nunca se sale del ancho */
         relleno(d.tono ? (C[d.tono] || C.verde2) : (i === 0 && !d.otros ? C.oro : (d.otros ? C.gris2 : C.verde2)));
         doc.roundedRect(mx + lw, yy + 0.6, bl, 3.8, 0.8, 0.8, 'F');
         fuente('bold', 7.6, C.tinta); var vt = fmt(d[campo], f); doc.text(vt, mx + lw + bl + 1.8, yy + 3.4);
