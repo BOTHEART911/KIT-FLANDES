@@ -653,12 +653,12 @@
         var origen = 'local', motivoLocal = '';
         var p = (G && G.redactar && G.disponible && G.disponible() && (!G.quedanMejora || G.quedanMejora()))
           ? G.redactar(datos).then(function (t) {
-            t = completar(enCifras(t, false));   /* «dos aplicaciones» → «2 aplicaciones»: las cantidades van en cifras */
+            t = completar(enCifras(t, false).replace(/\s+([.,;:])/g, '$1'));   /* «dos aplicaciones» → «2 aplicaciones»: las cantidades van en cifras; sin espacio antes del punto */
             var malo = revisar(t, fuentes, A);
             if (malo) throw new Error('GUARDA:' + malo);
             if (repetida(t) && G.quedanMejora && G.quedanMejora()) {
               datos.evitar = true;
-              return G.redactar(datos).then(function (t2) { t2 = completar(enCifras(t2, false)); return revisar(t2, fuentes, A) ? t : t2; }, function () { return t; });
+              return G.redactar(datos).then(function (t2) { t2 = completar(enCifras(t2, false).replace(/\s+([.,;:])/g, '$1')); return revisar(t2, fuentes, A) ? t : t2; }, function () { return t; });
             }
             return t;
           }).then(function (t) { origen = 'gemini'; return t; })
