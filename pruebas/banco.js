@@ -187,10 +187,10 @@ ${js}
         for (let k = 0; k < 50; k++) { KIT.piezas.redactemos._cantidades('2 aplicaciones, cuatro soportes y 3 actualizaciones', GUION.cosas); KIT.piezas.redactemos._cuando('del 13 al 17 de octubre', PER); }
         const msInterp = (performance.now() - t1) / 50;
         await decir('2 aplicaciones, cuatro soportes y 3 actualizaciones');
-        await esperar(() => /para quién/.test(ultimoBot()));
+        await esperar(() => /para quién/i.test(ultimoBot()));
         const concl = ultimoBot();
         await decir('la secretaría de Hacienda');
-        await esperar(() => /en qué días/.test(ultimoBot()));
+        await esperar(() => /en qué días/i.test(ultimoBot()));
         await decir('del 13 al 17 de octubre');
         await tocar('Sí, la subo');
         await tocar('versión publicada');
@@ -226,8 +226,8 @@ ${js}
           document.querySelector('.rd__btn').click();
           await tocar('Sí');
           await esperar(() => /cantidad/.test(ultimoBot())); await decir('2 aplicaciones');
-          await esperar(() => /para quién/.test(ultimoBot())); await decir('para la secretaría de Hacienda');
-          await esperar(() => /en qué días/.test(ultimoBot())); await decir('el 15 de octubre');
+          await esperar(() => /para quién/i.test(ultimoBot())); await decir('para la secretaría de Hacienda');
+          await esperar(() => /en qué días/i.test(ultimoBot())); await decir('el 15 de octubre');
           await tocar('No requiere'); await tocar('Sí, no requiere');
           await esperar(() => /Enséñame/.test(ultimoBot())); await decir('reorganicé el módulo de cartera para la consulta de pagos de los contribuyentes');
           await esperar(() => /No requiere adjunto\.$/.test(area.value), 4000);
@@ -247,7 +247,7 @@ ${js}
         document.querySelector('.rd__btn').click();
         await tocar('Sí');
         await esperar(() => /cantidad/.test(ultimoBot())); await decir('3 soportes');
-        await esperar(() => /para quién/.test(ultimoBot()));
+        await esperar(() => /para quién/i.test(ultimoBot()));
         const chips = [...document.querySelectorAll('.rd-chip')].map(b => b.textContent.trim());
         const ap = EVS.find(e => e.tipo === 'rd.aprende');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -278,11 +278,11 @@ ${js}
         document.querySelector('.rd__btn').click();
         await tocar('Sí');
         await esperar(() => /cantidad/.test(ultimoBot())); await decir('3 soportes');
-        await esperar(() => /para quién/.test(ultimoBot())); await decir('con el equipo de comunicaciones');
-        await esperar(() => /en qué días/.test(ultimoBot())); await decir('el 3 de noviembre');
+        await esperar(() => /para quién/i.test(ultimoBot())); await decir('con el equipo de comunicaciones');
+        await esperar(() => /en qué días/i.test(ultimoBot())); await decir('el 3 de noviembre');
         const aviso = /queda fuera de este periodo/.test(ultimoBot());
         await tocar('Corregir la fecha');
-        const vuelve = await esperar(() => /en qué días/.test(ultimoBot())).then(() => true, () => false);
+        const vuelve = await esperar(() => /en qué días/i.test(ultimoBot())).then(() => true, () => false);
         document.querySelector('.rd-x').click();
         await esperar(() => document.querySelector('.kit-conf'));
         const pregunta = /Salir sin terminar/.test(document.querySelector('.kit-conf').textContent);

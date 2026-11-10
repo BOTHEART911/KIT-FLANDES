@@ -174,10 +174,11 @@
       if (!w || NO_UNIDAD.test(st(w))) { sinQue.push(n); continue; }
       var cosa = null;
       cosas.some(function (c) { if (igualCosa(w, c)) { cosa = c; return true; } return false; });
-      var u = cosa ? (n === 1 ? cosa.singular : cosa.plural) : w;
+      /* 10/11 · prueba en vivo: con la palabra del guion salía «realicé 2 aplicaciones creadas»; se usan SUS palabras */
+      var u = w;
       /* «2 aplicaciones nuevas», «3 informes técnicos»: el adjetivo que sigue se conserva si él lo dijo */
       var sig = pal.split(/\s+/)[1];
-      if (!cosa && sig && /(ico|ica|icos|icas|al|ales|ivo|iva|ivos|ivas|ado|ada|ados|adas|nuevo|nueva|nuevos|nuevas)$/.test(st(sig))) u += ' ' + sig;
+      if (sig && /(ico|ica|icos|icas|al|ales|ivo|iva|ivos|ivas|ado|ada|ados|adas|nuevo|nueva|nuevos|nuevas)$/.test(st(sig))) u += ' ' + sig;
       items.push({ n: n, u: u });
     }
     if (!items.length && sinQue.length) {
@@ -512,11 +513,11 @@
         });
       },
       quien: function () {
-        preguntar(al(['Cuéntame ahora, ', 'Muy bien. Ahora, ', 'Perfecto. ']) + '¿para quién o con quién hiciste <b>' + K.esc(concl()) + '</b>?', { chips: chipsDe('quien') });
+        preguntar(al(['Cuéntame ahora, ¿p', 'Muy bien. Ahora, ¿p', 'Perfecto. ¿P']) + 'ara quién o con quién hiciste <b>' + K.esc(concl()) + '</b>?', { chips: chipsDe('quien') });
       },
       cuando: function () {
         var per = periodoTexto(ctx.periodo);
-        preguntar(al(['Muy bien, ', 'Listo. ', 'Gracias. ']) + '¿en qué días de este periodo' + (per ? ' (' + K.esc(per) + ')' : '') + ' hiciste <b>' + K.esc(concl2()) + '</b>?',
+        preguntar(al(['Muy bien, ¿e', 'Listo. ¿E', 'Gracias. ¿E']) + 'n qué días de este periodo' + (per ? ' (' + K.esc(per) + ')' : '') + ' hiciste <b>' + K.esc(concl2()) + '</b>?',
           { ej: ['15 de ' + (ctx.periodo && ctx.periodo.hasta ? MESES[Number(ctx.periodo.hasta.slice(5, 7)) - 1] : 'octubre'), 'la segunda semana del periodo', 'del 3 al 7'] });
       },
       evidencia: function () {
