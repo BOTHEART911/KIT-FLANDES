@@ -4359,10 +4359,11 @@ ${js}
           try { await KIT.piezas.calidad.informe(D, { app: 'Contratación', equipo: 77 }); } finally { ex.aGerencial = orig; }
           const gs = spec.secciones[0].graficas;
           const a = gs.find(x => /cada contratista/.test(x.titulo)), b = gs.find(x => /Dato inicial/.test(x.titulo));
-          return { a: a.datos.map(x => x.etiqueta), b: b ? b.datos.map(x => x.etiqueta) : [] };
+          return { a: a.datos.map(x => x.etiqueta + ' · ' + x.extra), b: b ? b.datos.map(x => x.etiqueta + ' · ' + x.extra) : [], notas: [a.nota, b && b.nota], anchos: [a.ancho, b && b.ancho] };
         }, D);
-        cierto(g.b.some(x => /^Una Sola Cuenta \(1 cuenta desde el \d\d\/\d\d\)$/.test(x)), 'dato inicial: ' + g.b.join(' | '));
-        cierto(!g.a.some(x => /Una Sola Cuenta/.test(x)) && g.a.every(x => /\((\d+) cuentas desde el/.test(x) && Number(/\((\d+)/.exec(x)[1]) >= 3), 'comparables: ' + g.a.join(' | '));
+        cierto(g.b.indexOf('Una Sola Cuenta · 1 cuenta') >= 0, 'dato inicial: ' + g.b.join(' | '));
+        cierto(!g.a.some(x => /Una Sola Cuenta/.test(x)) && g.a.every(x => Number(/· (\d+) cuentas$/.exec(x)[1]) >= 3), 'comparables: ' + g.a.join(' | '));
+        cierto(g.notas.every(t => /^cuentas desde el \d\d\/\d\d · /.test(t)), 'notas: ' + g.notas.join(' | '));
         cierto(r.paginas >= 5, 'páginas ' + r.paginas);
         cierto(/Calidad_primer_filtro_Damara/.test(r.nombre), r.nombre);
         cierto(r.ms < 6000, 'lento ' + r.ms);

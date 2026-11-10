@@ -294,7 +294,7 @@
     var serieMes = Object.keys(mes).sort().map(function (k) { return { etiqueta: MES[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4), valor: prom(mes[k]) }; });
     /* 10/11 · solo cuentan las que pasó desde que se registra quién las pasa (28/09); con menos de 3 es dato inicial, aparte */
     var MIN_CON = 3, desdeTxt = fechas.length ? fechas[0].slice(8, 10) + '/' + fechas[0].slice(5, 7) : '';
-    var conTodos = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]), n = porCon[k].length; return { etiqueta: nombrePropio(k) + ' (' + n + (n === 1 ? ' cuenta' : ' cuentas') + (desdeTxt ? ' desde el ' + desdeTxt : '') + ')', valor: v, n: n, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
+    var conTodos = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]), n = porCon[k].length; return { etiqueta: nombrePropio(k), extra: n + (n === 1 ? ' cuenta' : ' cuentas'), valor: v, n: n, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
       .sort(function (a, b) { return a.valor - b.valor; });
     var conLista = conTodos.filter(function (x) { return x.n >= MIN_CON; }), conInicial = conTodos.filter(function (x) { return x.n < MIN_CON; });
     var omis = pasos.filter(function (p) { return String(p.res || '').toUpperCase() === 'DEVUELTA'; });
@@ -330,8 +330,8 @@
             { titulo: 'Los 6 bombillos en lo que aprueba', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, titular: false,
               datos: BOMB_LARGO.map(function (t, i) { var v = (s.bomb || [])[i]; return { etiqueta: t, valor: v === null || v === undefined ? 0 : v, tono: tono(v) }; }) },
             { titulo: 'Calidad por mes', tipo: 'barras', formato: 'porciento', datos: serieMes },
-            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: 'de menor a mayor · ' + MIN_CON + ' o más cuentas', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conLista },
-            { titulo: 'Dato inicial: contratistas con menos de ' + MIN_CON + ' cuentas medidas', nota: 'no se comparan', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conInicial }
+            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + MIN_CON + ' o más · de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, ancho: 70, datos: conLista },
+            { titulo: 'Dato inicial: menos de ' + MIN_CON + ' cuentas medidas', nota: (desdeTxt ? 'cuentas desde el ' + desdeTxt + ' · ' : '') + 'no se comparan', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, ancho: 70, datos: conInicial }
           ].filter(function (g) { return g.datos.length; })
         },
         {

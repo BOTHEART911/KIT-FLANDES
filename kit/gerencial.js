@@ -248,7 +248,8 @@
     function trazo(c, g) { doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(g || 0.2); }
     function cortar(txt, e, t, w) { fuente(e, t); return doc.splitTextToSize(String(txt == null ? '' : txt), w); }
     function recorte(txt, e, t, w) {
-      fuente(e, t);
+      var col = doc.getTextColor();   /* 10/11 · medir no cambia el color que ya se escogió (salía rojo oscuro) */
+      fuente(e, t); doc.setTextColor(col);
       txt = String(txt == null ? '' : txt);
       if (doc.getTextWidth(txt) <= w) return txt;
       while (txt.length > 1 && doc.getTextWidth(txt + '…') > w) txt = txt.slice(0, -1);
@@ -454,7 +455,8 @@
         var bl = Math.max((d[campo] / max) * bw, d[campo] > 0 ? 0.8 : 0);
         relleno(d.tono ? (C[d.tono] || C.verde2) : (i === 0 && !d.otros ? C.oro : (d.otros ? C.gris2 : C.verde2)));
         doc.roundedRect(mx + lw, yy + 0.6, bl, 3.8, 0.8, 0.8, 'F');
-        fuente('bold', 7.6, C.tinta); doc.text(fmt(d[campo], f), mx + lw + bl + 1.8, yy + 3.4);
+        fuente('bold', 7.6, C.tinta); var vt = fmt(d[campo], f); doc.text(vt, mx + lw + bl + 1.8, yy + 3.4);
+        if (d.extra) { var xe = mx + lw + bl + 1.8 + doc.getTextWidth(vt) + 1.6; fuente('normal', 7.2, C.gris); doc.text(recorte('· ' + d.extra, 'normal', 7.2, Math.max(W - mx - xe, 4)), xe, yy + 3.4); }   /* 10/11 · dato al lado del valor */
         if (!op.sinParte) { fuente('normal', 7.2, C.gris); doc.text(pct(d[campo], total), W - mx - 1, yy + 3.4, { align: 'right' }); }
         y += rh;
       });
@@ -660,10 +662,11 @@
       if (s.kpis && s.kpis.length) tarjetasKpi(s.kpis);
       (s.graficas || []).forEach(function (g) {
         if (!g.datos || !g.datos.length) return;
-        subtitulo(g.titulo, g.nota, g.tipo === 'barras' ? 90 : (g.tipo === 'proporcion' ? 30 : 40));
+        /* 10/11 · una gráfica de barras horizontales no se parte si cabe entera en una hoja */
+        subtitulo(g.titulo, g.nota, g.tipo === 'barras' ? 90 : (g.tipo === 'proporcion' ? 30 : Math.min(14 + 7 * Math.min((g.datos || []).length, g.max || 10), 150)));
         if (g.tipo === 'barras') barrasV(g.datos, { formato: g.formato, alto: g.alto });
         else if (g.tipo === 'proporcion') proporcion(g.datos, { formato: g.formato });
-        else barrasH(g.datos, { formato: g.formato, max: g.max, titular: g.titular, tope: g.tope, sinParte: g.sinParte });
+        else barrasH(g.datos, { formato: g.formato, max: g.max, titular: g.titular, tope: g.tope, sinParte: g.sinParte, ancho: g.ancho });
       });
       if (s.tabla) { subtitulo(s.tabla.titulo, s.tabla.nota); tabla(s.tabla.cols, s.tabla.filas); }
       /* 10/11 · secciones de texto (conclusiones, compromisos) */
