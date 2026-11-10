@@ -327,6 +327,26 @@ ${js}
       cierto(r.sigueSinEnviar && /Enviar/.test(r.nota), 'al parar el micrófono no envía y avisa que toque Enviar: ' + r.nota);
       igual(r.yo, r.escribio, 'Enviar manda el texto completo');
     });
+    await prueba('10/11 · sin Gemini (celular de Oss) el diálogo sale igual: cosas de la obligación, 3 ejemplos y botones de para quién', async () => {
+      const r = await page.evaluate(async () => {
+        abrirRD({ disponible: () => false });
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot()));
+        const q1 = ultimoBot();
+        await decir('4 soportes');
+        await esperar(() => /para quién/i.test(ultimoBot()));
+        const q2 = ultimoBot(), chips = [...document.querySelectorAll('.rd-chip')].map(b => b.textContent.trim());
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await esperar(() => document.querySelector('.kit-conf')); document.querySelector('.kit-conf__si').click();
+        await new Promise(ok => setTimeout(ok, 250));
+        return { q1, q2, chips };
+      });
+      igual(r.q1, 'Empecemos por los números. Dime la cantidad de soportes, actualizaciones y/o aplicaciones que hiciste en este periodo.Por ejemplo: «2 soportes», «4 actualizaciones», «3 aplicaciones»');
+      igual(r.q2, 'Cuéntame ahora, ¿para quién o con quién hiciste tus 4 soportes?');
+      igual(r.chips[0], 'para el municipio de Flandes');
+      cierto(r.chips.length === 3, 'debían salir 3 botones: ' + r.chips);
+    });
     await prueba('«No» lo realicé: pide el motivo y queda «No requerida» aunque traiga cifras', async () => {
       const r = await page.evaluate(async () => {
         const { area, fin } = abrirRD({ disponible: () => false }); area.value = '';

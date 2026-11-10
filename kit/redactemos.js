@@ -343,7 +343,47 @@
     return '';
   }
 
+  /* ══════════════ el guion LOCAL (sin Gemini) ══════════════
+     10/11 · En el teléfono de Oss el guion de Gemini no alcanzó a llegar y salió el genérico
+     («incidencias o ajustes», sin botones). Ahora el local se arma con la propia obligación:
+     las cosas que se cuentan que ella nombra y para quién trabaja según su texto. */
+  var UNIDADES = [
+    ['aplicaciones', 'aplicacion'], ['soportes', 'soporte'], ['actualizaciones', 'actualizacion'], ['informes', 'informe'],
+    ['visitas', 'visita'], ['capacitaciones', 'capacitacion'], ['talleres', 'taller'], ['reuniones', 'reunion'], ['actas', 'acta'],
+    ['oficios', 'oficio'], ['respuestas', 'respuesta'], ['publicaciones', 'publicacion'], ['piezas', 'pieza'], ['videos', 'video'],
+    ['asesorías', 'asesoria'], ['atenciones', 'atencion'], ['expedientes', 'expediente'], ['procesos', 'proceso'], ['contratos', 'contrato'],
+    ['documentos', 'documento'], ['registros', 'registro'], ['jornadas', 'jornada'], ['campañas', 'campana'], ['inspecciones', 'inspeccion'],
+    ['eventos', 'evento'], ['solicitudes', 'solicitud'], ['peticiones', 'peticion'], ['requerimientos', 'requerimiento'], ['encuestas', 'encuesta'],
+    ['mantenimientos', 'mantenimiento'], ['revisiones', 'revision'], ['conceptos', 'concepto'], ['liquidaciones', 'liquidacion'],
+    ['notificaciones', 'notificacion'], ['planes', 'plan'], ['estudios', 'estudio'], ['diagnósticos', 'diagnostico'], ['entregas', 'entrega'],
+    ['certificados', 'certificado'], ['programas', 'programa'], ['proyectos', 'proyecto'], ['clases', 'clase'], ['entrenamientos', 'entrenamiento'],
+    ['tutelas', 'tutela'], ['derechos de petición', 'derecho de peticion'], ['bases de datos', 'base de datos'], ['incidencias', 'incidencia']
+  ];
+  function guionLocalDe(obl, tema) {
+    var o = st(obl), hall = [];
+    UNIDADES.forEach(function (u) {
+      var i = o.search(new RegExp('\\b' + st(u[1]) + '(es|s)?\\b'));   /* la palabra entera («proyecto» no es «proyección») */
+      if (i >= 0) hall.push({ i: i, plural: u[0], singular: u[1] });
+    });
+    hall.sort(function (a, b) { return a.i - b.i; });
+    var cosas = hall.slice(0, 3).map(function (h) { return { plural: h.plural, singular: h.singular }; });
+    if (!cosas.length) cosas = [{ plural: tema.cu, singular: tema.cu }];
+    /* para quién: lo que la misma obligación nombra (dependencias, comunidad, funcionarios…) */
+    var quien = [], vistos = {};
+    function poner(x) { x = limpio(x).replace(/[.,;:]+$/, ''); var k = st(x); if (x && !vistos[k] && x.length <= 60) { vistos[k] = 1; quien.push(x); } }
+    var t = String(obl || '');
+    var re = /\b(secretar[ií]as? de [A-Za-zÁÉÍÓÚÑáéíóúñ]+(?: y [A-Za-zÁÉÍÓÚÑáéíóúñ]+)?|oficina de [A-Za-zÁÉÍÓÚÑáéíóúñ]+|despacho del? [A-Za-zÁÉÍÓÚÑáéíóúñ]+|administraci[oó]n municipal|municipio de [A-ZÁÉÍÓÚÑ][a-záéíóúñ]+|comunidad(?: [a-záéíóúñ]+)?|funcionarios(?: de la administraci[oó]n municipal)?|dependencias|contribuyentes|ciudadan[ií]a|usuarios|productores|estudiantes|instituciones educativas|juntas de acci[oó]n comunal)\b/gi, m;
+    while ((m = re.exec(t)) && quien.length < 3) {
+      var x = m[1], sx = st(x);
+      var art = /^(secretaria |oficina|administracion|comunidad|ciudadania)/.test(sx) ? 'para la ' : (/^(secretarias|dependencias|instituciones|juntas)/.test(sx) ? 'para las ' : (/^(despacho|municipio)/.test(sx) ? 'para el ' : 'para los '));
+      poner(art + x.charAt(0).toLowerCase() + x.slice(1));
+    }
+    ['con mi equipo de trabajo', 'para la dependencia a la que apoyo', 'para la comunidad del municipio'].forEach(function (g) { if (quien.length < 3) poner(g); });
+    return { cosas: cosas, quien: quien, evidencia: tema.ent.slice(0, 3), local: true };
+  }
+
   /* ══════════════ el diálogo ══════════════ */
+  /* 10/11 · las preguntas usan SIEMPRE las mismas palabras (Oss: en el celular debe verse igual que en el computador) */
   var PASOS = ['realizada', 'cuantos', 'quien', 'cuando', 'evidencia', 'detalle'];
   var PASO_TX = ['Periodo', 'Cuántos', 'Quién', 'Cuándo', 'Evidencia', 'Detalles'];
 
@@ -365,7 +405,13 @@
     o.area.addEventListener('input', rotulo);
     /* 10/11 · App Check tarda ~3,5 s la primera vez: se pide de fondo al aparecer el botón (no gasta cupo de Gemini) */
     var G0 = K.piezas.gemini;
-    if (G0 && G0.precalentar && G0.disponible && G0.disponible()) setTimeout(function () { if (nodo.isConnected) G0.precalentar(); }, 1500);
+    /* 10/11 · el guion de esta obligación se pide de fondo al aparecer el botón (una vez por obligación y por
+       teléfono, con cupo propio): así en el celular el diálogo sale con las mismas palabras, ejemplos y botones */
+    if (G0 && G0.disponible && G0.disponible()) setTimeout(function () {
+      if (!nodo.isConnected) return;
+      if (G0.guion && G0.guionGuardado && !G0.guionGuardado(o.obligacion)) G0.guion(o.obligacion, { ms: 15000 })['catch'](function () {});
+      else if (G0.precalentar) G0.precalentar();
+    }, 1200);
     btn.addEventListener('click', function () { abrir(o, rotulo); });
     return { nodo: nodo, actualizar: rotulo };
   }
@@ -393,9 +439,9 @@
     /* contexto (periodo, anteriores, motor) y guion: de fondo, sin frenar la primera pregunta */
     var pCtx = Promise.resolve().then(function () { return o.contexto ? o.contexto() : null; })
       .then(function (c) { if (c) { for (var k in c) ctx[k] = c[k]; } return ctx; }, function () { return ctx; });
-    var guionLocal = { cosas: [{ plural: tema.cu, singular: tema.cu }], quien: [], evidencia: tema.ent.slice(0, 3), local: true };
+    var guionLocal = guionLocalDe(o.obligacion, tema);
     var pGuion = (G && G.guion && G.disponible && G.disponible())
-      ? G.guion(o.obligacion, { ms: 9000 }).then(function (g) { return g; }, function (e) { ev('guionFallo', { error: String((e && e.message) || '').slice(0, 30) }); return guionLocal; })
+      ? G.guion(o.obligacion, { ms: 15000 }).then(function (g) { return g; }, function (e) { ev('guionFallo', { error: String((e && e.message) || '').slice(0, 30) }); return guionLocal; })
       : Promise.resolve(guionLocal);
     if (G && G.guionGuardado) guion = G.guionGuardado(o.obligacion);
     if (G && G.precalentar) G.precalentar();
@@ -446,7 +492,10 @@
         ponerChips(ops.chips || []);
         form.hidden = !!ops.soloChips;
         bajar();
-        if (!ops.soloChips) setTimeout(function () { try { inp.focus({ preventScroll: true }); } catch (e) {} bajar(); }, 30);
+        /* 10/11 · en el celular NO se abre el teclado solo: tapaba la pregunta, los ejemplos y los botones */
+        var tactil = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        if (!ops.soloChips && !tactil) setTimeout(function () { try { inp.focus({ preventScroll: true }); } catch (e) {} bajar(); }, 30);
+        else setTimeout(bajar, 30);
       }, ops.rapido ? 120 : 420);
     }
     function ponerChips(lista) {
@@ -501,23 +550,24 @@
       cuantos: function () {
         /* 10/11 · medido: el guion tarda 1–7 s en frío; se espera hasta 5 s con el robot «escribiendo» y si no, el genérico */
         var espera = guion ? null : escribiendo();
-        Promise.race([pGuion, new Promise(function (ok) { setTimeout(function () { ok(null); }, guion ? 0 : 5000); })]).then(function (g) {
+        /* 10/11 · el botón ya lo pidió de fondo; aquí se espera hasta 8 s y si no, el local (que también nombra sus cosas) */
+        Promise.race([pGuion, new Promise(function (ok) { setTimeout(function () { ok(null); }, guion ? 0 : 8000); })]).then(function (g) {
           if (espera) espera.remove();
           if (!vivo) return;
           if (g) guion = g;
           var cs = cosas();
           var nombres = cs.length === 1 && cs[0].plural === tema.cu ? tema.cu : lista(cs.map(function (c) { return c.plural; }), 'y/o');
           var ej = cs.slice(0, 3).map(function (c, i) { var n = [2, 4, 3][i]; return n + ' ' + c.plural; });
-          preguntar(al(['Empecemos por los números. ', 'Primero lo que se puede contar. ', '']) +
+          preguntar('Empecemos por los números. ' +
             'Dime la cantidad de <b>' + K.esc(nombres) + '</b> que hiciste en este periodo.', { ej: ej });
         });
       },
       quien: function () {
-        preguntar(al(['Cuéntame ahora, ¿p', 'Muy bien. Ahora, ¿p', 'Perfecto. ¿P']) + 'ara quién o con quién hiciste <b>' + K.esc(concl()) + '</b>?', { chips: chipsDe('quien') });
+        preguntar('Cuéntame ahora, ¿p' + 'ara quién o con quién hiciste <b>' + K.esc(concl()) + '</b>?', { chips: chipsDe('quien') });
       },
       cuando: function () {
         var per = periodoTexto(ctx.periodo);
-        preguntar(al(['Muy bien, ¿e', 'Listo. ¿E', 'Gracias. ¿E']) + 'n qué días de este periodo' + (per ? ' (' + K.esc(per) + ')' : '') + ' hiciste <b>' + K.esc(concl2()) + '</b>?',
+        preguntar('Muy bien, ¿e' + 'n qué días de este periodo' + (per ? ' (' + K.esc(per) + ')' : '') + ' hiciste <b>' + K.esc(concl2()) + '</b>?',
           { ej: ['15 de ' + (ctx.periodo && ctx.periodo.hasta ? MESES[Number(ctx.periodo.hasta.slice(5, 7)) - 1] : 'octubre'), 'la segunda semana del periodo', 'del 3 al 7'] });
       },
       evidencia: function () {
@@ -623,7 +673,7 @@
           return no_entendi('Elige una opción: <b>Sí, la subo</b>, <b>La subo después</b> o <b>No requiere</b>.', valor);
         case 'detalle':
           r = detalle(valor);
-          if (!r.ok) return no_entendi(al(['Cuéntame un poco más: ', 'Dame más detalle: ']) + 'qué hiciste exactamente, qué resolviste o qué cambió con tu trabajo.', valor);
+          if (!r.ok) return no_entendi('Cuéntame un poco más: ' + 'qué hiciste exactamente, qué resolviste o qué cambió con tu trabajo.', valor);
           A.detalle = r.texto;
           ev('paso', { paso: 'detalle', ms: Date.now() - tPaso, via: ultimaVia, intentos: intentos });
           luz('detalle', 'ok');
@@ -818,6 +868,6 @@
     crear: crear,
     /* para las pruebas */
     _cantidades: cantidades, _cuando: cuando, _quien: quien, _detalle: detalle, _motivo: motivo, _enCifras: enCifras,
-    _local: local, _revisar: revisar, _parrafoNo: parrafoNo, _nombreCorto: nombreCorto, NO_EJEC: NO_EJEC
+    _local: local, _revisar: revisar, _guionLocal: guionLocalDe, _parrafoNo: parrafoNo, _nombreCorto: nombreCorto, NO_EJEC: NO_EJEC
   };
 }());

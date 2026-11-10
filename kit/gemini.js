@@ -382,16 +382,30 @@
       .filter(function (x) { return x.length >= 3 && x.length <= (largo || 60); }).slice(0, max);
   }
   /** guion(obligacion, {ms}) -> Promise<{cosas:[{plural,singular}], quien:[], evidencia:[]}> */
+  /* 10/11 · el guion tiene su PROPIO cupo (no gasta los 25 de la redacción) y una sola petición en
+     vuelo por obligación: el botón lo pide de fondo al aparecer y el diálogo reutiliza esa misma. */
+  var TOPE_GUION = 40, CUPO_G = 'gemini.cupoGuion', VUELO_G = {};
+  function cupoG() { var c = K.guardar.leer(CUPO_G, null), dia = hoyBogota(); if (!c || c.dia !== dia) c = { dia: dia, usos: {} }; return c; }
+  function quedanGuion() { return Math.max(0, TOPE_GUION - (cupoG().usos[quien()] || 0)); }
+  function gastarGuion() { var c = cupoG(), q = quien(); c.usos[q] = (c.usos[q] || 0) + 1; K.guardar.escribir(CUPO_G, c); }
   function guion(obligacion, op) {
     op = op || {};
     var ya = guionGuardado(obligacion);
     if (ya) return Promise.resolve(ya);
+    var hk = huellaTexto(obligacion);
+    if (VUELO_G[hk]) return VUELO_G[hk];
     if (!disponible()) return Promise.reject(new Error('SIN_CONFIG'));
-    if (!quedanMejora()) return Promise.reject(new Error('SIN_CUPO'));
+    if (!quedanGuion()) return Promise.reject(new Error('SIN_CUPO'));
+    var p = guionPedir_(obligacion, op);
+    VUELO_G[hk] = p;
+    p.then(function () { delete VUELO_G[hk]; }, function () { delete VUELO_G[hk]; });
+    return p;
+  }
+  function guionPedir_(obligacion, op) {
     var obl = proteger(String(obligacion || '').slice(0, 900));
     var t0 = Date.now(), ms = op.ms || 9000;
     return preparar().then(function (S) {
-      gastarMejora();
+      gastarGuion();
       return carrera(S, INSTR_GUION, 'Obligación: «' + obl.t + '»', { temperature: 0.1, maxOutputTokens: 600, responseMimeType: 'application/json' }, ms, 3000);
     }).then(function (r) {
       var out = '', j = null;
@@ -462,6 +476,7 @@
     mejorar: mejorar,
     quedanMejora: quedanMejora,
     guion: guion,
+    quedanGuion: quedanGuion,
     guionGuardado: guionGuardado,
     redactar: redactar,
     _proteger: proteger,
