@@ -112,6 +112,7 @@
      que el supervisor las pueda explicar. */
 
   var NO_REQ = /(no\s+fue\s+requerid|no\s+(se\s+)?(le\s+)?(ha\s+)?requiri|no\s+se\s+requiri|no\s+fue\s+solicitad|no\s+se\s+solicit|no\s+aplic|no\s+hubo\s+(actividad|requerimiento)|sin\s+actividad|no\s+se\s+present[oó]\s+(ninguna|requerimiento)|no\s+se\s+ejecut|no\s+se\s+realizaron\s+actividades|no\s+se\s+realizo\s+(durante|en)\s+(el|este)\s+periodo)/i;
+  var NO_EJEC = /^\s*durante el periodo no se ejecutaron actividades en esta obligacion\b/i;
   var MENCIONA = /(adjunt|anex[oa]|\.(xlsx?|pdf|docx?|png|jpe?g|csv)\b|se\s+carg[oó]\s+al\s+drive|cargad[oa]s?\s+(en|al)\s+(el\s+)?drive|evidencia)/i;
   var PALABRAS_NUM = /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|cien|ciento|doscientos|trescientos|mil)\b/gi;
   var MESES = 'enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre';
@@ -145,7 +146,9 @@
     if (!t || t === '-' || t.length < 3) return { clase: 'sin', cifras: 0 };
     var n = cifrasGestion(t, nContrato);
     /* "no fue requerida… sin embargo se apoyó en 14 procesos" SÍ es actividad */
-    if (NO_REQ.test(sinTildes(t)) && !n) return { clase: 'noreq', cifras: 0 };
+    /* 10/11 · «Redactemos juntos» → «No»: la frase fija «Durante el periodo no se ejecutaron actividades en esta
+       obligación debido a que…» es No requerida aunque el motivo traiga cifras («2 semanas de incapacidad») */
+    if ((NO_REQ.test(sinTildes(t)) && !n) || NO_EJEC.test(sinTildes(t))) return { clase: 'noreq', cifras: 0 };
     return { clase: n >= 2 ? 'cuant' : (n === 1 ? 'parcial' : 'desc'), cifras: n };
   }
 
@@ -531,7 +534,7 @@
       var CORCH = [];
       var t = t0.replace(/\[[^\[\]\n]{1,80}\]/g, function (m0, i0) { CORCH.push({ i: i0, f: i0 + m0.length, x: m0.slice(1, -1).trim() }); return new Array(m0.length + 1).join(' '); });
       var R = { pct: null, con: null, plantillas: 0, frases: 0, orden: false, ident: false, rep: [], cifraIgual: [], b: [], corchetes: CORCH };
-      var vacio = !t.trim() || t === '-' || t.length < 3, noreq = !vacio && NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length;
+      var vacio = !t.trim() || t === '-' || t.length < 3, noreq = !vacio && ((NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length) || NO_EJEC.test(st(t)));
       if (ctx.general || noreq) {
         R.estado = ctx.general ? 'general' : 'noreq';
         for (var g = 0; g < 6; g++) R.b.push({ k: g, e: 'gris', d: ctx.general ? 'Obligación general: no se mide.' : 'Actividad no requerida en el periodo.', r: [] });

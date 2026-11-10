@@ -36,6 +36,10 @@
        alUsar: function (texto) { … }   // pegar en el campo
      });
      caja.appendChild(ta.nodo);  ...  ta.actualizar(R) en cada medida.
+   10/11/2026 · Los puntos 2 y 3 se QUITARON del borrador: la versión
+   sugerida acostumbraba al contratista a pegar lo que daba la app. Ahora
+   el botón del robot (kit/redactemos.js) redacta CON sus respuestas. Aquí
+   quedan las pistas y la medición (registrar sirve a las dos piezas).
    ============================================================ */
 (function () {
   'use strict';
@@ -279,7 +283,7 @@
     function abrir() {
       var R = ultimoR, texto = o.area.value;
       K.vibrar(8);
-      var t0 = Date.now(), mio = ++vuelo;
+      ++vuelo;
       var P = pistas(R, o.obligacion, texto);
       rojosAlTocar = R.b.filter(function (b) { return b.e === 'rojo'; }).map(function (b) { return b.k; });
       ev('toque', { rojos: rojosAlTocar.join(',') });
@@ -293,61 +297,13 @@
           (p.ej ? ' <small>Ejemplo: <mark class="ta-hueco">' + K.esc(p.ej) + '</mark></small>' : '') + '</span></li>'));
       });
       panel.appendChild(ul);
+      /* 10/11 · ya no hay «Tu texto mejorado» ni «Usar esta versión»: acostumbraban a copiar lo que
+         daba la app. Quedan las pistas, y la redacción se hace CON él en «Redactemos una actividad juntos». */
       var zona = K.nodo('<div class="ta__prop"></div>');
       panel.appendChild(zona);
-      var G = K.piezas.gemini;
-      if (!ayudaIA(R) || !G || !G.mejorar || !G.disponible()) {
-        zona.appendChild(K.nodo('<p class="ta__nota">' + (ayudaIA(R) ? 'Usa las pistas para completar tu texto.' : 'Esto se completa contigo (tus evidencias o lo que fue distinto), no con otra redacción.') + '</p>'));
-        zona.appendChild(botones(null));
-        return;
-      }
-      if (G.quedanMejora && !G.quedanMejora()) {
-        zona.appendChild(K.nodo('<p class="ta__nota">Por hoy ya usaste todas las versiones sugeridas. Las pistas de arriba siguen sirviendo.</p>'));
-        zona.appendChild(botones(null));
-        return;
-      }
-      zona.appendChild(K.nodo('<p class="ta__cargando"><span class="ta__punto"></span> Preparando una versión mejorada de tu texto…</p>'));
-      var tope = new Promise(function (ok, no) { setTimeout(function () { no(new Error('TIEMPO')); }, TOPE_MS); });
-      Promise.race([G.mejorar({ obligacion: o.obligacion, actividad: texto, faltan: faltanParaIA(R, o.obligacion, texto), ms: TOPE_MS }), tope])
-        .then(function (sug) {
-          if (mio !== vuelo || !nodo.isConnected) return;
-          var g = guardar_(texto, sug, o.obligacion, o.medir);
-          var ms = Date.now() - t0;
-          if (!g.texto || st(g.texto) === st(texto)) throw new Error('IGUAL');
-          propuesta = g.texto;
-          ev('propuesta', { ms: ms, ok: 1, envueltos: g.envueltos });
-          zona.innerHTML = '';
-          var V = K.piezas.variacion, v = V ? V.verdes(g.R) : null;
-          zona.appendChild(K.nodo('<p class="ta__t">' + K.icono('lapiz', 16) + ' Tu texto, mejorado</p>'));
-          zona.appendChild(K.nodo('<div class="ta__texto">' + resaltarCorchetes(propuesta) + '</div>'));
-          zona.appendChild(K.nodo('<p class="ta__nota">' + (/\[/.test(propuesta) ? 'Llena lo que está entre <mark class="ta-hueco">[corchetes]</mark> con tus datos reales; mientras siga así, su bombillo queda en rojo. ' : '') +
-            'Revísala: solo debe decir lo que hiciste y puedes demostrar.' + (v ? ' Así como está: ' + v.v + ' de ' + v.n + ' en verde.' : '') + '</p>'));
-          zona.appendChild(botones(propuesta));
-        })['catch'](function (e) {
-          if (mio !== vuelo || !nodo.isConnected) return;
-          ev('propuesta', { ms: Date.now() - t0, ok: 0, error: String((e && e.message) || 'ERROR').slice(0, 40) });
-          zona.innerHTML = '';
-          /* 03/11 · si Google no respondió, la versión mejorada se arma aquí mismo con sus
-             [corchetes]: «Te ayudo» siempre entrega una propuesta (Oss: no debe fallar). */
-          if (!(e && e.message === 'IGUAL')) {
-            var gl = guardar_(texto, versionLocal(R, o.obligacion, texto), o.obligacion, o.medir);
-            if (gl.texto && st(gl.texto) !== st(texto)) {
-              propuesta = gl.texto;
-              ev('propuesta', { ms: Date.now() - t0, ok: 1, envueltos: gl.envueltos, error: 'LOCAL' });
-              var V2 = K.piezas.variacion, v2 = V2 ? V2.verdes(gl.R) : null;
-              zona.appendChild(K.nodo('<p class="ta__t">' + K.icono('lapiz', 16) + ' Tu texto, mejorado</p>'));
-              zona.appendChild(K.nodo('<div class="ta__texto">' + resaltarCorchetes(propuesta) + '</div>'));
-              zona.appendChild(K.nodo('<p class="ta__nota">Llena lo que está entre <mark class="ta-hueco">[corchetes]</mark> con tus datos reales y ajusta la redacción a tu gusto; mientras siga así, su bombillo queda en rojo. ' +
-                'Solo debe decir lo que hiciste y puedes demostrar.' + (v2 ? ' Así como está: ' + v2.v + ' de ' + v2.n + ' en verde.' : '') + '</p>'));
-              zona.appendChild(botones(propuesta));
-              return;
-            }
-          }
-          zona.appendChild(K.nodo('<p class="ta__nota">' + (e && e.message === 'IGUAL' ? 'Tu texto ya dice lo que se puede decir sin datos nuevos: completa con las pistas.' : 'No alcancé a preparar la versión mejorada. Las pistas de arriba te dicen qué agregar.') + '</p>'));
-          zona.appendChild(botones(null));
-        });
+      zona.appendChild(K.nodo('<p class="ta__nota">' + (ayudaIA(R) ? 'Completa tu texto con estas pistas, con tus datos reales. Si prefieres, redactemos juntos la actividad con el botón del robot.' : 'Esto se completa contigo (tus evidencias o lo que fue distinto), no con otra redacción.') + '</p>'));
+      zona.appendChild(botones(null));
     }
-
     function botones(texto) {
       var b = K.nodo('<div class="ta__btns"></div>');
       if (texto) {
@@ -380,7 +336,6 @@
       var mostrar = hayRojo(R);
       nodo.hidden = !mostrar;
       /* 03/11 · el primer toque esperaba ~4 s el token de App Check: se pide al aparecer el botón */
-      if (mostrar && !CALIENTE && ayudaIA(R) && K.piezas.gemini && K.piezas.gemini.precalentar) { CALIENTE = true; K.piezas.gemini.precalentar(); }
       if (!mostrar && !panel.hidden) cerrar();
       else if (!panel.hidden && !propuesta) {
         /* las pistas siguen al texto mientras escribe */
@@ -501,6 +456,7 @@
   K.piezas.teayudo = {
     crear: crear, pistas: pistas, hayRojo: hayRojo, ayudaIA: ayudaIA, irAlHueco: irAlHueco,
     corchetesSinLlenar: corchetesSinLlenar, receta: receta, panelRevisor: panelRevisor,
+    registrar: encolar,   /* 10/11 · la medición de «Redactemos juntos» va a la misma cola */
     /* para las pruebas */
     _guardar: guardar_, _tema: tema, _faltan: faltanParaIA, _enviar: enviar, COLA_K: COLA_K, ENVIO_K: ENVIO_K
   };

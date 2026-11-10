@@ -79,6 +79,234 @@ ${js}
 (async () => {
   const browser = await chromium.launch();
 
+  /* ═══════════ 10/11 · REDACTEMOS UNA ACTIVIDAD JUNTOS ═══════════ */
+  grupo('redactemos');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'confirmar', 'informe-cuentas', 'variacion', 'teayudo', 'voz', 'redactemos'],
+      '<textarea id="rd-a"></textarea><div id="rd-c"></div>');
+    page.on('pageerror', e => { rojas++; fallos.push('[redactemos] error de página: ' + e.message); });
+    await page.evaluate(() => {
+      window.OBL = 'Llevar a cabo la creación, soporte y actualización de aplicaciones en línea para equipos de escritorio con el fin de tabular, editar, hacer seguimiento, recordatorios y consulta de datos en la nube en tiempo real, para el seguimiento a la ejecución de los procesos y procedimientos que se ejecutan en desarrollo de la gestión pública territorial y administrativa del municipio de Flandes.';
+      window.PER = { desde: '2026-10-01', hasta: '2026-10-31' };
+      window.ANT = ['Durante el periodo realicé soporte a la aplicación de la Secretaría de Hacienda y actualicé el módulo de predial el 12 de septiembre.'];
+      const I = KIT.piezas.informeCuentas, V = KIT.piezas.variacion;
+      const prev = ANT.map((t, k) => ({ informe: k + 1, texto: t, desde: '2026-09-01', hasta: '2026-09-30' }));
+      const P = V.preparar(I, OBL, prev, '066');
+      window.MED = t => V.medir(I, t, P, { obl: OBL, desde: PER.desde, hasta: PER.hasta, soporte: 0, nContrato: '066' });
+      window.GUION = { cosas: [{ plural: 'aplicaciones', singular: 'aplicación' }, { plural: 'soportes', singular: 'soporte' }, { plural: 'actualizaciones', singular: 'actualización' }], quien: ['para la secretaría de Hacienda', 'con el equipo de comunicaciones'], evidencia: ['versión publicada', 'reporte de incidencias'] };
+      KIT.pedir = () => Promise.resolve({ ok: true });
+      KIT.token = () => 'T';
+      /* los eventos de medición se espían aquí (la cola de «Te ayudo» se vacía sola a los 5 s) */
+      window.REG_EXPORTADO = typeof KIT.piezas.teayudo.registrar === 'function';
+      window.EVS = []; const reg0 = KIT.piezas.teayudo.registrar;
+      KIT.piezas.teayudo.registrar = e => { EVS.push(e); reg0(e); };
+      /* conversación automática: espera la pregunta y responde */
+      window.esperar = (fn, ms) => new Promise((ok, no) => { const t0 = Date.now(); (function v() { const x = fn(); if (x) return ok(x); if (Date.now() - t0 > (ms || 3000)) return no(new Error('tiempo')); setTimeout(v, 20); }()); });
+      window.ultimoBot = () => { const m = [...document.querySelectorAll('.rd-msg--bot .rd-msg__b')]; return m.length ? m[m.length - 1].textContent : ''; };
+      window.decir = async (t) => {
+        await esperar(() => !document.querySelector('.rd-msg--bot .rd-dots') || document.querySelector('.rd-fin'));
+        const inp = document.querySelector('.rd-in');
+        inp.value = t; document.querySelector('.rd-pie').requestSubmit();
+        await respondio();
+      };
+      window.tocar = async (txt) => {
+        const b = await esperar(() => [...document.querySelectorAll('.rd-chip')].find(x => x.textContent.trim() === txt));
+        b.click(); await respondio();
+      };
+      /* el robot ya contestó: el último mensaje es suyo y no está «escribiendo» */
+      window.respondio = () => esperar(() => { const m = [...document.querySelectorAll('.rd-msg')].pop(); return document.querySelector('.rd-fin') || (m && m.classList.contains('rd-msg--bot') && !m.querySelector('.rd-dots')); }, 3000).catch(() => null);
+      window.abrirRD = (gem, extra) => {
+        localStorage.clear();
+        document.querySelectorAll('.rd-capa').forEach(x => x.remove());
+        KIT.piezas.gemini = gem;
+        const area = document.getElementById('rd-a');
+        const fin = {};
+        const r = KIT.piezas.redactemos.crear(Object.assign({ app: 'CONTRATISTA', n: 1, informe: 2, obligacion: OBL, area, nombre: 'OSCAR MAURICIO POLANIA GUERRA',
+          contexto: () => Promise.resolve({ periodo: PER, anteriores: ANT, medir: MED }), alTerminar: f => Object.assign(fin, f) }, extra || {}));
+        document.getElementById('rd-c').innerHTML = ''; document.getElementById('rd-c').appendChild(r.nodo);
+        return { r, area, fin };
+      };
+    });
+
+    await prueba('teayudo exporta registrar (la cola de medición que usa «Redactemos juntos»)', async () => {
+      cierto(await page.evaluate(() => window.REG_EXPORTADO), 'K.piezas.teayudo.registrar no existe');
+    });
+    await prueba('intérpretes: cantidades en número o en palabras, sin confundir fechas; vagos y ceros no pasan', async () => {
+      const r = await page.evaluate(() => { const X = KIT.piezas.redactemos, C = GUION.cosas; return [
+        X._cantidades('2 aplicaciones, 4 soportes y 3 actualizaciones', C).items.map(x => x.n + ' ' + x.u).join('|'),
+        X._cantidades('dos aplicaciones y treinta y dos soportes', C).items.map(x => x.n + ' ' + x.u).join('|'),
+        X._cantidades('el 15 de octubre hice 3 soportes', C).items.map(x => x.n).join('|'),
+        X._cantidades('varios soportes', C).aclarar, X._cantidades('5', C).aclarar, X._cantidades('0 aplicaciones', C).aclarar,
+        X._cantidades('5', [C[1]]).items[0].u ]; });
+      igual(r, ['2 aplicaciones|4 soportes|3 actualizaciones', '2 aplicaciones|32 soportes', '3', 'vago', 'que', 'cero', 'soportes']);
+    });
+    await prueba('intérpretes: fechas contra el periodo real (rango, lista, «el 15», semanas, fuera del periodo, «ayer»)', async () => {
+      const r = await page.evaluate(() => { const X = KIT.piezas.redactemos; return [
+        X._cuando('del 3 al 7 de octubre', PER).frase, X._cuando('el 3, 7 y 15 de octubre', PER).frase, X._cuando('el quince', PER).frase,
+        X._cuando('la segunda semana del periodo', PER).frase, X._cuando('el 3 de noviembre', PER).aclarar, X._cuando('ayer', PER).aclarar,
+        X._cuando('el 20', { desde: '2026-09-15', hasta: '2026-10-14' }).frase ]; });
+      igual(r, ['entre el 3 y el 7 de octubre', 'los días 3, 7 y 15 de octubre', 'el 15 de octubre', 'durante la segunda semana del periodo', 'fuera', 'relativo', 'el 20 de septiembre']);
+    });
+    await prueba('la guarda rechaza cifras, meses y nombres que él no dijo', async () => {
+      const r = await page.evaluate(() => { const X = KIT.piezas.redactemos, A = { cantidades: [{ n: 2, u: 'aplicaciones' }] };
+        const F = 'Llevar a cabo la creación • 2 aplicaciones • para la secretaría de Hacienda • el 15 de octubre • versión publicada • ajusté el módulo de cartera';
+        return [
+          X._revisar('Desarrollé 2 aplicaciones para la secretaría de Hacienda el 15 de octubre, en las que ajusté el módulo de cartera; quedó la versión publicada.', F, A),
+          X._revisar('Desarrollé 2 aplicaciones para 40 usuarios de la secretaría de Hacienda el 15 de octubre, ajustando el módulo de cartera.', F, A),
+          X._revisar('Desarrollé 2 aplicaciones para la secretaría de Hacienda el 15 de noviembre, ajustando el módulo de cartera.', F, A),
+          X._revisar('Desarrollé 2 aplicaciones con Ricardo Pérez para la secretaría de Hacienda el 15 de octubre y ajusté el módulo de cartera.', F, A),
+          X._revisar('Desarrollé aplicaciones para la secretaría de Hacienda el 15 de octubre y ajusté el módulo de cartera con cuidado.', F, A)]; });
+      igual(r, ['', 'cifra:40', 'mes:noviembre', 'nombre:Ricardo', 'sinCantidad']);
+    });
+    await prueba('el botón: robot + «Redactemos una actividad juntos, Oscar Mauricio» y «otra» cuando ya hay texto', async () => {
+      const r = await page.evaluate(() => {
+        const { r, area } = abrirRD(null); area.value = '';
+        r.actualizar(); const a = r.nodo.textContent.trim(), robot = !!r.nodo.querySelector('svg');
+        area.value = 'algo'; area.dispatchEvent(new Event('input')); const b = r.nodo.textContent.trim();
+        return [a, b, robot];
+      });
+      igual(r, ['Redactemos una actividad juntos, Oscar Mauricio', 'Redactemos otra actividad juntos, Oscar Mauricio', true]);
+    });
+    await prueba('diálogo completo: no avanza sin entender, Gemini redacta, va DEBAJO con línea en blanco, «Sí» deja evidencia pendiente', async () => {
+      const r = await page.evaluate(async () => {
+        let datos = null;
+        const gem = { disponible: () => true, quedanMejora: () => 9, precalentar: () => Promise.resolve(true), guionGuardado: () => null, guion: () => Promise.resolve(GUION),
+          redactar: d => { datos = d; return new Promise(ok => setTimeout(() => ok('Entre el 13 y el 17 de octubre desarrollé 2 aplicaciones, atendí 4 soportes y realicé 3 actualizaciones para la secretaría de Hacienda; en ellas reorganicé el módulo de cartera para que los funcionarios consulten los pagos en tiempo real. Como evidencia quedó la versión publicada.'), 40)); } };
+        const { area, fin } = abrirRD(gem); EVS.length = 0;
+        area.value = 'Texto que ya estaba.';
+        const t0 = performance.now();
+        document.querySelector('.rd__btn').click();
+        await esperar(() => document.querySelector('.rd-chip'));
+        const msPrimera = performance.now() - t0;
+        const intro = ultimoBot();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot()));
+        await decir('varios');
+        const noAvanza = /número exacto/.test(ultimoBot());
+        const t1 = performance.now();
+        for (let k = 0; k < 50; k++) { KIT.piezas.redactemos._cantidades('2 aplicaciones, cuatro soportes y 3 actualizaciones', GUION.cosas); KIT.piezas.redactemos._cuando('del 13 al 17 de octubre', PER); }
+        const msInterp = (performance.now() - t1) / 50;
+        await decir('2 aplicaciones, cuatro soportes y 3 actualizaciones');
+        await esperar(() => /para quién/.test(ultimoBot()));
+        const concl = ultimoBot();
+        await decir('la secretaría de Hacienda');
+        await esperar(() => /en qué días/.test(ultimoBot()));
+        await decir('del 13 al 17 de octubre');
+        await tocar('Sí, la subo');
+        await tocar('versión publicada');
+        await esperar(() => /Enséñame/.test(ultimoBot()));
+        await decir('poco');
+        const pideMas = /un poco más|más detalle/.test(ultimoBot());
+        await decir('reorganicé el módulo de cartera para que los funcionarios consulten los pagos en tiempo real');
+        await esperar(() => document.querySelector('.rd-fin'), 4000);
+        await esperar(() => /Como evidencia/.test(area.value), 3000);
+        const luces = [...document.querySelectorAll('.rd-luz--ok')].length;
+        const cola = EVS.map(e => e.tipo);
+        return { msPrimera, intro: /verificación/.test(intro) && /no inventes/.test(intro) && /del 1 al 31 de octubre/.test(intro), noAvanza, msInterp, concl, pideMas,
+          valor: area.value, fin, luces, cola, datos: datos && [datos.cantidades, datos.quien, datos.cuando, datos.evidencia, datos.anteriores.length] };
+      });
+      cierto(r.msPrimera < 900, 'la primera pregunta tardó ' + r.msPrimera + ' ms');
+      cierto(r.intro, 'faltó el aviso de verificación o el periodo');
+      cierto(r.noAvanza, 'con «varios» no debía avanzar');
+      cierto(r.msInterp < 5, 'la interpretación local tardó ' + r.msInterp + ' ms');
+      cierto(/tus 2 aplicaciones, 4 soportes y 3 actualizaciones/.test(r.concl), 'la conclusión anterior no salió: ' + r.concl);
+      cierto(r.pideMas, 'con «poco» debía pedir más detalle');
+      cierto(r.valor.indexOf('Texto que ya estaba.\n\nEntre el 13') === 0, 'debía ir debajo con línea en blanco: ' + JSON.stringify(r.valor.slice(0, 60)));
+      igual(r.fin.evid, 'si');
+      igual(r.luces, 6);
+      igual(r.datos, ['2 aplicaciones, 4 soportes y 3 actualizaciones', 'para la secretaría de Hacienda', 'entre el 13 y el 17 de octubre', 'versión publicada', 1]);
+      ['rd.abrir', 'rd.paso', 'rd.noEntendi', 'rd.aprende', 'rd.fin'].forEach(t => cierto(r.cola.indexOf(t) >= 0, 'faltó el evento ' + t + ': ' + r.cola));
+    });
+    await prueba('si Gemini inventa (una cifra) o falla, el redactor local entrega el párrafo con SUS datos', async () => {
+      const r = await page.evaluate(async () => {
+        const out = [];
+        for (const red of [() => Promise.resolve('Desarrollé 2 aplicaciones para 300 usuarios de la secretaría de Hacienda el 15 de octubre y reorganicé el módulo de cartera.'), () => Promise.reject(new Error('TIEMPO'))]) {
+          const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION), redactar: red };
+          const { area } = abrirRD(gem); area.value = '';
+          document.querySelector('.rd__btn').click();
+          await tocar('Sí');
+          await esperar(() => /cantidad/.test(ultimoBot())); await decir('2 aplicaciones');
+          await esperar(() => /para quién/.test(ultimoBot())); await decir('para la secretaría de Hacienda');
+          await esperar(() => /en qué días/.test(ultimoBot())); await decir('el 15 de octubre');
+          await tocar('No requiere'); await tocar('Sí, no requiere');
+          await esperar(() => /Enséñame/.test(ultimoBot())); await decir('reorganicé el módulo de cartera para la consulta de pagos de los contribuyentes');
+          await esperar(() => /No requiere adjunto\.$/.test(area.value), 4000);
+          out.push(area.value);
+        }
+        return out;
+      });
+      r.forEach(t => {
+        cierto(t.indexOf('300') < 0 && /2 aplicaciones para la secretaría de Hacienda, el 15 de octubre\./.test(t) && /Reorganicé el módulo de cartera/.test(t), 'párrafo local: ' + t);
+      });
+    });
+    await prueba('lo aprobado en ADMIN para ese tipo de obligación sale como opción y el tema viaja en lo que aprende', async () => {
+      const r = await page.evaluate(async () => {
+        const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION), redactar: () => Promise.reject(new Error('X')) };
+        abrirRD(gem, { contexto: () => Promise.resolve({ periodo: PER, anteriores: ANT, medir: MED, extra: { porTema: { 'aplicaciones|soportes|actualizaciones': { quien: ['para la oficina de catastro'], evidencia: [], unidades: [] } } } }) });
+        EVS.length = 0;
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot())); await decir('3 soportes');
+        await esperar(() => /para quién/.test(ultimoBot()));
+        const chips = [...document.querySelectorAll('.rd-chip')].map(b => b.textContent.trim());
+        const ap = EVS.find(e => e.tipo === 'rd.aprende');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await esperar(() => document.querySelector('.kit-conf')); document.querySelector('.kit-conf__si').click();
+        await new Promise(ok => setTimeout(ok, 250));
+        return [chips[0], ap && ap.tema];
+      });
+      igual(r, ['para la oficina de catastro', 'aplicaciones|soportes|actualizaciones']);
+    });
+    await prueba('«No» lo realicé: pide el motivo y queda «No requerida» aunque traiga cifras', async () => {
+      const r = await page.evaluate(async () => {
+        const { area, fin } = abrirRD({ disponible: () => false }); area.value = '';
+        document.querySelector('.rd__btn').click();
+        await tocar('No');
+        await esperar(() => /por qué no se ejecutó/.test(ultimoBot()));
+        await decir('no');
+        const pide = /Necesito un poco más/.test(ultimoBot());
+        await decir('porque estuve 2 semanas de incapacidad médica');
+        await esperar(() => /médica\.$/.test(area.value), 3000);
+        return [pide, area.value, MED(area.value).estado, fin.realizada];
+      });
+      igual(r, [true, 'Durante el periodo no se ejecutaron actividades en esta obligación debido a que estuve 2 semanas de incapacidad médica.', 'noreq', false]);
+    });
+    await prueba('fecha fuera del periodo: avisa y deja corregir; cerrar a mitad pregunta antes de salir', async () => {
+      const r = await page.evaluate(async () => {
+        const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION), redactar: () => Promise.reject(new Error('X')) };
+        abrirRD(gem);
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot())); await decir('3 soportes');
+        await esperar(() => /para quién/.test(ultimoBot())); await decir('con el equipo de comunicaciones');
+        await esperar(() => /en qué días/.test(ultimoBot())); await decir('el 3 de noviembre');
+        const aviso = /queda fuera de este periodo/.test(ultimoBot());
+        await tocar('Corregir la fecha');
+        const vuelve = await esperar(() => /en qué días/.test(ultimoBot())).then(() => true, () => false);
+        document.querySelector('.rd-x').click();
+        await esperar(() => document.querySelector('.kit-conf'));
+        const pregunta = /Salir sin terminar/.test(document.querySelector('.kit-conf').textContent);
+        document.querySelector('.kit-conf__si').click();
+        await new Promise(ok => setTimeout(ok, 300));
+        return [aviso, vuelve, pregunta, !document.querySelector('.rd-capa')];
+      });
+      igual(r, [true, true, true, true]);
+    });
+    await prueba('sin reconocimiento de voz el micrófono no aparece; Escape cierra al inicio sin preguntar', async () => {
+      const r = await page.evaluate(async () => {
+        abrirRD({ disponible: () => false });
+        document.querySelector('.rd__btn').click();
+        await esperar(() => document.querySelector('.rd-chip'));
+        const mic = document.querySelector('.rd-mic').hidden === !KIT.piezas.voz.hay();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await new Promise(ok => setTimeout(ok, 300));
+        return [mic, !document.querySelector('.rd-capa')];
+      });
+      igual(r, [true, true]);
+    });
+    await ctx.close();
+  }
+
   /* ═══════════ 02/11 · TE AYUDO A REDACTAR ═══════════ */
   grupo('teayudo');
   {
@@ -112,31 +340,32 @@ ${js}
       cierto(g.indexOf('28 de septiembre') >= 0, 'debía respetar «sep» = septiembre: ' + g);
       cierto(g.indexOf('[listados de asistencia]') >= 0 && g.indexOf('[registro fotográfico]') >= 0, 'el entregable debía ir entre corchetes: ' + g);
     });
-    await prueba('panel: pistas al instante, versión de fondo, «Usar esta versión» la pega sin guardar y se mide', async () => {
+    await prueba('10/11 · panel: pistas al instante, SIN «Tu texto mejorado» ni «Usar esta versión»; mide el bombillo que pasa a verde', async () => {
       const r = await page.evaluate(async () => {
         localStorage.clear();
         const area = document.getElementById('ta-a'); area.value = TXT;
-        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5,
-          mejorar: () => new Promise(ok => setTimeout(() => ok('Apoyé las actividades deportivas en la vereda Kamala los días 28 sep, 5 y 19 oct con los niños; quedaron [listados de asistencia o registro fotográfico].'), 50)) };
-        let pegado = null;
-        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, informe: 7, obligacion: OBL, area, medir: MED, alUsar: t => { pegado = t; area.value = t; } });
-        document.getElementById('ta-c').appendChild(ta.nodo);
+        let llamo = 0;
+        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, precalentar: () => { llamo++; return Promise.resolve(true); }, mejorar: () => { llamo++; return Promise.resolve('x'); } };
+        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, informe: 7, obligacion: OBL, area, medir: MED, alUsar: () => {} });
+        document.getElementById('ta-c').innerHTML = ''; document.getElementById('ta-c').appendChild(ta.nodo);
         ta.actualizar(MED(TXT));
         const visible = !ta.nodo.hidden;
         const t0 = performance.now();
         ta.nodo.querySelector('.ta__btn').click();
         const pistasYa = ta.nodo.querySelectorAll('.ta__p').length, msPistas = performance.now() - t0;
-        await new Promise(ok => setTimeout(ok, 200));
-        const hayProp = !!ta.nodo.querySelector('.ta__texto');
-        [...ta.nodo.querySelectorAll('.ta__btns button')].find(b => /Usar/.test(b.textContent)).click();
-        ta.actualizar(MED(area.value.replace('[listados de asistencia o registro fotográfico]', 'los listados de asistencia')));
+        await new Promise(ok => setTimeout(ok, 120));
+        const sinProp = !ta.nodo.querySelector('.ta__texto') && !/Usar esta versión/.test(ta.nodo.textContent);
+        const nota = /robot/.test(ta.nodo.textContent);
+        area.value = TXT.replace('con los niños.', 'con 32 estudiantes; quedaron los listados de asistencia.');
+        ta.actualizar(MED(area.value));
         const cola = JSON.parse(localStorage.getItem('flandes.contratista.teayudo.cola') || '[]').map(e => e.tipo + (e.k !== undefined ? e.k : ''));
-        return { visible, pistasYa, msPistas, hayProp, pegado: !!pegado, cerrado: ta.nodo.querySelector('.ta__panel').hidden, cola };
+        return { visible, pistasYa, msPistas, sinProp, nota, llamo, cola };
       });
       cierto(r.visible, 'el botón debía verse con un bombillo en rojo');
       cierto(r.pistasYa >= 1 && r.msPistas < 50, 'las pistas debían salir al instante: ' + r.msPistas + ' ms');
-      cierto(r.hayProp && r.pegado && r.cerrado, 'la versión debía mostrarse y pegarse: ' + JSON.stringify(r));
-      igual(r.cola.slice(0, 3), ['toque', 'propuesta', 'usada']);
+      cierto(r.sinProp && r.nota, 'no debía haber versión sugerida y sí la invitación al robot: ' + JSON.stringify(r));
+      igual(r.llamo, 0, 'Te ayudo ya no llama a Gemini');
+      igual(r.cola[0], 'toque');
       cierto(r.cola.indexOf('verde3') >= 0, 'debía medir el bombillo que pasó a verde: ' + r.cola);
     });
     await prueba('03/11 · la guarda junta «el [número] de [fecha]» en una fecha y quita el espacio antes del punto', async () => {
@@ -159,33 +388,6 @@ ${js}
         return KIT.piezas.teayudo._tema('Llevar a cabo la creación, soporte y actualización de aplicaciones en línea', t);
       });
       igual(r.cu, 'incidencias o ajustes');
-    });
-    await prueba('03/11 · Gemini se precalienta UNA vez, al aparecer el botón, y el tope es de 15 s', async () => {
-      const r = await page.evaluate(() => {
-        let n = 0;
-        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, precalentar: () => { n++; return Promise.resolve(true); }, mejorar: () => new Promise(() => {}) };
-        const area = document.getElementById('ta-a'); area.value = TXT;
-        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, obligacion: OBL, area, medir: MED, alUsar: () => {} });
-        ta.actualizar(MED(TXT)); ta.actualizar(MED(TXT + ' ')); 
-        const ta2 = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 5, obligacion: OBL, area, medir: MED, alUsar: () => {} });
-        ta2.actualizar(MED(TXT));
-        return n;
-      });
-      cierto(r <= 1, 'precalentó ' + r + ' veces');
-      cierto(/TOPE_MS = 15000/.test(require('fs').readFileSync(require('path').join(RAIZ, 'kit', 'teayudo.js'), 'utf8')), 'el tope debía ser 15000');
-    });
-    await prueba('si Gemini falla: quedan las pistas Y una versión mejorada armada en el teléfono (03/11)', async () => {
-      const r = await page.evaluate(async () => {
-        const area = document.getElementById('ta-a'); area.value = TXT;
-        KIT.piezas.gemini = { disponible: () => true, quedanMejora: () => 5, mejorar: () => Promise.reject(new Error('X')) };
-        const ta = KIT.piezas.teayudo.crear({ app: 'CONTRATISTA', n: 4, obligacion: OBL, area, medir: MED, alUsar: () => {} });
-        document.getElementById('ta-c').appendChild(ta.nodo);
-        ta.actualizar(MED(TXT)); ta.nodo.querySelector('.ta__btn').click();
-        await new Promise(ok => setTimeout(ok, 50));
-        const p = ta.nodo.querySelector('.ta__texto');
-        return [ta.nodo.querySelectorAll('.ta__p').length, !!p, /No alcancé/.test(ta.nodo.textContent), !!p && /\[/.test(p.textContent), !!ta.nodo.querySelector('.ta__btns .kit-btn--marca')];
-      });
-      igual(r, [1 + 0 + (r[0] - 1), true, false, true, true]);
     });
     await prueba('todo verde: el botón no aparece', async () => {
       const r = await page.evaluate(() => {
