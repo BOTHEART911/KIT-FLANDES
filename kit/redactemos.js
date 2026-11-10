@@ -646,6 +646,15 @@
         function repetida(t) {
           try { var R = ctx.medir && ctx.medir(t); return !!(R && R.b && R.b[0] && R.b[0].e === 'rojo'); } catch (e) { return false; }
         }
+        var NOMB = { 1: 'cuantos', 2: 'quien', 3: 'resultado', 4: 'cuando' };
+        function perdidos(t) {
+          if (!ctx.medir) return '';
+          try {
+            var Rg = ctx.medir(t), Rl = ctx.medir(local(A, ctx.anteriores));
+            for (var k = 1; k <= 4; k++) if (Rl.b[k] && Rl.b[k].e === 'verde' && (!Rg.b[k] || Rg.b[k].e !== 'verde')) return NOMB[k];
+          } catch (e) {}
+          return '';
+        }
         function completar(t) {
           if (A.evid === 'noreq' && !/no requiere adjunto/.test(st(t))) t = conPunto(t) + ' No requiere adjunto.';
           if (A.evidQue && st(t).indexOf(st(A.evidQue).slice(0, 18)) < 0) t = conPunto(t) + ' Como evidencia quedó ' + A.evidQue + '.';
@@ -657,9 +666,14 @@
             t = completar(enCifras(t, false).replace(/\s+([.,;:])/g, '$1'));   /* «dos aplicaciones» → «2 aplicaciones»: las cantidades van en cifras; sin espacio antes del punto */
             var malo = revisar(t, fuentes, A);
             if (malo) throw new Error('GUARDA:' + malo);
+            /* 10/11 · caso obligación 3 de Oss: él dijo para quién, pero la versión de Gemini lo reescribió y el
+               bombillo «para quién» quedó en rojo. La versión de Gemini solo vale si enciende AL MENOS los mismos
+               bombillos (cuántos, para quién, qué quedó, cuándo) que el párrafo armado con sus respuestas. */
+            var pierde = perdidos(t);
+            if (pierde) throw new Error('BOMBILLO:' + pierde);
             if (repetida(t) && G.quedanMejora && G.quedanMejora()) {
               datos.evitar = true;
-              return G.redactar(datos).then(function (t2) { t2 = completar(enCifras(t2, false).replace(/\s+([.,;:])/g, '$1')); return revisar(t2, fuentes, A) ? t : t2; }, function () { return t; });
+              return G.redactar(datos).then(function (t2) { t2 = completar(enCifras(t2, false).replace(/\s+([.,;:])/g, '$1')); return revisar(t2, fuentes, A) || perdidos(t2) ? t : t2; }, function () { return t; });
             }
             return t;
           }).then(function (t) { origen = 'gemini'; return t; })
@@ -715,7 +729,7 @@
     var cerrado = false;
     function cerrar(fin) {
       if (cerrado) return; cerrado = true; vivo = false;
-      if (V && V.escuchando && V.escuchando()) V.parar();
+      if (dict) { var d1 = dict; dict = null; d1.parar(); }
       if (!fin) ev('cerrar', { paso: sub || PASOS[pasoI], ms: Date.now() - t0 });
       capa.classList.remove('kit-capa--on');
       document.documentElement.style.overflow = antesScroll;
@@ -746,31 +760,51 @@
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true })); } });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (V && V.escuchando && V.escuchando()) { V.parar(); return; }
+      var porVoz = !!dict || ultimaVia === 'voz';
+      if (dict) { var d0 = dict; dict = null; silenciar = true; d0.parar(); micApagado(); }   /* Enviar mientras dicta: se envía lo que va escrito */
       var t = limpio(inp.value);
       if (!t) return;
-      if (ultimaVia !== 'voz') ultimaVia = 'texto';
+      notaDictado(''); capa.querySelector('.rd-env').classList.remove('rd-env--listo');
+      ultimaVia = porVoz ? 'voz' : 'texto';
       responder(t);
       ultimaVia = 'texto';
     });
+    /* 10/11 · El dictado NO envía solo: Oss paró un momento de hablar y su relato se fue inconcluso.
+       Ahora escucha de corrido (las pausas no lo cortan), va escribiendo en el campo y él decide:
+       toca el micrófono para dejar de dictar y ENVIAR cuando termine (puede corregir antes). */
+    var dict = null, nota = null, silenciar = false;
+    function notaDictado(t) {
+      if (!nota) { nota = K.nodo('<p class="rd-nota" aria-live="polite"></p>'); form.parentNode.insertBefore(nota, form); }
+      nota.textContent = t; nota.hidden = !t;
+    }
+    function micApagado() {
+      mic.classList.remove('rd-mic--on'); mic.setAttribute('aria-label', 'Dictar'); inp.placeholder = 'Escribe o toca el micrófono';
+    }
     mic.addEventListener('click', function () {
       if (!V) return;
-      if (V.escuchando()) { V.parar(); return; }
-      mic.classList.add('rd-mic--on'); mic.setAttribute('aria-label', 'Escuchando: toca para terminar');
-      inp.placeholder = 'Te escucho…';
-      V.escuchar({ alParcial: function (t) { inp.value = t; ajustar(); } }).then(function (t) {
-        mic.classList.remove('rd-mic--on'); mic.setAttribute('aria-label', 'Dictar'); inp.placeholder = 'Escribe o toca el micrófono';
-        if (!vivo) return;
-        ultimaVia = 'voz';
-        responder(t);
-        ultimaVia = 'texto';
-      }, function (e) {
-        mic.classList.remove('rd-mic--on'); mic.setAttribute('aria-label', 'Dictar'); inp.placeholder = 'Escribe o toca el micrófono';
-        if (!vivo) return;
-        var c = e && e.message;
-        if (c === 'BLOQUEADO') { mic.hidden = true; decir('El micrófono está bloqueado en este navegador. Escríbeme tu respuesta.', 'bot'); }
-        else { fallosVoz++; decir(fallosVoz >= 2 ? 'No te escuché bien. ¿Me lo escribes?' : 'No te escuché. Toca el micrófono otra vez o escríbeme.', 'bot'); }
-        try { inp.focus(); } catch (x) {}
+      if (dict) { dict.parar(); return; }
+      var base = limpio(inp.value);
+      mic.classList.add('rd-mic--on'); mic.setAttribute('aria-label', 'Escuchando: toca para dejar de dictar');
+      inp.placeholder = 'Te escucho… habla con calma';
+      notaDictado('Te escucho. Puedes hacer pausas: no envío nada hasta que toques Enviar.');
+      dict = V.dictar({
+        alTexto: function (t) { inp.value = limpio(base + ' ' + t); ajustar(); },
+        alFin: function (t, err) {
+          dict = null; micApagado();
+          if (silenciar) { silenciar = false; return; }   /* lo paró Enviar: ya se envió */
+          if (!vivo) return;
+          if (err === 'BLOQUEADO') { mic.hidden = true; notaDictado(''); decir('El micrófono está bloqueado en este navegador. Escríbeme tu respuesta.', 'bot'); return; }
+          if (!limpio(inp.value)) {
+            fallosVoz++; notaDictado('');
+            decir(fallosVoz >= 2 ? 'No te escuché bien. ¿Me lo escribes?' : 'No te escuché. Toca el micrófono otra vez o escríbeme.', 'bot');
+            try { inp.focus(); } catch (x) {}
+            return;
+          }
+          ultimaVia = 'voz';
+          notaDictado('¿Terminaste? Revisa el texto y toca Enviar. Para seguir dictando, toca el micrófono.');
+          capa.querySelector('.rd-env').classList.add('rd-env--listo');
+          try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (x) {}
+        }
       });
     });
 

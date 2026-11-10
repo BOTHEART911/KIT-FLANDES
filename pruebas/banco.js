@@ -257,6 +257,76 @@ ${js}
       });
       igual(r, ['para la oficina de catastro', 'aplicaciones|soportes|actualizaciones']);
     });
+    await prueba('10/11 · motor: «las sugerencias de los contratistas de la secretaría de hacienda» es para quién; «el sistema de la secretaría» no', async () => {
+      const r = await page.evaluate(() => [
+        'Atendí las sugerencias de los contratistas de la secretaría de hacienda el 16 de octubre, escuchando sus aportes para la gestión de 2 incidencias que me encuentro procesando. Esta labor quedó documentada en el reporte de incidencias resueltas que subiré próximamente, mientras permanezco atento a nuevas observaciones para continuar con el soporte de las aplicaciones.',
+        'Actualicé el sistema de la secretaría de hacienda el 16 de octubre en 2 módulos.',
+        'Elaboré el reporte de incidencias resueltas el 16 de octubre con 2 casos.',
+        'Respondí 5 solicitudes del Concejo Municipal el 16 de octubre.'
+      ].map(t => MED(t).b[2].e));
+      igual(r, ['verde', 'rojo', 'rojo', 'verde']);
+    });
+    await prueba('10/11 · si la versión de Gemini apaga «para quién» (él sí lo dijo), se usa el párrafo con SUS respuestas', async () => {
+      const r = await page.evaluate(async () => {
+        const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION),
+          redactar: () => Promise.resolve('Entre el 13 y el 17 de octubre atendí 4 soportes de los equipos de escritorio y corregí el cargue de los soportes de la cuenta de cobro, que quedó en la versión publicada.') };
+        const { area } = abrirRD(gem); area.value = '';
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot())); await decir('4 soportes');
+        await esperar(() => /para quién/i.test(ultimoBot())); await decir('para la secretaría de Hacienda');
+        await esperar(() => /en qué días/i.test(ultimoBot())); await decir('del 13 al 17 de octubre');
+        await tocar('Sí, la subo'); await tocar('versión publicada');
+        await esperar(() => /Enséñame/.test(ultimoBot())); await decir('corregí el cargue de los soportes de la cuenta de cobro para los contratistas');
+        await esperar(() => /versión publicada\.$/.test(area.value), 4000);
+        return [area.value, MED(area.value).b[2].e, EVS.filter(e => e.tipo === 'rd.fin').pop().error];
+      });
+      cierto(/para la secretaría de Hacienda/.test(r[0]) && r[1] === 'verde', 'debía quedar el para quién: ' + r[0]);
+      cierto(/^BOMBILLO:quien/.test(r[2]), 'el motivo debía quedar medido: ' + r[2]);
+    });
+    await prueba('10/11 · dictado: las pausas NO envían; escribe de corrido y se envía solo con Enviar', async () => {
+      const r = await page.evaluate(async () => {
+        /* reconocimiento falso: dice una frase, se calla (el navegador lo apaga), vuelve y dice otra */
+        const frases = ['construí el asistente que pregunta por voz', 'y corregí el error que no dejaba subir los soportes en la cuenta de cobro'];
+        let n = 0, vivos = 0;
+        window.webkitSpeechRecognition = window.SpeechRecognition = function () {
+          const yo = this; vivos++;
+          yo.start = () => setTimeout(() => {
+            const f = frases[n++];
+            if (f) yo.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: f }], { isFinal: true })] });
+            setTimeout(() => yo.onend && yo.onend(), 40);   /* pausa: el navegador corta */
+          }, 30);
+          yo.stop = () => setTimeout(() => yo.onend && yo.onend(), 10);
+        };
+        const enviados = [];
+        const gem = { disponible: () => true, quedanMejora: () => 9, guionGuardado: () => GUION, guion: () => Promise.resolve(GUION), redactar: () => Promise.reject(new Error('X')) };
+        abrirRD(gem);
+        document.querySelector('.rd__btn').click();
+        await tocar('Sí');
+        await esperar(() => /cantidad/.test(ultimoBot()));
+        const mic = document.querySelector('.rd-mic'); mic.hidden = false;
+        const msgsAntes = document.querySelectorAll('.rd-msg--yo').length;
+        mic.click();
+        await new Promise(ok => setTimeout(ok, 600));
+        const escribio = document.querySelector('.rd-in').value, noEnvio = document.querySelectorAll('.rd-msg--yo').length === msgsAntes, sigue = KIT.piezas.voz.escuchando();
+        mic.click();   /* parar */
+        await new Promise(ok => setTimeout(ok, 150));
+        const nota = (document.querySelector('.rd-nota') || {}).textContent || '';
+        const sigueSinEnviar = document.querySelectorAll('.rd-msg--yo').length === msgsAntes;
+        document.querySelector('.rd-pie').requestSubmit();
+        await new Promise(ok => setTimeout(ok, 100));
+        const yo = [...document.querySelectorAll('.rd-msg--yo')].pop().textContent;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await esperar(() => document.querySelector('.kit-conf')); document.querySelector('.kit-conf__si').click();
+        await new Promise(ok => setTimeout(ok, 250));
+        delete window.webkitSpeechRecognition; delete window.SpeechRecognition;
+        return { escribio, noEnvio, sigue, nota, sigueSinEnviar, yo, vivos };
+      });
+      cierto(r.escribio === 'construí el asistente que pregunta por voz y corregí el error que no dejaba subir los soportes en la cuenta de cobro', 'debía juntar lo dicho antes y después de la pausa: ' + r.escribio);
+      cierto(r.noEnvio && r.sigue && r.vivos >= 2, 'la pausa no debía enviar ni dejar de escuchar: ' + JSON.stringify(r));
+      cierto(r.sigueSinEnviar && /Enviar/.test(r.nota), 'al parar el micrófono no envía y avisa que toque Enviar: ' + r.nota);
+      igual(r.yo, r.escribio, 'Enviar manda el texto completo');
+    });
     await prueba('«No» lo realicé: pide el motivo y queda «No requerida» aunque traiga cifras', async () => {
       const r = await page.evaluate(async () => {
         const { area, fin } = abrirRD({ disponible: () => false }); area.value = '';

@@ -96,3 +96,9 @@
 @media (prefers-reduced-motion: reduce) {
   .rd__btn::after, .rd-robot, .rd-luz--ya .rd-luz__p, .rd-msg, .rd-chip, .rd-dots i, .rd-mic--on::after, .rd-fin, .rd-fin__ico, .var-bom__i--naranja .var-bom__luz { animation: none; }
 }
+
+/* 10/11 · dictado: escucha de corrido y no envía solo */
+.rd-nota { margin: 0; padding: 6px 14px; background: var(--k-papel); border-top: 1px solid var(--k-linea); color: var(--k-tinta-2); font-size: .8rem; }
+.rd-nota[hidden] { display: none; }
+.rd-env--listo { animation: rd-late 1.2s ease-in-out infinite; box-shadow: 0 0 0 5px rgba(var(--k-marca-rgb), .18); }
+@media (prefers-reduced-motion: reduce) { .rd-env--listo { animation: none; } }

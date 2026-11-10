@@ -408,12 +408,17 @@
       return out;
     }
 
+    var PETICION = /^(sugerencias?|solicitud(es)?|peticion(es)?|necesidad(es)?|requerimientos?|inquietud(es)?|consultas?|aportes?|observacion(es)?|quejas?|reclamos?|pedidos?|propuestas?|incidencias?|reportes?|casos?|dudas?|preguntas?|requisitos?)$/;
     var SISTEMA = /^(modulo|plataforma|drive|excel|word|pdf|secop|sistema|aplicativo|app|software|dashboard|formato|anexo|plan|informe)$/;
     function bQuien(texto, k) {
       /* preposición + (artículo) + destinatario: dependencia, comunidad, entidad, población o nombre propio */
       for (var i = 0; i < k.length; i++) {
         var a = k[i], ini = i;
         var prep = /^(para|con|ante|al|a|hacia)$/.test(a.w) || /^dirigid[oa]s?$/.test(a.w) || (a.w === 'apoyo' && k[i - 1] && k[i - 1].w === 'en' && k[i + 1] && /^(de|a|al)$/.test(k[i + 1].w));
+        /* 10/11 · «las sugerencias de los contratistas de la secretaría de hacienda»: lo que PIDE o PLANTEA un grupo
+           (sus solicitudes, sugerencias, requerimientos…) dice para quién se trabajó. Solo con un sustantivo de
+           petición justo antes del «de» y un grupo, dependencia o población después (caso obligación 3 de Oss). */
+        if (!prep && (a.w === 'de' || a.w === 'del') && k[i - 1] && PETICION.test(k[i - 1].w)) prep = true;
         if (!prep) continue;
         if (a.w === 'a' && k[i + 1] && /^(traves|cabo|fin|partir|tiempo|cargo|nivel|corte)$/.test(k[i + 1].w)) continue;
         if (a.w === 'al' && k[i + 1] && /^(interior|dia|corte|cierre|respecto)$/.test(k[i + 1].w)) continue;
