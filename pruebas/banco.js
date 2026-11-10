@@ -4209,9 +4209,22 @@ ${js}
       });
       igual(r, [null, null, 'x', 'varg' + 'vv']);
     });
-    await prueba('puntaje igual al del CORE (100/0/75/0 = 44)', async () => {
+    await prueba('puntaje en tres partes, igual al del CORE (variación 67, redacción 35, soporte 33 = 45)', async () => {
       const r = await page.evaluate(() => KIT.piezas.calidad.resumir({ 1: 'vvvvvv', 2: 'rrrrrr', 3: 'vagggg', 4: 'x' }));
-      igual(r.p, 44);
+      igual(r.p, 45);
+    });
+    await prueba('mismos componentes del informe gerencial: la cuenta 9 del 061 (real) da 62, no 49', async () => {
+      const r = await page.evaluate(() => {
+        const C = KIT.piezas.calidad;
+        const o = { 1: 'vvrvrv', 2: 'vvrrrr', 3: 'vvrvrv', 4: 'vvrrrv', 5: 'vvrvrv', 6: 'vvrvrr', 7: 'vrrvrr', 8: 'vvrrrr', 10: 'vvrrra' };
+        const P = C.partes(o);
+        return [Math.round(P.variacion), Math.round(P.redaccion), Math.round(P.soporte), C.resumir(o).p];
+      });
+      igual(r, [100, 36, 50, 62]);
+    });
+    await prueba('primera cuenta: sin variación, la cuenta es el promedio de redacción y soporte', async () => {
+      const r = await page.evaluate(() => KIT.piezas.calidad.resumir({ 1: 'gvvvvv', 2: 'grrrrr' }).p);
+      igual(r, 50);
     });
     await prueba('niveles sin castigo: Sólida, En camino, Por fortalecer', async () => {
       const r = await page.evaluate(() => [80, 79, 60, 59, null].map(v => KIT.piezas.calidad.nivel(v).t));

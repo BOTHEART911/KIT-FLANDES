@@ -6,11 +6,18 @@
    revisión (motor de kit/informe-cuentas.js, sin copiarlo).
 
    La medida (fórmula B, la que escogió Oss)
-     · Una obligación vale el promedio de sus bombillos: verde 100, ámbar
-       50, rojo 0; el gris no cuenta. Las generales y las «no requeridas en
-       el periodo» quedan fuera; una obligación vacía vale 0.
-     · La cuenta vale el promedio de sus obligaciones (foto que se guarda
-       en el CORE cuando el supervisor la aprueba).
+     · 10/11 13:26 · La cuenta usa los MISMOS componentes del informe
+       gerencial del contratista, menos Oportunidad (radicar a tiempo no
+       depende del supervisor), en tres partes iguales:
+         Variación = bombillo «Qué hizo distinto»,
+         Redacción completa = cuántos, para quién, resultado y cuándo,
+         Soporte = bombillo de soporte.
+       Cada parte junta los bombillos de todas sus obligaciones (verde 100,
+       ámbar 50, rojo 0; el gris no cuenta). Una parte sin nada que medir
+       (Variación en la primera cuenta) no entra. Las generales y las «no
+       requeridas en el periodo» quedan fuera; una obligación vacía suma 0
+       en Redacción y Soporte. Así un contratista no sale distinto en el
+       informe gerencial y aquí.
      · El supervisor: 80 % el promedio de las cuentas que pasó + 20 %
        (100 − % de esas cuentas que Contratación devolvió después). Sus
        propias devoluciones se muestran, no suben el puntaje.
@@ -35,7 +42,7 @@
   var K = window.KIT;
   if (!K) return;
 
-  var MOTOR = 'C2026.11.10';
+  var MOTOR = 'C2026.11.10b';   /* b: tres partes como el informe gerencial */
   var LETRA = { verde: 'v', amarillo: 'a', rojo: 'r', gris: 'g' };
   var BOMBILLOS = ['Qué hizo distinto', 'Cuántos', 'Para quién', 'Resultado', 'Cuándo', 'Soporte'];
   var BOMB_LARGO = ['Diferencia lo hecho frente a la cuenta anterior', 'Dice cuántos (cifras de lo hecho)', 'Dice para quién o con quién',
@@ -68,11 +75,26 @@
     }
     return n ? s / n : null;
   }
-  /** {n: código} -> {p, o, mv}. p = promedio de las obligaciones que se miden. */
+  var PT = { v: 100, a: 50, r: 0 };
+  /** Las tres partes de una cuenta (como el informe gerencial, sin Oportunidad). */
+  function partes(o) {
+    var V = [], R = [], S = [];
+    Object.keys(o || {}).forEach(function (n) {
+      var c = String(o[n] || '');
+      if (c === 'x') { R.push(0, 0, 0, 0); S.push(0); return; }
+      for (var k = 0; k < 6 && k < c.length; k++) {
+        var v = PT[c.charAt(k)];
+        if (v === undefined) continue;
+        if (k === 0) V.push(v); else if (k <= 4) R.push(v); else S.push(v);
+      }
+    });
+    function pr(L) { return L.length ? L.reduce(function (a, b) { return a + b; }, 0) / L.length : null; }
+    return { variacion: pr(V), redaccion: pr(R), soporte: pr(S) };
+  }
+  /** {n: código} -> {p, o, mv}. p = promedio de las partes que se pueden medir. */
   function resumir(o) {
-    var notas = [];
-    Object.keys(o).forEach(function (n) { var v = puntos(o[n]); if (v !== null) notas.push(v); });
-    return { p: notas.length ? Math.round(notas.reduce(function (a, b) { return a + b; }, 0) / notas.length) : null, o: o, mv: MOTOR };
+    var P = partes(o), L = [P.variacion, P.redaccion, P.soporte].filter(function (v) { return v !== null; });
+    return { p: L.length ? Math.round(L.reduce(function (a, b) { return a + b; }, 0) / L.length) : null, o: o, mv: MOTOR };
   }
 
   /**
@@ -190,7 +212,7 @@
         (s.tendencia > 0 ? '▲ +' : (s.tendencia < 0 ? '▼ ' : '● ')) + s.tendencia + ' pts</span>';
       t.appendChild(K.nodo('<div class="cal-t__pct"><b>' + s.calidad + ' %</b><span class="cal-t__nivel">' + K.esc(n.t) + '</span>' + tend + '</div>'));
       t.appendChild(K.nodo('<dl class="cal-t__datos">' +
-        '<div><dt>Redacción con que pasan</dt><dd>' + (s.promedio === null ? '—' : s.promedio + ' %') + '</dd></div>' +
+        '<div><dt>Calidad con que pasan</dt><dd>' + (s.promedio === null ? '—' : s.promedio + ' %') + '</dd></div>' +
         '<div><dt>Devueltas luego por Contratación</dt><dd>' + (s.omision === null ? '—' : s.omision + ' %') + ' <small>(' + s.devCont + ' de ' + s.decididas + ')</small></dd></div>' +
         '<div><dt>Devoluciones propias</dt><dd>' + s.devSup + '</dd></div>' +
         '</dl>'));
@@ -269,7 +291,7 @@
     });
     var MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     var serieMes = Object.keys(mes).sort().map(function (k) { return { etiqueta: MES[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4), valor: prom(mes[k]) }; });
-    var conLista = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]); return { etiqueta: k, valor: v, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
+    var conLista = Object.keys(porCon).map(function (k) { var v = prom(porCon[k]), n = porCon[k].length; return { etiqueta: nombrePropio(k) + ' (' + n + (n === 1 ? ' cuenta)' : ' cuentas)'), valor: v, tono: nivel(v).k === 'alta' ? 'ok' : (nivel(v).k === 'media' ? 'aviso' : 'malo') }; })
       .sort(function (a, b) { return a.valor - b.valor; });
     var omis = pasos.filter(function (p) { return String(p.res || '').toUpperCase() === 'DEVUELTA'; });
     function tono(v) { var k = nivel(v).k; return k === 'alta' ? 'ok' : (k === 'media' ? 'aviso' : 'malo'); }
@@ -287,24 +309,24 @@
       registros: regs,
       kpis: [
         { etiqueta: 'Calidad del primer filtro', valor: s.calidad === null || s.calidad === undefined ? '—' : s.calidad + ' %', nota: nivel(s.calidad).t + (op.equipo !== null && op.equipo !== undefined ? ' · equipo ' + op.equipo + ' %' : ''), tono: tono(s.calidad) },
-        { etiqueta: 'Redacción con que pasan', valor: s.promedio === null || s.promedio === undefined ? '—' : s.promedio + ' %', nota: 'promedio de los 6 bombillos', tono: tono(s.promedio) },
+        { etiqueta: 'Calidad con que pasan', valor: s.promedio === null || s.promedio === undefined ? '—' : s.promedio + ' %', nota: 'variación, redacción y soporte', tono: tono(s.promedio) },
         { etiqueta: 'Devueltas luego por Contratación', valor: s.omision === null || s.omision === undefined ? '—' : s.omision + ' %', nota: s.devCont + ' de ' + s.decididas + ' decididas', tono: s.omision >= 20 ? 'malo' : (s.omision >= 10 ? 'aviso' : 'ok') },
         { etiqueta: 'Cuentas aprobadas', valor: String(s.pasos || 0), nota: (s.contratos || 0) + ' contratos', tono: 'info' },
         { etiqueta: 'Devoluciones propias', valor: String(s.devSup || 0), nota: 'antes de aprobar', tono: 'info' },
         { etiqueta: 'Tendencia 30 días', valor: s.tendencia === null || s.tendencia === undefined ? '—' : (s.tendencia > 0 ? '+' : '') + s.tendencia + ' pts', nota: 'frente a lo anterior', tono: s.tendencia < 0 ? 'aviso' : 'ok' }
       ],
       sintesis: 'Este informe mide qué tan completas llegan a Contratación las cuentas que ' + nombrePropio(s.nombre || '') + ' aprueba como supervisor(a), con los mismos 6 bombillos que guían al contratista al redactar. ' +
-        'La calidad del primer filtro combina la redacción con que pasan las cuentas (80 %) y las que Contratación tuvo que devolver después (20 %). ' + L.conclusion,
+        'La calidad del primer filtro combina la calidad con que pasan las cuentas (80 %: Variación, Redacción completa y Soporte, los mismos componentes del informe gerencial del contratista sin la oportunidad de radicación) y las que Contratación tuvo que devolver después (20 %). ' + L.conclusion,
       soloHallazgos: L.hallazgos,
       secciones: [
         {
           titulo: 'Calidad de lo que aprueba',
-          intro: 'Cada barra es el porcentaje de actividades que pasaron con ese bombillo en verde (ámbar vale la mitad). Las obligaciones generales y las no requeridas en el periodo no se miden.',
+          intro: 'Cada barra es el porcentaje de actividades que pasaron con ese bombillo en verde (ámbar vale la mitad). La calidad de cada cuenta usa los mismos componentes del informe gerencial del contratista, menos la oportunidad de radicación: Variación, Redacción completa y Soporte, en partes iguales. La última gráfica no es un ranking de contratistas: dice con qué calidad el supervisor aprobó las cuentas de cada uno en el periodo.',
           graficas: [
             { titulo: 'Los 6 bombillos en lo que aprueba', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, titular: false,
               datos: BOMB_LARGO.map(function (t, i) { var v = (s.bomb || [])[i]; return { etiqueta: t, valor: v === null || v === undefined ? 0 : v, tono: tono(v) }; }) },
             { titulo: 'Calidad por mes', tipo: 'barras', formato: 'porciento', datos: serieMes },
-            { titulo: 'Calidad por contratista', nota: 'de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, datos: conLista }
+            { titulo: 'Calidad con que aprobó las cuentas de cada contratista', nota: 'de menor a mayor', tipo: 'barrasH', formato: 'porciento', tope: 100, sinParte: true, max: 15, titular: false, datos: conLista }
           ]
         },
         {
@@ -338,7 +360,7 @@
     var t0 = Date.now();
     var intro = K.nodo('<section class="cal-intro">' +
       '<p>Qué tan completas llegan a Contratación las cuentas que aprueba cada supervisor, medidas con los mismos <b>6 bombillos</b> que guían al contratista. ' +
-      'Combina la redacción con que pasan (80 %) y las que Contratación devolvió después (20 %). Es una guía para mejorar el primer filtro, no una sanción.</p>' +
+      'Combina la calidad con que pasan (80 %: variación, redacción completa y soporte, como en el informe gerencial del contratista) y las que Contratación devolvió después (20 %). Es una guía para mejorar el primer filtro, no una sanción.</p>' +
       '<p class="cal-ley"><span class="cal-pas cal-pas--alta">80 % o más · Sólida</span><span class="cal-pas cal-pas--media">60 a 79 % · En camino</span><span class="cal-pas cal-pas--baja">menos de 60 % · Por fortalecer</span></p>' +
       '</section>');
     caja.appendChild(intro);
@@ -402,7 +424,7 @@
   function vistaMia(caja, op) {
     op = op || {};
     caja.appendChild(K.nodo('<section class="cal-intro"><p>Así de completas llegan a Contratación las cuentas que apruebas, medidas con los mismos <b>6 bombillos</b> que guían al contratista. ' +
-      'Combina la redacción con que pasan (80 %) y las que Contratación devolvió después (20 %). Es tuya: nadie más ve este detalle desde Supervisión.</p></section>'));
+      'Combina la calidad con que pasan (80 %: variación, redacción completa y soporte) y las que Contratación devolvió después (20 %). Es tuya: nadie más ve este detalle desde Supervisión.</p></section>'));
     var zona = K.nodo('<div class="cal-mia"></div>');
     caja.appendChild(zona);
     var llave = 'calidad.mia';
@@ -435,7 +457,7 @@
 
   K.piezas.calidad = {
     MOTOR: MOTOR, BOMBILLOS: BOMBILLOS, MINIMO: MINIMO,
-    codigo: codigo, puntos: puntos, resumir: resumir, deCuenta: deCuenta, deInforme: deInforme,
+    codigo: codigo, puntos: puntos, partes: partes, resumir: resumir, deCuenta: deCuenta, deInforme: deInforme,
     nivel: nivel, pastilla: pastilla, bloqueDetalle: bloqueDetalle, tarjeta: tarjeta,
     lectura: lectura, informe: informe, vistaRanking: vistaRanking, vistaMia: vistaMia
   };
