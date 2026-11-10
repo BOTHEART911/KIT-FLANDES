@@ -362,6 +362,9 @@
     }
     rotulo();
     o.area.addEventListener('input', rotulo);
+    /* 10/11 · App Check tarda ~3,5 s la primera vez: se pide de fondo al aparecer el botón (no gasta cupo de Gemini) */
+    var G0 = K.piezas.gemini;
+    if (G0 && G0.precalentar && G0.disponible && G0.disponible()) setTimeout(function () { if (nodo.isConnected) G0.precalentar(); }, 1500);
     btn.addEventListener('click', function () { abrir(o, rotulo); });
     return { nodo: nodo, actualizar: rotulo };
   }
@@ -495,7 +498,10 @@
           { ej: ['no hubo solicitudes de la dependencia', 'el proceso quedó suspendido mientras llegaba la información'] });
       },
       cuantos: function () {
-        Promise.race([pGuion, new Promise(function (ok) { setTimeout(function () { ok(null); }, guion ? 0 : 2500); })]).then(function (g) {
+        /* 10/11 · medido: el guion tarda 1–7 s en frío; se espera hasta 5 s con el robot «escribiendo» y si no, el genérico */
+        var espera = guion ? null : escribiendo();
+        Promise.race([pGuion, new Promise(function (ok) { setTimeout(function () { ok(null); }, guion ? 0 : 5000); })]).then(function (g) {
+          if (espera) espera.remove();
           if (!vivo) return;
           if (g) guion = g;
           var cs = cosas();
@@ -634,7 +640,7 @@
         var datos = {
           obligacion: o.obligacion, cantidades: textoCantidades(A.cantidades), quien: A.quien, cuando: A.cuando,
           evidencia: A.evid === 'noreq' ? 'No requiere adjunto' : (A.evidQue ? A.evidQue + (A.evid === 'despues' ? ' (la sube después)' : '') : ''),
-          detalle: A.detalle, anteriores: (ctx.anteriores || []).slice(-3), ms: 9000
+          detalle: A.detalle, anteriores: (ctx.anteriores || []).slice(-3), ms: 8000
         };
         function repetida(t) {
           try { var R = ctx.medir && ctx.medir(t); return !!(R && R.b && R.b[0] && R.b[0].e === 'rojo'); } catch (e) { return false; }
@@ -647,12 +653,12 @@
         var origen = 'local', motivoLocal = '';
         var p = (G && G.redactar && G.disponible && G.disponible() && (!G.quedanMejora || G.quedanMejora()))
           ? G.redactar(datos).then(function (t) {
-            t = completar(t);
+            t = completar(enCifras(t, false));   /* «dos aplicaciones» → «2 aplicaciones»: las cantidades van en cifras */
             var malo = revisar(t, fuentes, A);
             if (malo) throw new Error('GUARDA:' + malo);
             if (repetida(t) && G.quedanMejora && G.quedanMejora()) {
               datos.evitar = true;
-              return G.redactar(datos).then(function (t2) { t2 = completar(t2); return revisar(t2, fuentes, A) ? t : t2; }, function () { return t; });
+              return G.redactar(datos).then(function (t2) { t2 = completar(enCifras(t2, false)); return revisar(t2, fuentes, A) ? t : t2; }, function () { return t; });
             }
             return t;
           }).then(function (t) { origen = 'gemini'; return t; })

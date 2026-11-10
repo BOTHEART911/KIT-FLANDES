@@ -52,7 +52,9 @@
   var SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
   var MODELO = G.modelo || 'gemini-3.1-flash-lite';   /* 24/10: medido ~0,7–1,6 s; el 3.5-lite daba 3–8 s */
   /* 03/11 · si el principal está saturado, «Te ayudo» prueba con estos (otra cola del plan gratuito) */
-  var MODELOS_RESPALDO = G.respaldo || ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+  /* 10/11 · medido en vivo: gemini-2.5-flash y 2.5-flash-lite ya responden 404 (retirados para cuentas nuevas);
+     vivos: 3.5-flash (1–11 s) y 3.5-flash-lite (6–8 s). */
+  var MODELOS_RESPALDO = G.respaldo || ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
   var TOPE_DIA = 30;
   var CUPO_K = 'gemini.cupo';
   var MEDIDAS = [];
@@ -310,6 +312,46 @@
      Lo que vuelve se revisa en el teléfono (kit/redactemos.js): una cifra,
      un mes o un nombre que él no dijo hace que se use el redactor local.
      Gastan el cupo de «Te ayudo» (25 por persona y por día). */
+  /**
+   * 10/11 · CARRERA ESCALONADA: el plan gratuito tarda 1–11 s y a ratos se satura un modelo.
+   * Se lanza el principal y, si a los `escalon` ms no ha respondido, el siguiente (sin cortar
+   * el primero): gana el primero que responda bien. Todo se corta en `total` ms.
+   */
+  function carrera(S, instr, texto, cfgGen, total, escalon) {
+    var modelos = [MODELO].concat(MODELOS_RESPALDO.filter(function (m) { return m !== MODELO; })), t0 = Date.now();
+    return new Promise(function (ok, no) {
+      var vivos = 0, fin = false, ultimoError = null, lanzados = 0;
+      function lanzar(k) {
+        if (fin || k >= modelos.length) return;
+        var resta = total - (Date.now() - t0);
+        if (resta < 1200) return;
+        vivos++; lanzados++;
+        var model = S.I.getGenerativeModel(S.ai, { model: modelos[k], systemInstruction: instr, generationConfig: cfgGen }, { timeout: resta });
+        model.generateContent(texto).then(function (r) {
+          vivos--;
+          if (fin) return;
+          var out = '';
+          try { out = String(r.response.text() || '').trim(); } catch (e) {}
+          if (!out) { ultimoError = new Error('VACIO'); MEDIDAS.push({ que: 'carreraFallo', modelo: modelos[k], ms: Date.now() - t0, error: 'VACIO' }); lanzar(lanzados); if (!vivos && lanzados >= modelos.length) { fin = true; no(ultimoError); } return; }
+          fin = true; MEDIDAS.push({ que: 'carrera', modelo: modelos[k], ms: Date.now() - t0 }); ok(r);
+        }, function (e) {
+          vivos--;
+          MEDIDAS.push({ que: 'carreraFallo', modelo: modelos[k], ms: Date.now() - t0, error: String((e && e.message) || e).slice(0, 60) });
+          ultimoError = e;
+          if (fin) return;
+          lanzar(lanzados);   /* un modelo caído (404, saturado) cede su turno de una vez */
+          if (!vivos && (lanzados >= modelos.length || total - (Date.now() - t0) < 1200)) { fin = true; no(ultimoError || new Error('ERROR')); }
+        });
+      }
+      lanzar(0);
+      var paso = setInterval(function () {
+        if (fin) { clearInterval(paso); return; }
+        if (Date.now() - t0 >= total) { clearInterval(paso); fin = true; no(new Error('TIEMPO')); return; }
+        if (lanzados < modelos.length && Date.now() - t0 >= escalon * lanzados) lanzar(lanzados);
+      }, 250);
+    });
+  }
+
   var GUION_K = 'gemini.guion';
   function huellaTexto(t) {
     var h = 0; t = String(t || '');
@@ -350,23 +392,7 @@
     var t0 = Date.now(), ms = op.ms || 9000;
     return preparar().then(function (S) {
       gastarMejora();
-      var modelos = [MODELO].concat(MODELOS_RESPALDO.filter(function (m) { return m !== MODELO; }));
-      function intento(k) {
-        var resta = ms - (Date.now() - t0);
-        var tope = k < modelos.length - 1 ? Math.min(resta, Math.max(3500, Math.round(ms * 0.5))) : resta;
-        if (tope < 1500) return Promise.reject(new Error('TIEMPO'));
-        var model = S.I.getGenerativeModel(S.ai, {
-          model: modelos[k], systemInstruction: INSTR_GUION,
-          generationConfig: { temperature: 0.1, maxOutputTokens: 400, responseMimeType: 'application/json' }
-        }, { timeout: tope });
-        var corte = new Promise(function (ok, no) { setTimeout(function () { no(new Error('TIEMPO')); }, tope); });
-        return Promise.race([model.generateContent('Obligación: «' + obl.t + '»'), corte])['catch'](function (e) {
-          MEDIDAS.push({ que: 'guionFallo', modelo: modelos[k], ms: Date.now() - t0, error: String((e && e.message) || e).slice(0, 60) });
-          if (k + 1 < modelos.length) return intento(k + 1);
-          throw e;
-        });
-      }
-      return intento(0);
+      return carrera(S, INSTR_GUION, 'Obligación: «' + obl.t + '»', { temperature: 0.1, maxOutputTokens: 600, responseMimeType: 'application/json' }, ms, 3000);
     }).then(function (r) {
       var out = '', j = null;
       try { out = String(r.response.text() || ''); } catch (e) {}
@@ -413,26 +439,10 @@
       'Su relato libre: «' + p[5] + '»\n' +
       (ant.length ? 'Redacciones de sus cuentas anteriores (NO las imites):\n- ' + ant.join('\n- ') + '\n' : '') +
       (o.evitar ? 'Tu primera versión se pareció mucho a esas; cambia la estructura y el orden.\n' : '');
-    var t0 = Date.now(), total = o.ms || 9000;
-    var modelos = [MODELO].concat(MODELOS_RESPALDO.filter(function (m) { return m !== MODELO; }));
+    var t0 = Date.now(), total = o.ms || 8000;
     return preparar().then(function (S) {
       gastarMejora();
-      function intento(k) {
-        var resta = total - (Date.now() - t0);
-        var ms = k < modelos.length - 1 ? Math.min(resta, Math.max(4000, Math.round(total * 0.45))) : resta;
-        if (ms < 1500) return Promise.reject(new Error('TIEMPO'));
-        var model = S.I.getGenerativeModel(S.ai, {
-          model: modelos[k], systemInstruction: INSTR_REDACTAR,
-          generationConfig: { temperature: o.evitar ? 0.8 : 0.55, maxOutputTokens: 700 }
-        }, { timeout: ms });
-        var corte = new Promise(function (ok, no) { setTimeout(function () { no(new Error('TIEMPO')); }, ms); });
-        return Promise.race([model.generateContent(texto), corte])['catch'](function (e) {
-          MEDIDAS.push({ que: 'redactarFallo', modelo: modelos[k], ms: Date.now() - t0, error: String((e && e.message) || e).slice(0, 60) });
-          if (k + 1 < modelos.length) return intento(k + 1);
-          throw e;
-        });
-      }
-      return intento(0);
+      return carrera(S, INSTR_REDACTAR, texto, { temperature: o.evitar ? 0.8 : 0.55, maxOutputTokens: 900 }, total, 3500);
     }).then(function (r) {
       var out = '';
       try { out = String(r.response.text() || '').trim(); } catch (e) {}
