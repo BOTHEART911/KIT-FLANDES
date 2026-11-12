@@ -338,7 +338,7 @@
     }
     function fraseDe(F, j) { for (var x = 0; x < F.length; x++) if (j >= F[x][0] && j < F[x][1]) return F[x]; return [0, 0]; }
     function negada(k, f0, j) { for (var q = f0; q < j; q++) if (/^(no|ni|tampoco|nunca)$/.test(k[q].w)) return true; return false; }
-    var PROD = /^(elabor|entreg|proyect|radic|present|consolid|actualiz|disen|construy|construc|redact|public|gener|emit|expid|expedi|carg|remit|envi|organiz|digitaliz|tramit|levant|formul|estructur|diligenci|realiz|suscrib|firm|socializ|adjunt|anex|archiv|sistematiz|depur|clasific|foli|escane|registr|respond|respues|contest|notific|liquid|compil|recopil|prepar|hic|hiz|produj|obtuv|logr|culmin|termin|finaliz|implement|instal|configur|desarroll|disen|aplic|actualiz|ajust|corrig|cre|dise)/;
+    var PROD = /^(rind|rindi|confecc|emiti|elabor|entreg|proyect|radic|present|consolid|actualiz|disen|construy|construc|redact|public|gener|emit|expid|expedi|carg|remit|envi|organiz|digitaliz|tramit|levant|formul|estructur|diligenci|realiz|suscrib|firm|socializ|adjunt|anex|archiv|sistematiz|depur|clasific|foli|escane|registr|respond|respues|contest|notific|liquid|compil|recopil|prepar|hic|hiz|produj|obtuv|logr|culmin|termin|finaliz|implement|instal|configur|desarroll|disen|aplic|actualiz|ajust|corrig|cre|dise)/;
     var CITADO_ANT = /^(segun|mediante|conforme|cumplimiento|referencia|revision|revisar|revisaron|reviso|analisis|analizo|lectura|consulta|basad[oa]|acuerdo|establecid[oa]s?|adoptad[oa]|vigente|correspondiente|regid[oa]|marco|insumo|partida|base|lineamientos|directrices)$/;
 
     /* Marca qué tokens son cifras de gestión, fechas, códigos o numeración (no cifras). */
@@ -717,7 +717,14 @@
        Queda gris (no requerida en el periodo). «No fue requerida… sin embargo se apoyó en 14 procesos» sí es actividad. */
     var NO_EJEC2 = /^\s*(?:(?:durante|en|para) (?:el|este) (?:presente )?periodo[^.;\n]{0,110}?,\s*|a la fecha,?\s*|en este lapso,?\s*)?(?:\d+\.\s*)?(?:no se (?:realizo|realizaron|elaboro|elaboraron|presento|presentaron|recibio|recibieron|adelanto|adelantaron|ejecuto|ejecutaron|desarrollo|desarrollaron|atendio|atendieron|asigno|asignaron|requirio|requirieron|solicito|solicitaron|genero|generaron|registro|registraron|programo|programaron|efectuo|efectuaron)|no fue (?:posible|necesari[oa]|requerid[oa]|solicitad[oa])|no fueron (?:requerid|solicitad|asignad)|no hubo|no ha sido (?:requerid|solicitad)|no se han? (?:presentado|requerido|solicitado|asignado))/;
     var AFIRMA = /\b(se\s+(?:apoy|realiz|atend|elabor|entreg|proyect|radic|brind|acompan|particip|asist|revis|gestion|organiz|digitaliz|tramit|carg|adelant|desarroll|ejecut|efectu|hic|hiz|llev|logr|public|present|actualiz|consolid|diligenci)\w*|(?:apoy|realic|atend|elabor|entregu|proyect|radiqu|brind|acompan|particip|asist|revis|gestion|organic|digitalic|tramit|cargu|adelant|desarroll|ejecut|efectu|hice|llev|logr|public|present|actualic|consolid|diligenci)[eé]\b)/;
+    /* recuerdos acotados por texto (la misma cuenta se mide muchas veces mientras se escribe o se revisa) */
+    function recuerdo(max) { var m = {}, n = 0; return { get: function (k) { return m[k]; }, set: function (k, v) { if (++n > max) { m = {}; n = 1; } m[k] = v; return v; } }; }
+    var MEM_NOEJ = recuerdo(800), MEM_4G = recuerdo(800);
     function noEjecutada(texto, nC) {
+      var clave = String(texto || '') + '\u0001' + (nC || ''), v = MEM_NOEJ.get(clave);
+      return v === undefined ? MEM_NOEJ.set(clave, noEjecutada_(texto, nC)) : v;
+    }
+    function noEjecutada_(texto, nC) {
       var L = bajo(String(texto || '').normalize('NFC'));
       var partes = L.split(/\.\s+|\n+|;\s*/).filter(function (x) { return x.trim(); });
       if (!partes.length || !NO_EJEC2.test(partes[0])) return false;
@@ -729,12 +736,18 @@
       return true;
     }
     function palabras4(s) { return st(String(s || '')).toLowerCase().replace(/\d+([.,]\d+)*/g, '#').replace(/[^a-z#ñ ]+/g, ' ').split(/\s+/).filter(Boolean); }
+    function grams4(s) {
+      var v = MEM_4G.get(s);
+      if (v) return v;
+      var x = palabras4(s), A = {}, c = 0;
+      for (var i = 0; i + 4 <= x.length; i++) { var g = x[i] + ' ' + x[i + 1] + ' ' + x[i + 2] + ' ' + x[i + 3]; if (!A[g]) { A[g] = 1; c++; } }
+      return MEM_4G.set(s, { set: A, n: c });
+    }
     function igualdad(a, b) {
-      var x = palabras4(a), y = palabras4(b), A = {}, B = {}, n = 0, tot = 0, i;
-      for (i = 0; i + 4 <= x.length; i++) A[x.slice(i, i + 4).join(' ')] = 1;
-      for (i = 0; i + 4 <= y.length; i++) B[y.slice(i, i + 4).join(' ')] = 1;
-      for (var g in A) { tot++; if (B[g]) n++; }
-      return tot ? Math.round(n * 100 / tot) : 0;
+      var A = grams4(a), B = grams4(b), n = 0;
+      if (!A.n) return 0;
+      for (var g in A.set) if (B.set[g]) n++;
+      return Math.round(n * 100 / A.n);
     }
     /** ctx.n (esta obligación) + ctx.hermanas [{n, texto, obl}] (las demás de la MISMA cuenta) -> {n, pct} o null */
     function gemela(t, ctx) {

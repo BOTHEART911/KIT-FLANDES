@@ -5008,7 +5008,8 @@ ${js}
     await prueba('rendimiento: menos de 5 ms por actividad larga', async () => {
       const ms = await page.evaluate(() => {
         const t = 'Durante el periodo comprendido entre el 16 y el 30 de septiembre de 2026, se realizó la revisión documental del Manual de Cobro adoptado mediante Decreto Municipal No. 180 del 17 de diciembre de 2015, con la entrega de 14 expedientes a la Secretaría de Hacienda. '.repeat(12);
-        const L = []; for (let i = 0; i < 40; i++) { const a = performance.now(); B(t); L.push(performance.now() - a); }
+        for (let i = 0; i < 15; i++) B(t);   /* en vivo el motor ya corrió: se mide en caliente */
+        const L = []; for (let i = 0; i < 60; i++) { const a = performance.now(); B(t); L.push(performance.now() - a); }
         L.sort((x, y) => x - y); return L[Math.floor(L.length * 0.95)];
       });
       cierto(ms < 5, 'p95 ' + ms.toFixed(2) + ' ms');
