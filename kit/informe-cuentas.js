@@ -839,7 +839,8 @@
       return null;
     }
     var PROD_KEY = /\b(?:elabor|cre|disen|constru|proyect|formul|levant|consolid|estructur|redact)[a-z]*\s+(?:(?:el|la|los|las|un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\(\d+\)|\d+)\s+)*([a-zñ]{4,})\s+(?:de|del)\s+(?:la\s+|el\s+|los\s+|las\s+)?([a-zñ]{4,})/g;
-    var PROD_GEN = /^(informe|actividad|apoyo|gestion|seguimiento|revision|acompanamiento|proceso|labor|tarea|accion|trabajo|organizacion|entrega|cuenta|reunion|sesion|mesa|parte|manera|forma|base)$/;
+    /* tipos de documento que se producen muchas veces (oficios, actos, respuestas…) no son «el mismo producto» */
+    var PROD_GEN = /^(informe|actividad|apoyo|gestion|seguimiento|revision|acompanamiento|proceso|labor|tarea|accion|trabajo|organizacion|entrega|cuenta|reunion|sesion|mesa|parte|manera|forma|base|oficio|derecho|acto|resolucion|respuesta|acta|documento|solicitud|peticion|contrato|correo|comunicado|certificado|certificacion|constancia|registro|listado|formato|planilla|pieza|publicacion|video)$/;
     function sing(w) { return w.replace(/(es|s)$/, ''); }
     function clavesProducto(t) {
       var L = bajo(String(t || '').normalize('NFC')), m, out = [];
@@ -953,7 +954,7 @@
       if (mp) R.mismoProducto = mp;
       R.estado = repetida ? 'repetida' : 'nueva';
       R.b.push({ k: 0, e: !hay ? 'gris' : (repetida ? 'rojo' : 'verde'), d: !hay ? 'Primera cuenta: no hay con qué comparar.' : motivo, r: gem ? [[0, t.length]] : (repetida ? (R.plantillas && R.pct < U_EST && !R.ident ? R.plR : R.rep) : []) });
-      if (mp && R.b[0].e !== 'rojo') { R.b[0].e = 'amarillo'; R.b[0].como = 'mismoProducto'; R.b[0].d = 'El producto «' + t0.slice(mp.i, mp.f) + '» ya lo reportaste en la obligación ' + mp.n + ' de esta cuenta. Cuenta qué hiciste con él para ESTA obligación.'; R.b[0].r = [[mp.i, mp.f]]; }
+      if (mp && R.b[0].e !== 'rojo') { R.b[0].e = 'amarillo'; R.b[0].como = 'mismoProducto'; R.b[0].d = 'El producto «' + t0.slice(mp.i, mp.f) + '» ya lo reportaste en la obligación ' + mp.n + ' de esta cuenta. Cuenta qué hiciste con él para ESTA obligación.'; R.b[0].r = [[mp.i, mp.f]]; R.b[0].x = t0.slice(mp.i, mp.f); }
       var rs = bResultado(k, t, P.obl);
       /* 2 · ¿cuántos? */
       /* 12/11 · una cifra cuyo «qué» es genérico («cuatro (4) actividades») no dice qué se hizo: ámbar */
