@@ -55,9 +55,17 @@
     if (Array.isArray(datos)) return datos;
     if (!Array.isArray(datos.filas)) return [];
     var campos = datos.campos || [];
+    /* 12/11 · fmt=2: las columnas que se repiten viajan como catálogo
+       ({ "3": ["SECRETARÍA DE HACIENDA", ...] }) y la fila trae el índice. */
+    var cat = (datos.cat && typeof datos.cat === 'object') ? datos.cat : null;
+    var cols = cat ? Object.keys(cat).map(Number) : [];
     return datos.filas.map(function (f) {
       var o = {}, i;
       for (i = 0; i < campos.length; i++) o[campos[i]] = f[i];
+      for (i = 0; i < cols.length; i++) {
+        var c = cols[i], lst = cat[c];
+        if (campos[c] !== undefined && typeof f[c] === 'number' && lst && f[c] < lst.length) o[campos[c]] = lst[f[c]];
+      }
       return o;
     });
   }
