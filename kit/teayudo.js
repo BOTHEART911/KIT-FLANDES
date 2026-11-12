@@ -96,16 +96,23 @@
       if (b.e !== 'rojo' && b.e !== 'amarillo') return;
       if (b.corchete) { out.push({ k: b.k, e: 'rojo', txt: 'Llena lo que está entre corchetes: ' + b.corchete.map(function (x) { return '[' + x + ']'; }).join(', ') + '. Mientras siga entre corchetes, este bombillo queda en rojo.' }); return; }
       switch (b.k) {
-        case 0: out.push({ k: 0, e: b.e, txt: 'Se parece a tu cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + '. Cuenta qué fue distinto en este periodo: otro lugar, otro grupo, otro resultado. Eso solo lo sabes tú.' }); break;
-        case 1: out.push({ k: 1, e: b.e, txt: 'Falta CUÁNTOS: pon la cifra junto a lo que contaste.', ej: '[número] ' + T.cu }); break;
-        case 2: out.push({ k: 2, e: b.e, txt: 'Falta PARA QUIÉN o CON QUIÉN lo hiciste.', ej: 'con ' + T.qu }); break;
-        case 3: out.push({ k: 3, e: b.e, txt: 'Falta QUÉ QUEDÓ: nombra lo que lo demuestra, por ejemplo ' + T.ent.map(function (x) { return '«' + x + '»'; }).join(' o ') + '.', ej: '[' + T.ent.join(' o ') + ']' }); break;
+        case 0:
+          if (R.gemela) { out.push({ k: 0, e: b.e, txt: 'Es igual a lo que escribiste en la obligación ' + R.gemela.n + '. Cuenta qué hiciste para ESTA obligación: cada obligación lleva su propia actividad, su resultado y su evidencia.' }); break; }
+          out.push({ k: 0, e: b.e, txt: 'Se parece a tu cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + '. Cuenta qué fue distinto en este periodo: otro lugar, otro grupo, otro resultado. Eso solo lo sabes tú.' }); break;
+        /* 12/11 · cuando el motor sabe POR QUÉ falta (b.ayuda), eso es lo que se le dice */
+        case 1:
+          if (b.como === 'generica') out.push({ k: 1, e: b.e, txt: b.d });
+          else out.push({ k: 1, e: b.e, txt: b.ayuda || 'Falta CUÁNTOS: pon la cifra junto a lo que contaste.', ej: '[número] ' + T.cu });
+          break;
+        case 2: out.push({ k: 2, e: b.e, txt: b.ayuda || 'Falta PARA QUIÉN o CON QUIÉN lo hiciste.', ej: 'con ' + T.qu }); break;
+        case 3: out.push({ k: 3, e: b.e, txt: b.ayuda || ('Falta QUÉ QUEDÓ: nombra lo que lo demuestra, por ejemplo ' + T.ent.map(function (x) { return '«' + x + '»'; }).join(' o ') + '.'), ej: '[' + T.ent.join(' o ') + ']' }); break;
         case 4:
-          if (b.e === 'amarillo') out.push({ k: 4, e: b.e, txt: 'Revisa la fecha' + (b.x ? ' «' + b.x + '»' : '') + ': cae fuera del periodo de esta cuenta.' });
-          else out.push({ k: 4, e: b.e, txt: 'Falta CUÁNDO: escribe las fechas o la semana del periodo.', ej: 'el [fecha]' });
+          if (b.e === 'amarillo') out.push({ k: 4, e: b.e, txt: b.d });
+          else out.push({ k: 4, e: b.e, txt: b.ayuda || 'Falta CUÁNDO: escribe las fechas o la semana del periodo.', ej: 'el [fecha]' });
           break;
         default:
-          if (b.como === 'diceAdjunta') out.push({ k: 5, e: b.e, txt: 'Tu texto dice que adjuntas un soporte, pero esta obligación no tiene nada cargado: súbelo abajo, en evidencias o archivo.' });
+          if (b.como === 'noRequiereProducto') out.push({ k: 5, e: b.e, txt: b.d });
+          else if (b.como === 'diceAdjunta') out.push({ k: 5, e: b.e, txt: 'Tu texto dice que adjuntas un soporte, pero esta obligación no tiene nada cargado: súbelo abajo, en evidencias o archivo.' });
           else if (b.como === 'donde') out.push({ k: 5, e: b.e, txt: 'Dices dónde verificarlo. Para el verde: sube el soporte aquí o, si no aplica, escribe «no requiere adjunto».' });
           else if (b.como === 'oblSinProducto') out.push({ k: 5, e: b.e, txt: 'Si esta actividad no deja documento, escribe «no requiere adjunto»; si lo deja, súbelo abajo.' });
           else out.push({ k: 5, e: b.e, txt: 'Sube abajo las evidencias que lo demuestran (' + T.ent.join(', ') + ') o, si no aplica, escribe «no requiere adjunto».' });
@@ -386,18 +393,22 @@
       accion = 'Reemplace lo que está entre corchetes por sus datos reales.';
     } else switch (b.k) {
       case 0:
+        if (R.gemela) { falta = 'Es la misma actividad que reportó en la obligación ' + R.gemela.n + ' (' + R.gemela.pct + ' % igual).'; accion = 'Diferencie lo ejecutado en cada obligación: escriba aquí lo que hizo para ESTA obligación, con su resultado y su evidencia, sin repetir la misma actividad en dos obligaciones.'; break; }
         falta = 'Repite la forma de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ': no dice qué fue distinto en este periodo.';
         agrega = 'En este periodo, a diferencia de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ', [qué fue distinto: lugar, grupo o resultado].';
         break;
-      case 1: falta = 'No dice cuántos: falta la cifra junto a lo que se contó.'; agrega = 'En total fueron [número] ' + T.cu + '.'; break;
+      case 1:
+        if (b.como === 'generica') { falta = 'Dice ' + (b.x ? '«' + b.x + '»' : 'una cantidad de actividades') + ' sin decir cuáles fueron.'; accion = 'Relacione y describa cada actividad, con su cifra: [qué hizo y cuántos de cada uno].'; break; }
+        falta = 'No dice cuántos: falta la cifra junto a lo que se contó.'; agrega = 'En total fueron [número] ' + T.cu + '.'; break;
       case 2: falta = 'No dice para quién ni con quién lo hizo.'; agrega = 'Se benefició ' + qu + '.'; break;
       case 3: falta = 'No dejó resultado ni entregable verificable.'; agrega = 'Como resultado quedó ' + ent + '.'; break;
       case 4:
-        if (b.e === 'amarillo') { falta = 'La fecha' + (b.x ? ' «' + b.x + '»' : '') + ' cae fuera del periodo de esta cuenta.'; accion = 'Corrija la fecha por una del periodo: [fecha dentro del periodo].'; }
+        if (b.e === 'amarillo') { falta = 'La fecha de ejecución' + (b.x ? ' «' + b.x + '»' : '') + ' cae fuera del periodo de esta cuenta.'; accion = 'Si lo hizo en otro periodo, repórtelo en esa cuenta; si es una fecha que cita (de una norma, un contrato o algo programado), escríbala junto a su documento.'; }
         else { falta = 'No dice cuándo lo hizo.'; agrega = 'Lo realicé el [fecha].'; }
         break;
       default:
         if (b.como === 'diceAdjunta') { falta = 'Dice que adjunta un soporte que no está cargado.'; accion = 'Cargue en esta obligación el soporte que menciona.'; }
+        else if (b.como === 'noRequiereProducto') { falta = 'Escribió «no requiere adjunto», pero menciona ' + (b.xp ? '«' + b.xp + '»' : 'un producto') + ' que elaboró o entregó.'; accion = 'Cargue en esta obligación el soporte que permita verificarlo; «no requiere adjunto» es para lo que no deja documento.'; }
         else if (b.como === 'donde') { falta = 'No cargó soporte: solo dice dónde verificarlo.'; accion = 'Cargue el soporte en esta obligación (' + T.ent.join(' o ') + ') o, si no aplica, escriba «no requiere adjunto».'; }
         else if (b.como === 'oblSinProducto') { falta = 'No tiene soporte ni dice si la actividad lo requiere.'; accion = 'Si no deja documento, escriba «no requiere adjunto»; si lo deja, cárguelo en esta obligación.'; }
         else { falta = 'La obligación pide un producto y no tiene evidencias ni adjuntos cargados.'; accion = 'Cargue en esta obligación ' + ent + ' o, si no aplica, escriba «no requiere adjunto».'; }

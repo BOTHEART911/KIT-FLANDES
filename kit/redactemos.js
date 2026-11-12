@@ -586,6 +586,10 @@
         preguntar('¿Qué evidencia es? Así lo dejo dicho en tu actividad.', { chips: uniq((ex.evidencia || []).concat(g.evidencia || [], tema.ent)).slice(0, 4).map(function (x) { return { t: x }; }) });
       },
       evidSeguro: function () {
+        /* 12/11 · si lo que contó es un producto (un diagnóstico, 3 informes, una matriz), se le dice con SUS palabras */
+        var prod = (A.cantidades || []).filter(function (c) { return /^(diagnostic|informe|matri|acta|oficio|document|formato|listado|base|estudio|propuesta|ficha|plantilla|plan|cronograma|concepto|respuesta|pieza|video|resoluci|minuta|cuadro|presentaci)/.test(st(c.u)); })[0];
+        if (prod) return preguntar('¿Seguro que no requiere adjunto? Contaste <b>' + K.esc(prod.n + ' ' + prod.u) + '</b>: si quedó en un archivo, súbelo. «No requiere adjunto» es para lo que no deja documento.',
+          { soloChips: true, chips: [{ t: 'Sí, no requiere', v: 'noreq' }, { t: 'Mejor la subo', v: 'si', icono: 'imagen' }] });
         preguntar('¿Seguro que no requiere adjunto? Si de esta actividad quedó algo que lo demuestre (' + K.esc(lista((guion || guionLocal).evidencia.length ? (guion || guionLocal).evidencia.slice(0, 2) : tema.ent.slice(0, 2), 'o')) + '), es mejor subirlo.',
           { soloChips: true, chips: [{ t: 'Sí, no requiere', v: 'noreq' }, { t: 'Mejor la subo', v: 'si', icono: 'imagen' }] });
       },

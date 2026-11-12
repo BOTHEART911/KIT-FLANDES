@@ -103,13 +103,15 @@
     return I._estr.analizar(texto, P, {
       general: !!(ctx.obl && I._esGeneral(ctx.obl)), desde: iso(ctx.desde), hasta: iso(ctx.hasta),
       soporte: Number(ctx.soporte) || 0, nContrato: ctx.nContrato,
+      /* 12/11 · las demás obligaciones de la cuenta: [{n, texto, obl}] (misma actividad en dos obligaciones) */
+      n: ctx.n, hermanas: ctx.hermanas,
       avisarPeriodo: !!ctx.avisarPeriodo && !(iso(ctx.desde) && iso(ctx.hasta))
     });
   }
 
   /** HTML del texto con <mark> en los tramos dados. */
   function resaltar(texto, rangos, clase) {
-    var t = String(texto || ''), R = (rangos || []).slice().sort(function (a, b) { return a[0] - b[0]; }), html = '', i = 0;
+    var t = String(texto || '').normalize('NFC').replace(/\u00a0/g, ' '), R = (rangos || []).slice().sort(function (a, b) { return a[0] - b[0]; }), html = '', i = 0;
     R.forEach(function (r) {
       var a = Math.max(r[0], i), b = r[1];
       if (b <= a) return;
@@ -137,6 +139,16 @@
     'Carga en esta obligación las evidencias o adjuntos que demuestren lo que escribes; puedes escribir que no requiere adjunto si no aplica.'
   ];
 
+  /** 12/11 · la primera fecha que el contratista CITA (norma, contrato, algo programado): se nombra, no se juzga */
+  function citaFecha(R) {
+    var c = (R.citas || []).filter(function (z) { return /\d{1,2}[\/\-]\d|\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(z.x); })[0];
+    return c ? c.x : '';
+  }
+  /** Las demás obligaciones de la misma cuenta, para medir cada una: [{n, texto, obl}] */
+  function hermanasDe(obls, n) {
+    return (obls || []).filter(function (o) { return Number(o.n) !== Number(n); }).map(function (o) { return { n: o.n, texto: o.actual !== undefined ? o.actual : o.texto2, obl: o.texto }; });
+  }
+
   /** La frase técnica de cada bombillo para Supervisión y Contratación. */
   function tecnico(R, b) {
     var x = b.x ? ': «' + b.x + '»' : '';
@@ -145,18 +157,20 @@
     switch (b.k) {
       case 0:
         if (b.e === 'gris') return 'Sin cuenta anterior para comparar';
+        if (R.gemela) return 'Misma actividad que la obligación ' + R.gemela.n + ' de esta cuenta (' + R.gemela.pct + ' % igual)';
         if (b.e === 'verde') return 'Diferenció lo realizado frente al periodo anterior (estructura ' + R.pct + ' % igual a la cuenta ' + R.con + ')';
         if (R.tipo === 'identica') return 'Texto idéntico al de la cuenta ' + R.con;
         if (R.tipo === 'plantilla') return 'Plantilla rellenada de la cuenta ' + R.plCon + ': ' + R.plantillas + ' de ' + R.frases + ' frases solo cambian cifras o fechas';
         if (R.tipo === 'orden') return 'Mismas frases y en el mismo orden que la cuenta ' + R.ordenCon;
         return 'Estructura igual a la cuenta ' + R.con + ' (' + R.pct + ' %)';
-      case 1: return b.e === 'verde' ? 'Cuantificó y acompañó la cifra' + x : 'No cuantificó: ninguna cifra acompañada de lo que se contó';
+      case 1: return b.e === 'verde' ? 'Cuantificó y acompañó la cifra' + x : (b.como === 'generica' ? 'Cifra sin decir cuáles' + x : 'No cuantificó: ninguna cifra acompañada de lo que se contó');
       case 2: return b.e === 'verde' ? 'Indicó destinatario o participante' + x : 'No indicó destinatario ni participante';
       case 3: return b.e === 'verde' ? 'Dejó entregable verificable' + x : 'No dejó resultado ni entregable verificable';
-      case 4: return b.e === 'verde' ? 'Ubicó en el tiempo dentro del periodo' + x : (b.e === 'amarillo' ? 'Fecha fuera del periodo de la cuenta' + x : 'No ubicó la actividad en el tiempo');
+      case 4: return b.e === 'verde' ? 'Ubicó en el tiempo dentro del periodo' + x + (citaFecha(R) ? ' (cita «' + citaFecha(R) + '»: no se juzga)' : '') : (b.e === 'amarillo' ? 'Fecha de ejecución fuera del periodo de la cuenta' + x : 'No ubicó la actividad en el tiempo');
       default:
         if (b.como === 'cargado') return 'Tiene soporte en evidencias (' + b.n + ')';
         if (b.como === 'noRequiere') return 'Declaró que no requiere adjunto' + x;
+        if (b.como === 'noRequiereProducto') return 'Declaró que no requiere adjunto, pero menciona un producto elaborado: «' + (b.x2 || b.xp || '') + '»';
         if (b.como === 'donde') return 'Sin adjunto: indicó dónde verificar' + x;
         if (b.como === 'oblSinProducto') return 'Sin adjunto: la obligación puede no requerirlo';
         if (b.como === 'diceAdjunta') return 'Dice que adjunta un soporte que no está cargado' + x;
@@ -173,7 +187,8 @@
     var ul = K.nodo('<ul class="var-bom" role="list"></ul>');
     R.b.forEach(function (b) {
       var titulo = modo === 'revisor' ? tecnico(R, b) : PREG[b.k];
-      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !b.corchete && !(b.k === 5 && b.como === 'diceAdjunta') ? AYUDA_ROJO[b.k] : b.d);
+      /* 12/11 · si el motor sabe POR QUÉ falta (cita un número, dice «durante el periodo», nombra el grupo sin decir para quién), lo dice */
+      var det = modo === 'revisor' ? '' : (b.e === 'rojo' && R.estado !== 'vacia' && !b.corchete && !(b.k === 5 && b.como === 'diceAdjunta') && !(b.k === 0 && R.gemela) ? (b.ayuda || AYUDA_ROJO[b.k]) : b.d);
       /* 02/11 · el soporte dice si una evidencia es igual a la de una cuenta anterior (huellas) */
       var rep = b.k === 5 && R.notaSoporte ? '<small class="var-bom__rep">' + K.esc(R.notaSoporte) + '</small>' : '';
       /* 05/11 · en la revisión, el rojo y el ámbar también se tocan: muestran qué falta y la frase sugerida (teayudo.panelRevisor) */
@@ -248,7 +263,7 @@
     var caja = K.nodo('<div class="var-cmp" role="region" aria-label="Comparación con la cuenta anterior"></div>');
     var per = periodo(d, ctx.desde, ctx.hasta);
     var P = preparar(I, o.texto, prev, nContrato);
-    var R = medir(I, o.actual, P, { obl: o.texto, desde: per.desde, hasta: per.hasta, soporte: o.soporte, nContrato: nContrato });
+    var R = medir(I, o.actual, P, { obl: o.texto, desde: per.desde, hasta: per.hasta, soporte: o.soporte, nContrato: nContrato, n: o.n, hermanas: ctx.hermanas });
     caja.appendChild(K.nodo('<div class="var-cmp__pas">' + pastilla(R) + '</div>'));
     var actual = String(o.actual || '').trim();
     var b = K.nodo('<div class="var-cmp__txt var-cmp__act"></div>');
@@ -288,7 +303,7 @@
     var rep = 0, comp = 0, filas = [];
     obls.forEach(function (o) {
       var prev = previosDe(d, o.n);
-      var R = medir(I, o.actual, preparar(I, o.texto, prev, nContrato), { obl: o.texto, desde: per.desde, hasta: per.hasta, soporte: o.soporte, nContrato: nContrato });
+      var R = medir(I, o.actual, preparar(I, o.texto, prev, nContrato), { obl: o.texto, desde: per.desde, hasta: per.hasta, soporte: o.soporte, nContrato: nContrato, n: o.n, hermanas: hermanasDe(obls, o.n) });
       if (R.estado === 'general' || R.estado === 'noreq') return;
       if (R.pct !== null) { comp++; if (R.estado === 'repetida') rep++; }
       filas.push({ o: o, R: R });
@@ -311,7 +326,7 @@
   K.piezas.variacion = {
     ic: ic, anteriores: anteriores, olvidar: olvidar, previosDe: previosDe, periodo: periodo,
     preparar: preparar, medir: medir, resaltar: resaltar, bombillos: bombillos, verdes: verdes,
-    pastilla: pastilla, consejo: consejo, tecnico: tecnico, preguntas: PREGUNTAS,
+    pastilla: pastilla, consejo: consejo, tecnico: tecnico, preguntas: PREGUNTAS, hermanasDe: hermanasDe, citaFecha: citaFecha,
     panelComparar: panelComparar, resumen: resumen, ESPERA: 300
   };
 }());

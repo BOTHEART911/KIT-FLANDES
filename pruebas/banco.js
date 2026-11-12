@@ -562,7 +562,7 @@ ${js}
       });
       igual(r.verde, null);
       cierto(r.soporte && !r.soporte.frase && /no requiere adjunto/.test(r.soporte.accion), JSON.stringify(r.soporte));
-      cierto(r.fecha && /fuera del periodo/.test(r.fecha.falta) && /\[fecha dentro del periodo\]/.test(r.fecha.accion), JSON.stringify(r.fecha));
+      cierto(r.fecha && /fuera del periodo/.test(r.fecha.falta) && /repórtelo en esa cuenta/.test(r.fecha.accion) && /junto a su documento/.test(r.fecha.accion), JSON.stringify(r.fecha));
     });
     await prueba('texto largo: la observación pide agregar al final (no repite 2.000 caracteres)', async () => {
       const r = await page.evaluate(() => {
@@ -4887,6 +4887,132 @@ ${js}
       igual(r, [false, true]);
     });
 
+    await ctx.close();
+  }
+
+  /* 12/11 · LECTURA DEL MOTOR: citas, no ejecutadas, cifras que no son cantidades, misma actividad en dos
+     obligaciones, tildes sueltas. Fragmentos tomados de cuentas reales del libro (sin nombres). */
+  grupo('lectura1112');
+  {
+    const { page, ctx } = await pagina(browser, ['exportar', 'personas', 'informe-cuentas', 'variacion', 'teayudo', 'calidad']);
+    await page.evaluate(() => {
+      const E = KIT.piezas.informeCuentas._estr;
+      window.B = (t, o) => { o = o || {}; const P = E.preparar(o.obl || 'Asesorar en la revisión y análisis de la normatividad vigente', o.prev || [], '340');
+        return E.analizar(t, P, { desde: o.d || '2026-09-16', hasta: o.h || '2026-09-30', soporte: o.sop || 0, nContrato: '340', n: o.n, hermanas: o.herm }); };
+      window.EB = (t, o) => B(t, o).b.map(b => b.e);
+    });
+    await prueba('la fecha de un decreto no saca el ámbar si la actividad ya está en el periodo', async () => {
+      const R = await page.evaluate(() => B('Durante el periodo comprendido entre el 16 de septiembre y el 30 de septiembre de 2026, se realizó la revisión del Manual de Cobro y Reglamento de Cartera adoptado mediante Decreto Municipal No. 180 del 17 de diciembre de 2015, para la Secretaría de Hacienda.'));
+      igual(R.b[4].e, 'verde');
+      cierto(/17 de diciembre de 2015/.test(R.b[4].d) && /no se juzga/.test(R.b[4].d), R.b[4].d);
+    });
+    await prueba('fechas de convenio y correo citados no se juzgan; la de ejecución y la de lo que él proyectó sí', async () => {
+      const r = await page.evaluate(() => [
+        EB('El 20 de septiembre se proyectaron los actos administrativos: Resolución 353 del 03 de Agosto de 2026 por medio de la cual se ordena una comisión.')[4],
+        EB('El 20 de septiembre se revisó el convenio de archivo suscrito el 13 de septiembre de 2016 con la Alcaldía.')[4],
+        EB('El 18 de septiembre se atendió la solicitud reportada mediante correo electrónico de fecha 12-02-2026 para el Secretario de Planeación.')[4],
+        EB('Realización de 1 mesa SAN del 21/10/2026 con la secretaria de salud.', { d: '2026-09-15', h: '2026-10-15' })[4]
+      ]);
+      /* la Resolución 353 la PROYECTÓ él: su fecha sí se juzga (es de lo que hizo) */
+      igual(r, ['amarillo', 'verde', 'verde', 'amarillo']);
+    });
+    await prueba('lo programado a futuro y el periodo de otra cosa no se juzgan', async () => {
+      const r = await page.evaluate(() => [
+        EB('El 20 de septiembre se convocó el comité, que se reprogramó para el próximo 19 de noviembre de 2026 por falta de quorum.')[4],
+        EB('El 22 de septiembre se elaboró el cálculo actuarial para el período comprendido entre el 01/07/1995 y el 15/08/1995 de la ciudadana.')[4]
+      ]);
+      igual(r, ['verde', 'verde']);
+    });
+    await prueba('lo que él produjo con número y fecha no es cita: «se proyectó la Resolución 353 del 20 de septiembre»', async () => {
+      const R = await page.evaluate(() => B('Se proyectó la Resolución 353 del 20 de septiembre de 2026 para el Despacho.'));
+      igual([R.b[3].e, R.b[4].e], ['verde', 'verde']);
+    });
+    await prueba('fecha con guiones y mes sin día fuera del periodo', async () => {
+      const r = await page.evaluate(() => [
+        EB('El 16-02-2026 asistí a la inducción con la Jefe de Oficina del Sisbén.', { d: '2026-02-15', h: '2026-03-14' })[4],
+        EB('En el mes de julio se suscribieron 14 contratos para la Secretaría.', { d: '2026-08-20', h: '2026-09-19' })[4]
+      ]);
+      igual(r, ['verde', 'amarillo']);
+    });
+    await prueba('«Durante el periodo reportado» sin fechas sigue rojo y dice cómo mejorarlo', async () => {
+      const b = await page.evaluate(() => B('Durante el periodo reportado, se realizó la entrega formal de la documentación generada a la Secretaría.').b[4]);
+      igual(b.e, 'rojo');
+      cierto(/escribe las fechas o la semana/.test(b.ayuda), b.ayuda);
+    });
+    await prueba('cuántos: número de convenio, oficio o radicado y el cero no son cantidades; «4 actividades» queda ámbar', async () => {
+      const r = await page.evaluate(() => [
+        EB('El 20 de septiembre se proyecta informe de seguimiento al convenio 206 - Bomberos vigencia 2026 para la Secretaría.')[1],
+        EB('El 20 de septiembre, en cumplimiento del oficio 042, se revisó la contratación de la Secretaría.')[1],
+        EB('Cantidad: Cero (0) requerimientos recibidos el 20 de septiembre.')[1],
+        EB('Se realizaron cuatro (4) actividades complementarias para apoyar a la Secretaría de Hacienda el 20 de septiembre.')[1],
+        EB('Se elaboraron TRES (3) oficios para los contribuyentes el 20 de septiembre.')[1],
+        EB('Se entregó la documentación de las obligaciones contractuales 1, 2, 3, 4, 5, 6 y 7 a la Secretaría el 20 de septiembre.')[1]
+      ]);
+      igual(r, ['rojo', 'rojo', 'rojo', 'amarillo', 'verde', 'rojo']);
+    });
+    await prueba('el resaltado de «(1) actividad» empieza en el paréntesis', async () => {
+      const b = await page.evaluate(() => B('El día 14 de octubre de 2026, se realizó (1) actividad que fue el cambio de batería de la retroexcavadora.', { d: '2026-10-01', h: '2026-10-31' }).b[1]);
+      cierto(/^\(1\)/.test(b.x || ''), JSON.stringify(b));
+    });
+    await prueba('para quién: lee «en beneficio de la comunidad» y ya no toma «al Manual» como destinatario', async () => {
+      const r = await page.evaluate(() => [
+        EB('Se limpiaron 3 cunetas el 20 de septiembre en beneficio de la comunidad del sector.')[2],
+        B('Se analizó un (1) instrumento, correspondiente al Manual de Cobro, el 20 de septiembre.').b[2].e
+      ]);
+      igual(r, ['verde', 'rojo']);
+    });
+    await prueba('resultado: el entregable de una frase negada, citado o de propósito no cuenta; con lo que lo produjo sí', async () => {
+      const r = await page.evaluate(() => [
+        EB('Se apoyó la reunión el 20 de septiembre con la Secretaría; no se realizó la presentación de documentos preliminares.')[3],
+        EB('El 20 de septiembre se revisó la contratación de la Secretaría, en cumplimiento del Plan Anual de Auditorías.')[3],
+        EB('Se realizó la entrega organizada de 14 expedientes a la Secretaría el 25 de septiembre.')[3],
+        EB('Se revisó la base de datos de predios de la Secretaría el 20 de septiembre.')[3]
+      ]);
+      igual(r, ['rojo', 'rojo', 'verde', 'rojo']);
+    });
+    await prueba('no ejecutada con su motivo queda gris (y «no fue requerida… sin embargo» con cifra sigue midiéndose)', async () => {
+      const r = await page.evaluate(() => [
+        B('Durante el periodo comprendido entre el 16 y el 30 de septiembre de 2026, no se realizó la presentación de documentos preliminares para revisión, debido a que las actividades estuvieron enfocadas en la elaboración de un (1) diagnóstico. Cantidad: Cero (0) requerimientos.').estado,
+        B('Durante el periodo de ejecución reportado, no se asignaron actividades adicionales por parte de la supervisión.').estado,
+        B('No fue requerida en el periodo; sin embargo se apoyó en 14 procesos de la Secretaría el 20 de septiembre.').estado,
+        KIT.piezas.informeCuentas._redaccion('Durante el periodo de ejecución reportado, no se asignaron actividades adicionales.', '340').clase
+      ]);
+      igual(r, ['noreq', 'noreq', 'nueva', 'noreq']);
+    });
+    await prueba('«No requiere adjunto» con un producto elaborado queda ámbar; sin producto, verde', async () => {
+      const r = await page.evaluate(() => [
+        B('Se elaboró un (1) Diagnóstico Administrativo para la Secretaría de Hacienda el 20 de septiembre. No requiere adjunto').b[5],
+        B('Se atendió a 12 usuarios de la Secretaría de Hacienda el 20 de septiembre. No requiere adjunto').b[5]
+      ].map(b => b.e + ':' + b.como));
+      igual(r, ['amarillo:noRequiereProducto', 'verde:noRequiere']);
+    });
+    await prueba('misma actividad en dos obligaciones: rojo en la de número mayor, también en la primera cuenta', async () => {
+      const T = 'Durante el periodo comprendido entre el 16 y el 30 de septiembre de 2026, se realizó la revisión documental y el análisis de un (1) instrumento institucional para la Secretaría de Hacienda.';
+      const r = await page.evaluate((T) => {
+        const herm = [{ n: 3, texto: T, obl: 'Revisar la normatividad' }, { n: 4, texto: T, obl: 'Revisar los actos administrativos' }];
+        const a = B(T, { n: 3, herm: herm.filter(h => h.n !== 3) }), b = B(T, { n: 4, herm: herm.filter(h => h.n !== 4) });
+        return [a.b[0].e, b.b[0].e, b.gemela && b.gemela.n, KIT.piezas.variacion.tecnico(b, b.b[0])];
+      }, T);
+      igual(r.slice(0, 3), ['gris', 'rojo', 3]);
+      cierto(/obligación 3/.test(r[3]), r[3]);
+    });
+    await prueba('tildes sueltas (NFD): «Firmé» sigue siendo verbo', async () => {
+      const r = await page.evaluate(() => [B('Firme\u0301 el formato de entrega del equipo para la Oficina del Sisbén el 20 de septiembre.').b[3].e,
+        B('Firmé el formato de entrega del equipo para la Oficina del Sisbén el 20 de septiembre.').b[3].e]);
+      igual(r[0], r[1]);
+    });
+    await prueba('motor y calidad llevan la versión nueva', async () => {
+      const r = await page.evaluate(() => [KIT.piezas.informeCuentas._estr.version, KIT.piezas.calidad.MOTOR]);
+      igual(r, ['E2026.11.12', 'C2026.11.12']);
+    });
+    await prueba('rendimiento: menos de 5 ms por actividad larga', async () => {
+      const ms = await page.evaluate(() => {
+        const t = 'Durante el periodo comprendido entre el 16 y el 30 de septiembre de 2026, se realizó la revisión documental del Manual de Cobro adoptado mediante Decreto Municipal No. 180 del 17 de diciembre de 2015, con la entrega de 14 expedientes a la Secretaría de Hacienda. '.repeat(12);
+        const L = []; for (let i = 0; i < 40; i++) { const a = performance.now(); B(t); L.push(performance.now() - a); }
+        L.sort((x, y) => x - y); return L[Math.floor(L.length * 0.95)];
+      });
+      cierto(ms < 5, 'p95 ' + ms.toFixed(2) + ' ms');
+    });
     await ctx.close();
   }
 
