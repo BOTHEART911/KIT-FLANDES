@@ -247,7 +247,8 @@
     var CONTABLE = /^(document|visita|atencion|proceso|publicacion|informe|oficio|acta|reunion|capacitacion|expediente|tramite|solicitud|peticion|pqr|derecho|tutela|requerimiento|resolucion|contrato|cuenta|factura|predio|contribuyente|usuario|ciudadan|beneficiari|registro|certificad|constancia|listado|formato|archivo|correo|comunicacion|notificacion|liquidacion|acuerdo|convenio|actividad|evidencia|jornada|mesa|comite|taller|campana|caso|evento|reporte|respuesta|minuta|estudio|poliza|encuesta|ficha|paciente|productor|persona|familia|nino|nina|adulto|joven|estudiante|funcionari|servidor|contratista|asistente|participante|hora|dia|semana|mes|pieza|video|boletin|noticia|publicacion|post|contenido|cuna|mensaje|llamada|acto|auto|mandamiento|embargo|titulo|cobro|recibo|pago|radicado|consulta|vacuna|dosis|muestra|animal|bovino|ave|cerdo|perro|gato|arbol|hectarea|metro|kilometro|obra|punto|sede|institucion|colegio|barrio|vereda|grupo|equipo|modulo|vista|app|aplicacion|herramienta|indicador|meta|objetivo|item|matriz|base|tabla|grafica|hoja|plantilla|carpeta|folio|pagina)/;
     var LUGAR_O_GENTE = /^(secretari|alcald|despacho|oficina|dependencia|concejo|personeria|contraloria|procuraduria|gobernacion|dian|juzgado|fiscalia|policia|icbf|comisaria|inspeccion|tesoreria|contabilidad|almacen|hospital|eps|ips|ese|entidad|comunidad|barrio|vereda|poblacion|junta|asociacion|fundacion|colegio|institucion|escuela|contribuyente|ciudadan|usuari|beneficiari|personal|persona|familia|nino|nina|adulto|joven|estudiante|docente|funcionari|servidor|contratista|productor|campesin|victima|lider|madre|padre|paciente|espectador|participante|oyente|televidente|medico|enfermer|area|equipo|grupo|ministerio|superintendencia|registraduria|notaria|banco|empresa|operador|proveedor|supervisor|jefe|director|gerente|alcalde|alcaldesa|secretario|secretaria)/;
     var RESULTADO_V = /^(entreg|elabor|public|radic|aprob|logr|expid|emit|proyect|present|remit|envi|firm|notific|gener|consolid|actualiz|carg|suscrib|adjudic|socializ|diseñ|disen|desarroll|implement|culmin|termin|finaliz|resolv|respond|tramit|archiv|digitaliz|organiz|realiz)(o|e|aron|amos|ado|ada|ados|adas|ido|ida|idos|idas|io|ieron)$/;
-    var RESULTADO_N = /^(informe|acta|oficio|listado|resolucion|registro|certificad|constancia|consolidado|matriz|matrices|respuesta|concepto|decreto|circular|minuta|cronograma|plan|programa|protocolo|manual|instructivo|boletin|pieza|video|ficha|auto|mandamiento|entregable|producto|presentacion|dashboard|tablero|aplicacion|modulo|expediente|documento|carpeta|comunicado|notificacion|liquidacion|formulario|planilla|diagnostico|estudio|propuesta|encuesta|base)/;   /* 12/11 · los productos nuevos solo cuentan con algo que los produjo en su frase */
+    /* 12/11 · palabras completas (antes «plan» encendía con «Planeación» y «resolución» con «resolución pacífica de conflictos»); los productos solo cuentan con algo que los produjo en su frase */
+    var RESULTADO_N = /^(informes?|actas?|oficios?|listados?|resolucion(es)?|registros?|certificad[oa]s?|certificacion(es)?|constancias?|consolidados?|matriz|matrices|respuestas?|conceptos?|decretos?|circular(es)?|minutas?|cronogramas?|plan(es)?|programas?|protocolos?|manual(es)?|instructivos?|boletin(es)?|piezas?|videos?|fichas?|autos?|mandamientos?|entregables?|productos?|presentacion(es)?|dashboards?|tableros?|aplicacion(es)?|modulos?|expedientes?|documentos?|carpetas?|comunicados?|notificacion(es)?|liquidacion(es)?|formularios?|planillas?|diagnosticos?|estudios?|propuestas?|encuestas?|base)$/;
 
     /* las pruebas por palabra se recuerdan (la misma palabra se repite mucho y la regex es larga) */
     function memo(re) { var c = {}; return function (w) { var v = c[w]; if (v === undefined) { v = re.test(w); c[w] = v; } return v; }; }
@@ -277,11 +278,12 @@
     var CITA_PART = /\b(suscrit|expedid|emitid|adoptad|celebrad|sancionad|promulgad|proferid|ocurrid|otorgad|nacid|constituid|cread)[oa]s?\s+(?:el|en|del?|a)\s*(?:dia\s+|mes\s+de\s+)?$/;
     var CITA_FECHADO = /\b(correo(?: electronico)?|comunicacion|oficio|memorando|peticion|solicitud|carta|circular|documento|escrito|mensaje|requerimiento|acta|resolucion|informe)\b[^;\n]{0,30}?\b(?:de fecha|fechad[oa]|del dia)\s*$/;
     var CITA_FUTURA = /\b(programad[oa]s?|reprogramad[oa]s?|reprogramo|previst[oa]s?|agendad[oa]s?|convocad[oa]s?|fijad[oa]s?|se realizara|se llevara a cabo|se tiene previsto|plazo|a mas tardar|vence|vencimiento|proxim[oa])\b[^.;\n]{0,30}$/;
+    var CITA_EVENTO = /\b(sismo|terremoto|evento sismico|emergencia|inundacion|incendio|vendaval|creciente|avalancha|accidente)\b[^.;\n]{0,40}?\b(registrad|ocurrid|presentad|sucedid|acontecid)[oa]s?\s+(?:el|en)\s*(?:el\s+)?(?:dia\s+|mes\s+de\s+)?$/;
     var CITA_CTX = /\b(vigencia(?: fiscal)?|con corte a(?:l)?|corte a(?:l)?|corte de|fecha de nacimiento|cotizacion|periodo de cotizacion|ano gravable)\s*(?:el\s*|de\s*)?$/;
     var RANGO_RX = new RegExp('\\b(?:entre el|entre|del|desde el)\\s+(\\d{1,2}(?:\\s+(?:de\\s+)?(?:' + MESES + '))?(?:\\s+(?:de|del)\\s+(?:19|20)\\d\\d)?|\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})\\s+(?:y el|al|a|hasta el)\\s+(\\d{1,2}\\s+(?:de\\s+)?(?:' + MESES + ')(?:\\s+(?:de|del)\\s+(?:19|20)\\d\\d)?|\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})', 'g');
     var PRODUJO = /\b(proyect|elabor|radic|emit|expid|redact|present|remit|envi|notific|tramit|entreg|respond|dio respuesta|contest|suscrib|firm|levant|diligenci|construy|disen|formul|estructur)\w*\b[^.;\n]{0,40}$/;
     /** minúsculas y sin tildes, con el MISMO largo (los tramos sirven sobre el texto original) */
-    var HAY_FECHA = new RegExp('\\b(' + MESES + ')\\b|\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{2,4}');
+    var HAY_FECHA = new RegExp('\\b(' + MESES + ')\\b|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|^\\d{1,2}-\\d{1,2}-\\d{2,4}$');
     function bajo(s) { return String(s || '').replace(RTILDE, function (c) { return TILDE[c]; }).toLowerCase(); }
     /** 'aaaa-mm-dd' de una fecha escrita (19 de marzo [de 2026] · 21/09/2026 · 16-02-2026); y0 = año por defecto */
     function isoDeTexto(x, y0) {
@@ -306,6 +308,7 @@
         var dm = fr.search(CITA_DOC) >= 0 ? fr.search(CITA_DOC) : fr.search(CITA_FECHADO);
         if ((dm >= 0 && !PRODUJO.test(fr.slice(Math.max(0, dm - 45), dm))) || CITA_PART.test(fr)) tipo = 'documento';
         else if (CITA_CTX.test(fr)) tipo = 'otro periodo';
+        else if (CITA_EVENTO.test(fr)) tipo = 'hecho';
         else if (CITA_FUTURA.test(fr)) {
           var iF = isoDeTexto(m[0], y0);
           if (!hasta || !iF || iF > sumar(hasta, 3)) tipo = 'programada';
@@ -522,9 +525,10 @@
            (sus solicitudes, sugerencias, requerimientos…) dice para quién se trabajó. Solo con un sustantivo de
            petición justo antes del «de» y un grupo, dependencia o población después (caso obligación 3 de Oss). */
         if (!prep && (a.w === 'de' || a.w === 'del') && k[i - 1] && PETICION.test(k[i - 1].w)) prep = true;
-        /* 12/11 · lee bien «por parte de», «en beneficio de», «a favor de», «requeridas por», «asignadas por» */
-        if (!prep && (a.w === 'de' || a.w === 'del') && k[i - 1] && k[i - 2] && ((k[i - 1].w === 'parte' && k[i - 2].w === 'por') || (/^(beneficio|favor)$/.test(k[i - 1].w) && /^(en|a|para)$/.test(k[i - 2].w)))) prep = true;
-        if (!prep && a.w === 'por' && k[i - 1] && /^(requerid|solicitad|asignad|convocad|pedid|encomendad)[oa]s?$/.test(k[i - 1].w)) prep = true;
+        /* 12/11 · lee bien «en beneficio de…» y «a favor de…» (para quién). «Por parte de» o «requeridas por»
+           dicen quién lo pidió, no para quién se hizo: no cuentan (la exigencia no baja). */
+        if (!prep && (a.w === 'de' || a.w === 'del') && k[i - 1] && k[i - 2] && /^(beneficio|favor)$/.test(k[i - 1].w) && /^(en|a|para)$/.test(k[i - 2].w)) prep = true;
+        if ((a.w === 'de' || a.w === 'del') && k[i - 1] && k[i - 2] && k[i - 1].w === 'parte' && k[i - 2].w === 'por') continue;
         if (!prep || a.cita) continue;
         if (a.w === 'a' && k[i + 1] && /^(traves|cabo|fin|partir|tiempo|cargo|nivel|corte)$/.test(k[i + 1].w)) continue;
         if (a.w === 'al' && k[i + 1] && /^(interior|dia|corte|cierre|respecto)$/.test(k[i + 1].w)) continue;
@@ -561,11 +565,17 @@
       for (var i = 0; i < k.length; i++) {
         var a = k[i];
         if (!palabra(a) || !esResN(a.w)) continue;
+        if (a.w === 'base' && !(k[i + 1] && k[i + 1].w === 'de' && k[i + 2] && k[i + 2].w === 'datos')) continue;
         var fr = fraseDe(F, i);
         if (negada(k, fr[0], i)) continue;
         if (a.cita && !(a.cita === 'documento' && prodAntes(k, fr[0], i, 4))) continue;
         if (citadoAntes(k, fr[0], i) || propositoAntes(k, fr[0], i)) continue;
-        if (!prodAntes(k, fr[0], i, 99) && !(k[i + 1] && /^(quedo|quedaron|elaborad[oa]s?|entregad[oa]s?|proyectad[oa]s?|radicad[oa]s?|publicad[oa]s?|presentad[oa]s?)$/.test(k[i + 1].w))) continue;
+        /* lo que lo produjo: un verbo o su nombre antes en la frase, un participio después («los informes y fotos
+           radicados»), o el producto al empezar el renglón de una lista («1. Oficio para Planeación…») */
+        var despues = false;
+        for (var q3 = i + 1; q3 <= i + 4 && q3 < fr[1]; q3++) if (/^(quedo|quedaron|elaborad[oa]s?|entregad[oa]s?|proyectad[oa]s?|radicad[oa]s?|publicad[oa]s?|presentad[oa]s?|enviad[oa]s?|remitid[oa]s?|cargad[oa]s?|actualizad[oa]s?|firmad[oa]s?|realizad[oa]s?|tramitad[oa]s?|organizad[oa]s?|digitalizad[oa]s?|archivad[oa]s?|notificad[oa]s?)$/.test(k[q3].w)) { despues = true; break; }
+        var abre = true; for (var q4 = fr[0]; q4 < i; q4++) if (palabra(k[q4])) { abre = false; break; }
+        if (!prodAntes(k, fr[0], i, 99) && !despues && !abre) continue;
         return { i: a.i, f: frase(k, i), que: 'entregable' };
       }
       for (i = 0; i < k.length; i++) {
@@ -846,7 +856,7 @@
       var cu = bCuando(k, ctx.desde, ctx.hasta);
       var sinPer = !(ctx.desde && ctx.hasta);
       var fCit = R.citas.filter(function (c) { return HAY_FECHA.test(bajo(c.x)); });
-      var notaCit = fCit.length ? ' La fecha que citas («' + fCit[0].x + '») es de ' + (fCit[0].tipo === 'programada' ? 'algo programado' : fCit[0].tipo === 'otro periodo' ? 'otro periodo' : 'un documento') + ': no se juzga.' : '';
+      var notaCit = fCit.length ? ' La fecha que citas («' + fCit[0].x + '») es de ' + (fCit[0].tipo === 'programada' ? 'algo programado' : fCit[0].tipo === 'otro periodo' ? 'otro periodo' : fCit[0].tipo === 'hecho' ? 'un hecho que citas' : 'un documento') + ': no se juzga.' : '';
       var perTxt = ctx.desde && ctx.hasta ? ' (' + ctx.desde.slice(8, 10) + '/' + ctx.desde.slice(5, 7) + ' – ' + ctx.hasta.slice(8, 10) + '/' + ctx.hasta.slice(5, 7) + ')' : '';
       R.b.push(!cu || cu.nada ? { k: 4, e: 'rojo', d: 'No ubica la actividad en el tiempo (fechas, semanas, días).' + notaCit, r: [],
             ayuda: /(durante|en) (el|este|todo el) (presente )?(periodo|mes)/.test(bajo(t)) ? 'Dices «durante el periodo»: escribe las fechas o la semana en que lo hiciste («el 15 de octubre», «la segunda semana del periodo»).' : '' }
