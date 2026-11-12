@@ -60,7 +60,7 @@
      daba SECOP, «servidores públicos» y «plataforma SECOP» daban software («incidencias o ajustes»), «Asesorar»
      daba «personas atendidas». Medido en el libro (12/11): 25 % de las actividades con rojo recibían ejemplos de
      otro tema. Ahora: (1) el verbo rector de la obligación (supervisar, revisar, elaborar); (2) temas por palabra
-     completa en la actividad; (3) en la obligación; (4) lo genérico con las palabras de su obligación. */
+     completa en la actividad; (3) en la obligación; (4) lo genérico. */
   var TEMAS_OBL = [
     { re: /\b(supervision|interventoria|seguimiento (a|de) (los )?(contratos|informes|profesionales|contratistas))\b/, ent: ['concepto de cada informe revisado', 'observaciones enviadas'], cu: 'informes revisados', qu: '[contratistas o profesionales]' },
     { re: /^\s*((asesorar|apoyar|acompanar|brindar apoyo)( tecnicamente| juridicamente)?( en)?( la| el)? )?(revisar|revision|verificar|verificacion|analizar|analisis|evaluar|evaluacion|diagnosticar|auditar|identificar)\b/, ent: ['hallazgos de la revisión', 'concepto o informe de la revisión'], cu: 'documentos revisados', qu: '[dependencia]' },
@@ -81,27 +81,13 @@
     { re: /\b(contratacion|precontractual\w*|procesos? contractuales?|procesos? de contratacion|estudios? previos?|minutas?|secop)\b/, ent: ['documentos publicados en SECOP', 'estudios previos'], cu: 'procesos', qu: '[dependencia]' }
   ];
   var BASE = { ent: ['informe', 'acta', 'listado'], cu: 'actividades, documentos o personas', qu: '[dependencia, comunidad o entidad]' };
-  var VACIAS = /^(de|del|la|el|los|las|y|en|para|a|al|con|por|que|se|su|sus|un|una|las|como|desde|segun|demas|otras|otros)$/;
-  /** El objeto de la obligación («los actos administrativos de estructura»), para que lo genérico hable de lo suyo */
-  function objetoObl(obl) {
-    var m = /^\s*(?:(?:asesorar|apoyar|acompanar|brindar apoyo|prestar apoyo|participar)(?: tecnicamente| juridicamente)?(?: en| a)?(?: la| el| los| las)?\s+)?(?:[a-z]+(?:ar|er|ir|cion))?\s*(?:y\s+[a-z]+(?:ar|er|ir)\s+)?(?:en\s+)?((?:la|el|los|las)\s+[a-zñ ]{4,60}?)(?=\s+(?:de la alcaldia|del municipio|de la secretaria|que|para|con|mediante|a traves|en el|en la)\b|[,.;]|$)/.exec(obl);
-    if (!m) return '';
-    var w = m[1].trim().split(/\s+/);
-    while (w.length && VACIAS.test(w[w.length - 1])) w.pop();
-    return w.length >= 2 && w.length <= 8 ? w.join(' ') : '';
-  }
-
   function tema(obl, texto) {
     var a = st(texto), b = st(obl), x = null;
     TEMAS_OBL.some(function (T) { if (T.re.test(b)) { x = T; return true; } return false; });
     if (!x) TEMAS.some(function (T) { if (T.re.test(a)) { x = T; return true; } return false; });
     if (!x) TEMAS.some(function (T) { if (T.re.test(b)) { x = T; return true; } return false; });
-    var out;
-    if (x) out = { ent: x.ent, cu: x.cu, qu: x.qu };
-    else {
-      var ob = objetoObl(b);
-      out = { ent: ob ? ['documento o registro de ' + ob, 'acta o informe'] : BASE.ent, cu: BASE.cu, qu: BASE.qu, objeto: ob };
-    }
+    x = x || BASE;
+    var out = { ent: x.ent, cu: x.cu, qu: x.qu };
     /* instituciones educativas: el grupo son estudiantes */
     if (/\b(institucion(es)? educativ\w*|colegios?|escuelas?|estudiantes?|alumn[oa]s?|sedes? educativ\w*)\b/.test(a + ' ' + b)) { out.cu = 'estudiantes'; out.qu = '[nombre de la institución educativa]'; }
     return out;

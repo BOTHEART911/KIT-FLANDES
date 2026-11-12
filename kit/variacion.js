@@ -228,7 +228,7 @@
 
   /** La pastilla del resultado. */
   function pastilla(R) {
-    if (R.estado === 'general') return '<span class="var-pas var-pas--gen">Obligación general · no se mide</span>';
+    if (R.estado === 'general') return '<span class="var-pas var-pas--gen">' + (R.cierre ? 'Entrega al cierre · se mide en la última cuenta' : 'Obligación general · no se mide') + '</span>';
     if (R.estado === 'noreq') return '<span class="var-pas var-pas--gen">No requerida en el periodo</span>';
     var v = verdes(R), r = v.n ? v.v / v.n : 0;
     return '<span class="var-pas var-pas--' + (r >= 0.8 ? 'ok' : (r >= 0.5 ? 'medio' : 'alto')) + '">' + v.v + ' de ' + v.n + ' en verde</span>' +
