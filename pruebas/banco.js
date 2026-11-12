@@ -548,7 +548,8 @@ ${js}
       igual(r.x.falta, 'No dejó resultado ni entregable verificable.');
       cierto(r.x.frase.indexOf('Kamala con 32 estudiantes') >= 0, 'la frase debe llevar su texto: ' + r.x.frase);
       cierto(/\[listados de asistencia o registro fotográfico\]\.$/.test(r.x.frase), 'la frase debe cerrar con el corchete: ' + r.x.frase);
-      cierto(r.x.obs.indexOf('No dejó resultado') === 0 && r.x.obs.indexOf('«') > 0, 'observación: ' + r.x.obs);
+      cierto(r.x.obs.indexOf('No dejó resultado') === 0 && /Complemento sugerido: Como resultado quedó \*\[[^\]]+\]\*\.$/.test(r.x.obs), 'observación: ' + r.x.obs);
+      cierto(!/Obligación|Agregue al final|Puede quedar/.test(r.x.obs), 'sin número ni instrucción larga: ' + r.x.obs);
     });
     await prueba('receta: verde y gris no tienen; soporte y fecha fuera del periodo dan acción, no frase', async () => {
       const r = await page.evaluate(() => {
@@ -564,12 +565,45 @@ ${js}
       cierto(r.soporte && !r.soporte.frase && /no requiere adjunto/.test(r.soporte.accion), JSON.stringify(r.soporte));
       cierto(r.fecha && /fuera del periodo/.test(r.fecha.falta) && /repórtelo en esa cuenta/.test(r.fecha.accion) && /junto a su documento/.test(r.fecha.accion), JSON.stringify(r.fecha));
     });
-    await prueba('texto largo: la observación pide agregar al final (no repite 2.000 caracteres)', async () => {
+    await prueba('texto largo: la observación es corta y no repite su actividad', async () => {
       const r = await page.evaluate(() => {
         const T = Array(40).fill('Apoyé las actividades deportivas en la vereda Kamala con los niños de la sede.').join(' ');
         const R = MED(T); return KIT.piezas.teayudo.receta(R, OBL, T, R.b[3]).obs;
       });
-      cierto(/^No dejó resultado.*Agregue al final/.test(r) && r.length < 300, r);
+      cierto(/^No dejó resultado.*Complemento sugerido:/.test(r) && r.length < 200 && r.indexOf('Kamala') < 0, r);
+    });
+    /* ═══ 12/11 · motivo agrupado por obligación ═══ */
+    await prueba('armarMotivo: título una vez, una viñeta por falta y una sola «Puede quedar así» con todos los complementos', async () => {
+      const r = await page.evaluate(() => {
+        const TA = KIT.piezas.teayudo;
+        const T = 'Atendí a los usuarios en la ventanilla de Hacienda.';
+        const t0 = performance.now();
+        const m = TA.armarMotivo([
+          { titulo: '', notas: ['Revise la firma del informe.'] },
+          { titulo: 'Planilla', notas: ['La planilla no es del periodo.'] },
+          { titulo: 'Obligación 1', actividad: T, notas: [
+            'No dice cuántos: falta la cifra junto a lo que se contó. Complemento sugerido: En total fueron *[número]* personas atendidas.',
+            'No dice cuándo lo hizo. Complemento sugerido: Lo realicé el *[fecha]*.',
+            'La obligación pide un producto y no tiene evidencias ni adjuntos cargados. ' + TA.negrita('Cargue en esta obligación [el informe] o, si no aplica, escriba «no requiere adjunto».')] },
+          { titulo: 'Obligación 2', actividad: Array(30).fill('Texto largo de la actividad.').join(' '), notas: ['No dice cuándo lo hizo. Complemento sugerido: Lo realicé el *[fecha]*.', 'Obligación 2: falta el oficio\nque menciona'] }
+        ]);
+        return { m, ms: performance.now() - t0 };
+      });
+      const L = r.m.split('\n');
+      igual(L[0], '• Revise la firma del informe.');
+      igual(L[2], '*Planilla:*');
+      igual(r.m.split('*Obligación 1:*').length, 2, r.m);
+      cierto(r.m.indexOf('• No dice cuántos: falta la cifra junto a lo que se contó. Complemento sugerido: En total fueron *[número]* personas atendidas.') > 0, r.m);
+      cierto(r.m.indexOf('escriba *no requiere adjunto*.') > 0 && r.m.indexOf('*[el informe]*') > 0, r.m);
+      cierto(r.m.indexOf('• Puede quedar así, con sus datos reales en lugar de los corchetes: «Atendí a los usuarios en la ventanilla de Hacienda. En total fueron *[número]* personas atendidas. Lo realicé el *[fecha]*.»') > 0, r.m);
+      igual(r.m.split('Puede quedar así').length, 2, 'la larga no se reescribe: ' + r.m);
+      cierto(r.m.indexOf('• falta el oficio') > 0 && r.m.indexOf('• que menciona') > 0 && r.m.indexOf('Obligación 2: falta') < 0, r.m);
+      cierto(!/Agregue al final/.test(r.m), r.m);
+      cierto(r.ms < 5, 'arma en ' + r.ms + ' ms');
+    });
+    await prueba('negrita: no duplica asteriscos y respeta lo ya escrito', async () => {
+      const r = await page.evaluate(() => KIT.piezas.teayudo.negrita('*[fecha]* y [número] y «no requiere adjunto»'));
+      igual(r, '*[fecha]* y *[número]* y *no requiere adjunto*');
     });
     await prueba('panelRevisor: pinta, «Pasar» llama una sola vez (escudo), queda hecho y se mide', async () => {
       const r = await page.evaluate(async () => {

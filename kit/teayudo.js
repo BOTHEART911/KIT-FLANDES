@@ -415,11 +415,60 @@
     }
     if (!falta) return null;
     var su = conPunto(texto), frase = agrega ? (su ? su + ' ' : '') + agrega : '';
-    var obs = falta + ' ' + (agrega
-      ? (su.length <= 400 ? 'Puede quedar así (llene lo que está entre corchetes con sus datos reales): «' + frase + '»'
-        : 'Agregue al final de su actividad, con sus datos reales en lugar de los corchetes: «' + agrega + '»')
-      : accion);
+    /* 12/11 · observación corta: qué falta + «Complemento sugerido:» (o la acción), con los
+       [corchetes] y «no requiere adjunto» en negrita. El número de la obligación y la actividad
+       reescrita («Puede quedar así») los pone una sola vez quien arma el motivo (armarMotivo). */
+    var obs = falta + ' ' + (agrega ? COMPLEMENTO + ' ' + negrita(agrega) : negrita(accion));
     return { k: b.k, e: b.e, falta: falta, agrega: agrega, accion: accion, frase: frase, obs: obs.trim() };
+  }
+
+  /* ══════════════ 12/11 · el motivo de la devolución, agrupado por obligación ══════════════ */
+  var COMPLEMENTO = 'Complemento sugerido:';
+  var TOPE_REESCRITA = 400;
+
+  /** [corchetes] y «no requiere adjunto» en negrita de WhatsApp (*…*), sin duplicar los que ya la tienen. */
+  function negrita(t) {
+    return String(t || '').replace(/\*?(\[[^\[\]\n]{1,80}\])\*?/g, '*$1*')
+      .replace(/[«"]?\*?no requiere adjunto\*?[»"]?/gi, '*no requiere adjunto*');
+  }
+
+  /** Las líneas de una nota, sin viñetas ni el título repetido («Obligación 3: …»). */
+  function lineasNota(texto, titulo) {
+    var t = String(texto || '').replace(/\r/g, '').trim();
+    if (titulo) {
+      var esc = String(titulo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      t = t.replace(new RegExp('^\\*?' + esc + '\\s*:?\\*?\\s*', 'i'), '');
+    }
+    return t.split('\n').map(function (x) { return x.replace(/^\s*(?:[-•·]\s+)+/, '').trim(); }).filter(Boolean);
+  }
+
+  /**
+   * armarMotivo(grupos) -> texto del motivo, con *Título:* una sola vez y una viñeta por falta.
+   *   grupos: [{ titulo: 'Obligación 3' | '' (generales), notas: ['texto', …], actividad: 'su texto' }]
+   *   Si en una obligación hay «Complemento sugerido:» y su actividad es corta (≤ 400),
+   *   al final sale UNA sola «Puede quedar así» con su texto + todos los complementos.
+   */
+  function armarMotivo(grupos) {
+    var out = [];
+    (grupos || []).forEach(function (g) {
+      var lin = [], comp = [];
+      (g.notas || []).forEach(function (n) {
+        lineasNota(n, g.titulo).forEach(function (x) {
+          lin.push(x);
+          var i = x.indexOf(COMPLEMENTO);
+          if (i >= 0) { var c = x.slice(i + COMPLEMENTO.length).trim(); if (c && comp.indexOf(c) < 0) comp.push(c); }
+        });
+      });
+      if (!lin.length) return;
+      var su = conPunto(String(g.actividad || '').replace(/\*/g, ''));
+      if (comp.length && su && su.length <= TOPE_REESCRITA) {
+        lin.push('Puede quedar así, con sus datos reales en lugar de los corchetes: «' + su + ' ' + comp.join(' ') + '»');
+      }
+      if (out.length) out.push('');
+      if (g.titulo) out.push('*' + String(g.titulo).replace(/\*/g, '').trim() + ':*');
+      lin.forEach(function (x) { out.push('• ' + x); });
+    });
+    return out.join('\n');
   }
 
   /**
@@ -467,6 +516,7 @@
   K.piezas.teayudo = {
     crear: crear, pistas: pistas, hayRojo: hayRojo, ayudaIA: ayudaIA, irAlHueco: irAlHueco,
     corchetesSinLlenar: corchetesSinLlenar, receta: receta, panelRevisor: panelRevisor,
+    armarMotivo: armarMotivo, negrita: negrita,
     registrar: encolar,   /* 10/11 · la medición de «Redactemos juntos» va a la misma cola */
     /* para las pruebas */
     _guardar: guardar_, _tema: tema, _faltan: faltanParaIA, _enviar: enviar, COLA_K: COLA_K, ENVIO_K: ENVIO_K
