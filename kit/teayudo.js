@@ -55,30 +55,55 @@
   /* ══════════════ el tema de la obligación (para los ejemplos) ══════════════ */
   function st(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 
+  /* 12/11 (tarde) · EL TEMA SALE DE LO QUE PIDE LA OBLIGACIÓN Y DE PALABRAS COMPLETAS.
+     Antes se buscaban pedazos de palabra y primero en la actividad: «in-formación» daba capacitación, «mi contrato»
+     daba SECOP, «servidores públicos» y «plataforma SECOP» daban software («incidencias o ajustes»), «Asesorar»
+     daba «personas atendidas». Medido en el libro (12/11): 25 % de las actividades con rojo recibían ejemplos de
+     otro tema. Ahora: (1) el verbo rector de la obligación (supervisar, revisar, elaborar); (2) temas por palabra
+     completa en la actividad; (3) en la obligación; (4) lo genérico con las palabras de su obligación. */
+  var TEMAS_OBL = [
+    { re: /\b(supervision|interventoria|seguimiento (a|de) (los )?(contratos|informes|profesionales|contratistas))\b/, ent: ['concepto de cada informe revisado', 'observaciones enviadas'], cu: 'informes revisados', qu: '[contratistas o profesionales]' },
+    { re: /^\s*((asesorar|apoyar|acompanar|brindar apoyo)( tecnicamente| juridicamente)?( en)?( la| el)? )?(revisar|revision|verificar|verificacion|analizar|analisis|evaluar|evaluacion|diagnosticar|auditar|identificar)\b/, ent: ['hallazgos de la revisión', 'concepto o informe de la revisión'], cu: 'documentos revisados', qu: '[dependencia]' },
+    { re: /^\s*((asesorar|apoyar|acompanar)( tecnicamente)?( en)?( la| el)? )?(elaborar|elaboracion|disenar|diseno|construir|construccion|formular|formulacion|proyectar|redactar|estructurar)\b/, ent: ['[nombre del documento que elaboró]', 'versión entregada'], cu: 'documentos o capítulos', qu: '[dependencia o entidad]' }
+  ];
   var TEMAS = [
-    { re: /deport|recreac|torneo|actividad fisica|escuela de formacion|entrenamiento|juegos/, ent: ['listados de asistencia', 'registro fotográfico'], cu: 'participantes', qu: '[grupo o comunidad]' },
-    { re: /capacit|taller|socializ|charla|jornada|sensibiliz|formacion/, ent: ['listado de asistencia', 'acta de la jornada'], cu: 'asistentes', qu: '[comunidad o dependencia]' },
-    { re: /visita|inspecc|recorrido|verificac/, ent: ['acta de visita', 'registro fotográfico'], cu: 'visitas', qu: '[predio, sector o comunidad]' },
-    /* 03/11 · software y sistemas: antes caía en «atención» por la palabra «usuarios» */
-    { re: /aplicacion|software|plataforma|sistema de informacion|desarrollo web|pagina web|chat ?bot|soporte tecnico|incidencia|codigo fuente|servidor/, ent: ['reporte de incidencias resueltas', 'versión publicada'], cu: 'incidencias o ajustes', qu: '[dependencia o usuarios]' },
-    { re: /peticion|pqr|oficio|respuesta|correspondencia|radic|tutela/, ent: ['oficios radicados', 'respuestas enviadas'], cu: 'oficios o respuestas', qu: '[dependencia o peticionario]' },
-    { re: /publicac|redes sociales|prensa|comunicac|pieza|video|difusion|contenido/, ent: ['piezas publicadas', 'enlaces de las publicaciones'], cu: 'publicaciones', qu: '[dependencia o público]' },
-    { re: /atenc|usuario|ventanilla|orientac|asesor/, ent: ['registro de atenciones', 'planilla de usuarios atendidos'], cu: 'personas atendidas', qu: '[usuarios o dependencia]' },
-    { re: /vacun|tamizaj|salud|promocion|prevencion/, ent: ['listado de personas atendidas', 'registro fotográfico'], cu: 'personas atendidas', qu: '[población o comunidad]' },
-    { re: /agro|cultivo|productor|finca|ganad|pecuari/, ent: ['acta de visita', 'listado de productores'], cu: 'productores', qu: '[productores o vereda]' },
-    { re: /base de datos|digitaliz|archivo|expediente|sistematiz|inventario/, ent: ['base de datos actualizada', 'expedientes organizados'], cu: 'registros o expedientes', qu: '[dependencia]' },
-    { re: /contrat|precontract|estudio previo|minuta|secop/, ent: ['documentos publicados en SECOP', 'estudios previos'], cu: 'procesos', qu: '[dependencia]' }
+    { re: /\b(deporte|deportes|deportiv\w*|recreac\w*|recreativ\w*|torneos?|actividad fisica|escuelas? de formacion deportiva|entrenamientos?|juegos)\b/, ent: ['listados de asistencia', 'registro fotográfico'], cu: 'participantes', qu: '[grupo o comunidad]' },
+    { re: /\b(capacitac\w*|capacit[oe]|talleres?|socializac\w*|socializ[oe]|charlas?|jornadas? de (capacitacion|socializacion|sensibilizacion|formacion)|sensibilizac\w*|formacion)\b/, ent: ['listado de asistencia', 'acta de la jornada'], cu: 'asistentes', qu: '[comunidad o dependencia]' },
+    { re: /\b(sesion|sesiones|reunion|reuniones|mesas? (de trabajo|tecnicas?)|comites?|encuentros?)\b/, ent: ['acta de la sesión', 'listado de asistencia'], cu: 'sesiones', qu: '[dependencias o equipos]' },
+    { re: /\b(visitas?|inspeccion(es)?|recorridos?|visita de campo|trabajo de campo)\b/, ent: ['acta de visita', 'registro fotográfico'], cu: 'visitas', qu: '[predio, sector o comunidad]' },
+    { re: /\b(software|aplicacion(es)? (web|en linea|movil(es)?|informatica)|plataformas? (digital|digitales|tecnologica|web)|aplicativos?|sistema de informacion|desarrollo web|pagina web|sitio web|chat ?bot|soporte tecnico|incidencias?|codigo fuente)\b/, ent: ['reporte de incidencias resueltas', 'versión publicada'], cu: 'incidencias o ajustes', qu: '[dependencia o usuarios]' },
+    { re: /\b(peticion(es)?|derechos? de peticion|pqrs?d?f?|oficios?|correspondencia|radicad\w*|tutelas?|respuestas? (a|de) (la |las |los )?(peticion|solicitud|pqr|oficio|tutela|requerimiento)\w*)\b/, ent: ['oficios radicados', 'respuestas enviadas'], cu: 'oficios o respuestas', qu: '[dependencia o peticionario]' },
+    { re: /\b(publicac\w*|publicad[oa]s?|redes sociales|prensa|comunicados?|piezas?( graficas)?|videos?|difusion|boletin(es)?)\b/, ent: ['piezas publicadas', 'enlaces de las publicaciones'], cu: 'publicaciones', qu: '[dependencia o público]' },
+    { re: /\b(atenc\w*|atend\w*|usuari[oa]s?|ventanilla|orientac\w*|ciudadan[oa]s?)\b/, ent: ['registro de atenciones', 'planilla de usuarios atendidos'], cu: 'personas atendidas', qu: '[usuarios o dependencia]' },
+    { re: /\b(vacun\w*|tamizaj\w*|promocion de la salud|prevencion de la enfermedad|salud publica)\b/, ent: ['listado de personas atendidas', 'registro fotográfico'], cu: 'personas atendidas', qu: '[población o comunidad]' },
+    { re: /\b(agropecuari\w*|cultivos?|productores?|fincas?|ganad\w*|pecuari\w*)\b/, ent: ['acta de visita', 'listado de productores'], cu: 'productores', qu: '[productores o vereda]' },
+    { re: /\b(base de datos|digitaliz\w*|archivo de gestion|archivo central|expedientes?|sistematiz\w*|inventarios?|foliad\w*|gestion documental)\b/, ent: ['base de datos actualizada', 'expedientes organizados'], cu: 'registros o expedientes', qu: '[dependencia]' },
+    { re: /\b(contratacion|precontractual\w*|procesos? contractuales?|procesos? de contratacion|estudios? previos?|minutas?|secop)\b/, ent: ['documentos publicados en SECOP', 'estudios previos'], cu: 'procesos', qu: '[dependencia]' }
   ];
   var BASE = { ent: ['informe', 'acta', 'listado'], cu: 'actividades, documentos o personas', qu: '[dependencia, comunidad o entidad]' };
+  var VACIAS = /^(de|del|la|el|los|las|y|en|para|a|al|con|por|que|se|su|sus|un|una|las|como|desde|segun|demas|otras|otros)$/;
+  /** El objeto de la obligación («los actos administrativos de estructura»), para que lo genérico hable de lo suyo */
+  function objetoObl(obl) {
+    var m = /^\s*(?:(?:asesorar|apoyar|acompanar|brindar apoyo|prestar apoyo|participar)(?: tecnicamente| juridicamente)?(?: en| a)?(?: la| el| los| las)?\s+)?(?:[a-z]+(?:ar|er|ir|cion))?\s*(?:y\s+[a-z]+(?:ar|er|ir)\s+)?(?:en\s+)?((?:la|el|los|las)\s+[a-zñ ]{4,60}?)(?=\s+(?:de la alcaldia|del municipio|de la secretaria|que|para|con|mediante|a traves|en el|en la)\b|[,.;]|$)/.exec(obl);
+    if (!m) return '';
+    var w = m[1].trim().split(/\s+/);
+    while (w.length && VACIAS.test(w[w.length - 1])) w.pop();
+    return w.length >= 2 && w.length <= 8 ? w.join(' ') : '';
+  }
 
   function tema(obl, texto) {
     var a = st(texto), b = st(obl), x = null;
-    TEMAS.some(function (T) { if (T.re.test(a)) { x = T; return true; } return false; });
+    TEMAS_OBL.some(function (T) { if (T.re.test(b)) { x = T; return true; } return false; });
+    if (!x) TEMAS.some(function (T) { if (T.re.test(a)) { x = T; return true; } return false; });
     if (!x) TEMAS.some(function (T) { if (T.re.test(b)) { x = T; return true; } return false; });
-    x = x || BASE;
-    var out = { ent: x.ent, cu: x.cu, qu: x.qu };
+    var out;
+    if (x) out = { ent: x.ent, cu: x.cu, qu: x.qu };
+    else {
+      var ob = objetoObl(b);
+      out = { ent: ob ? ['documento o registro de ' + ob, 'acta o informe'] : BASE.ent, cu: BASE.cu, qu: BASE.qu, objeto: ob };
+    }
     /* instituciones educativas: el grupo son estudiantes */
-    if (/educativ|colegio|escuela|estudiant|alumn|sede/.test(a + ' ' + b)) { out.cu = 'estudiantes'; out.qu = '[nombre de la institución educativa]'; }
+    if (/\b(institucion(es)? educativ\w*|colegios?|escuelas?|estudiantes?|alumn[oa]s?|sedes? educativ\w*)\b/.test(a + ' ' + b)) { out.cu = 'estudiantes'; out.qu = '[nombre de la institución educativa]'; }
     return out;
   }
 
@@ -98,6 +123,7 @@
       switch (b.k) {
         case 0:
           if (R.gemela) { out.push({ k: 0, e: b.e, txt: 'Es igual a lo que escribiste en la obligación ' + R.gemela.n + '. Cuenta qué hiciste para ESTA obligación: cada obligación lleva su propia actividad, su resultado y su evidencia.' }); break; }
+          if (b.como === 'mismoProducto') { out.push({ k: 0, e: b.e, txt: b.d }); break; }
           out.push({ k: 0, e: b.e, txt: 'Se parece a tu cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + '. Cuenta qué fue distinto en este periodo: otro lugar, otro grupo, otro resultado. Eso solo lo sabes tú.' }); break;
         /* 12/11 · cuando el motor sabe POR QUÉ falta (b.ayuda), eso es lo que se le dice */
         case 1:
@@ -394,6 +420,7 @@
     } else switch (b.k) {
       case 0:
         if (R.gemela) { falta = 'Es la misma actividad que reportó en la obligación ' + R.gemela.n + ' (' + R.gemela.pct + ' % igual).'; accion = 'Diferencie lo ejecutado en cada obligación: escriba aquí lo que hizo para ESTA obligación, con su resultado y su evidencia, sin repetir la misma actividad en dos obligaciones.'; break; }
+        if (b.como === 'mismoProducto' && R.mismoProducto) { falta = 'Reporta el mismo producto' + (b.x ? ' («' + b.x + '»)' : '') + ' que en la obligación ' + R.mismoProducto.n + '.'; accion = 'Diga qué hizo con ese producto para ESTA obligación (qué parte le corresponde, qué se ajustó o qué se entregó), o repórtelo solo en la obligación a la que pertenece.'; break; }
         falta = 'Repite la forma de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ': no dice qué fue distinto en este periodo.';
         agrega = 'En este periodo, a diferencia de la cuenta ' + (R.con || R.plCon || R.ordenCon || 'anterior') + ', [qué fue distinto: lugar, grupo o resultado].';
         break;

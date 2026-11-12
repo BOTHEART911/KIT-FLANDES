@@ -42,7 +42,7 @@
   var K = window.KIT;
   if (!K) return;
 
-  var MOTOR = 'C2026.11.12';   /* 12/11: lectura de citas, no ejecutadas, cifra genérica, misma actividad en dos obligaciones · b: tres partes como el informe gerencial · c: soporte gris si la obligación no pide producto */
+  var MOTOR = 'C2026.11.12d';   /* 12/11 tarde (d): la lectura contrasta con la obligación (hallazgo negativo, no ejecutada sin coma, anexo/futuro, lista, producto único, mismo producto, entrega al cierre) · 12/11: lectura de citas, no ejecutadas, cifra genérica, misma actividad en dos obligaciones · b: tres partes como el informe gerencial · c: soporte gris si la obligación no pide producto */
   var LETRA = { verde: 'v', amarillo: 'a', rojo: 'r', gris: 'g' };
   var BOMBILLOS = ['Qué hizo distinto', 'Cuántos', 'Para quién', 'Resultado', 'Cuándo', 'Soporte'];
   var BOMB_LARGO = ['Diferencia lo hecho frente a la cuenta anterior', 'Dice cuántos (cifras de lo hecho)', 'Dice para quién o con quién',

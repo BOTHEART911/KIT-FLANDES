@@ -5035,9 +5035,79 @@ ${js}
         B('Firmé el formato de entrega del equipo para la Oficina del Sisbén el 20 de septiembre.').b[3].e]);
       igual(r[0], r[1]);
     });
+    /* 12/11 (tarde) · la lectura contrasta con la obligación (caso real: contrato 225, cuenta 2, periodo 24/08–23/09) */
+    const J = { d: '2026-08-24', h: '2026-09-23' };
+    await prueba('no ejecutada sin coma tras «Durante el período reportado» queda gris', async () => {
+      const r = await page.evaluate((J) => [
+        B('Durante el período reportado no se desarrolló todavía una revisión específica de estudios técnicos anteriores y requerimientos normativos. Los resultados obtenidos en las sesiones constituyen insumos para orientar esta revisión en las siguientes etapas del estudio.', J).estado,
+        B('Durante el período reportado no se identifican actividades adicionales asignadas por el supervisor distintas de las relacionadas con las obligaciones específicas anteriormente descritas.', Object.assign({ obl: 'Realizar las demás actividades asignadas por el supervisor' }, J)).estado,
+        B('Durante el periodo se realizaron 5 visitas y no se presentaron quejas de la comunidad el 2 de septiembre.', J).estado
+      ], J);
+      igual(r, ['noreq', 'noreq', 'nueva']);
+    });
+    await prueba('el hallazgo negativo de una revisión es su resultado', async () => {
+      const r = await page.evaluate((J) => [
+        B('Durante el período se identificó que no existe acto administrativo de estructura vigente, debido a un fallo en contra de la administración que anuló el último rediseño. No se evidencian documentos anteriores que permitan la trazabilidad de los actos administrativos de estructura.', Object.assign({ obl: 'Revisar los actos administrativos de estructura, planta de personal, Manual de funciones y cargas de trabajo' }, J)).b[3],
+        B('Se revisaron las ejecuciones de ingresos y gastos con corte a junio. No se reportaron inconsistencias en los registros.', Object.assign({ obl: 'Apoyar la elaboración de los informes' }, J)).b[3].e,
+        B('No hay actividades por reportar en esta obligación, se revisó el correo.', J).b[3].e
+      ].map(x => typeof x === 'string' ? x : x.e + ':' + x.como), J);
+      igual(r, ['verde:hallazgo', 'verde', 'rojo']);
+    });
+    await prueba('la etiqueta «Ver anexo N: Informe…» y lo que está en futuro no son entregables', async () => {
+      const r = await page.evaluate((J) => [
+        EB('Participé junto al equipo de cargas de trabajo, en las sesiones presenciales que se llevaron a cabo el 14 de septiembre con las Secretarías de Planeación y de Gobierno, para poder elaborar la agenda de levantamiento de cargas. \nVer anexo 2:  \nInforme 02 Jaime Urazan', J)[3],
+        EB('Apoyé la revisión de los procesos de la alcaldía de Flandes los cuales servirán de base para la elaboración de las funciones de la estructura organizacional y de los manuales de funciones.', J)[3],
+        B('Con base en la información de los diagnósticos, elaboré cuatro escenarios de estructura organizacional para la alcaldía de Flandes.\nVer anexo 5:  \nInforme 02 Jaime Urazan', J).b[3]
+      ].map(x => typeof x === 'string' ? x : x.e + ':' + (x.x === 'Informe' ? 'anexo' : 'propio')), J);
+      igual(r, ['rojo', 'rojo', 'verde:propio']);
+    });
+    await prueba('cuántos: una lista uno por uno y un producto único con nombre cuentan', async () => {
+      const r = await page.evaluate((J) => [
+        B('Para el periodo, se revisaron los informes de los profesionales María Angélica Landázuri, \nCamilo Rodríguez, Diana Díaz, encargados de las cargas de trabajo.', J).b[1],
+        B('Se elaboraron las actas de inicio de los contratos 364-2026, 368-2026, 370-2026 y 376-2026 el 2 de septiembre.', J).b[1].e,
+        B('Elaboré la estructura del estudio técnico que se irá diligenciando con los documentos técnicos definitivos.', J).b[1],
+        B('Apoyé la revisión de los procesos de la alcaldía de Flandes.', J).b[1].e
+      ].map(x => typeof x === 'string' ? x : x.e + ':' + x.como), J);
+      igual(r, ['verde:lista', 'verde', 'verde:uno', 'rojo']);
+    });
+    await prueba('mismo producto con otras palabras en otra obligación: ámbar en la de número mayor', async () => {
+      const r = await page.evaluate((J) => {
+        const o7 = 'Con base en la información de los diagnósticos, elaboré cuatro escenarios de estructura organizacional para la alcaldía de Flandes.';
+        const o9 = 'Se crearon los escenarios de estructura que permitan materializar el modelo de operación de la alcaldía de Flandes.';
+        const R9 = B(o9, Object.assign({ n: 9, herm: [{ n: 7, texto: o7, obl: 'Asesorar en el diseño de la propuesta de estructura organizacional' }] }, J));
+        const R7 = B(o7, Object.assign({ n: 7, herm: [{ n: 9, texto: o9, obl: 'Apoyar el diseño del modelo de operación' }] }, J));
+        return [R9.b[0].e, R9.b[0].como, R9.mismoProducto && R9.mismoProducto.n, R7.b[0].e, R9.b[3].e, KIT.piezas.teayudo.receta(R9, 'Apoyar el diseño del modelo de operación', o9, R9.b[0]).falta];
+      }, J);
+      igual(r.slice(0, 5), ['amarillo', 'mismoProducto', 7, 'gris', 'verde']);
+      cierto(/obligación 7/.test(r[5]), r[5]);
+    });
+    await prueba('entrega documental al cierre: general en cuentas intermedias, se mide en la última', async () => {
+      const r = await page.evaluate((J) => {
+        const OBL = 'El contratista se obliga a hacer entrega formal, completa y oportuna de la totalidad de los expedientes, documentos, archivos físicos y digitales, bases de datos, correspondencia, informes y demás información que haya sido elaborada.';
+        const T = 'Durante el período se organizaron los insumos y evidencias derivados de las jornadas de cargas de trabajo y evidencias fotográficas.';
+        const E = KIT.piezas.informeCuentas._estr, P = E.preparar(OBL, [], '225');
+        const a = E.analizar(T, P, { desde: J.d, hasta: J.h, informe: 2, total: 4 });
+        const b = E.analizar(T, P, { desde: J.d, hasta: J.h, informe: 4, total: 4 });
+        return [a.estado, !!a.cierre, b.estado];
+      }, J);
+      igual(r, ['general', true, 'nueva']);
+    });
+    await prueba('la ayuda sale del tema de su obligación y de palabras completas', async () => {
+      const r = await page.evaluate(() => {
+        const t = KIT.piezas.teayudo._tema;
+        return [
+          t('Asesorar los lineamientos técnicos y metodológicos del estudio técnico de rediseño institucional.', 'Participé en las sesiones presenciales del 14 de septiembre con las Secretarías de Planeación y de Gobierno, para responder las inquietudes de los servidores.').cu,
+          t('Acompañar en la supervisión de los contratos de los profesionales encargados del levantamiento de cargas', 'Se revisaron los informes de los profesionales.').cu,
+          t('Apoyar a la dependencia', 'Brindé la información necesaria para el informe de mi contrato.').cu,
+          t('Revisar los actos administrativos de estructura y planta de personal', 'Se identificó que no existe acto administrativo de estructura vigente.').cu,
+          t('Apoyar el desarrollo de talleres de formación y mesas técnicas', 'Se adelantaron las sesiones de trabajo con los equipos.').cu
+        ];
+      });
+      igual(r, ['sesiones', 'informes revisados', 'actividades, documentos o personas', 'documentos revisados', 'sesiones']);
+    });
     await prueba('motor y calidad llevan la versión nueva', async () => {
       const r = await page.evaluate(() => [KIT.piezas.informeCuentas._estr.version, KIT.piezas.calidad.MOTOR]);
-      igual(r, ['E2026.11.12', 'C2026.11.12']);
+      igual(r, ['E2026.11.12b', 'C2026.11.12d']);
     });
     await prueba('rendimiento: menos de 5 ms por actividad larga', async () => {
       const ms = await page.evaluate(() => {

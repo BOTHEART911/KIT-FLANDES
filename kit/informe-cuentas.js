@@ -204,6 +204,11 @@
       cuantificar y es normal que su texto se repita: no entra en los puntajes. */
   var GENERAL = /(horario de trabajo|horario laboral|absoluta independencia|autonomia|elementos de trabajo|no aceptar ningun|sitio de trabajo|cronograma de la forma|informar por escrito .{0,40}alcalde|entregar la cuenta de cobro|cuenta de cobro dentro de|presentar la cuenta de cobro|seguridad social integral|pago de (los )?aportes|confidencialidad|reserva de la informacion|cuidado de los bienes|codigo de etica)/i;
   function esGeneral(t) { return GENERAL.test(sinTildes(t)); }
+  /* 12/11 (tarde) · ENTREGA DOCUMENTAL AL CIERRE («hacer entrega formal… de la totalidad de los expedientes, documentos,
+     archivos…»): se cumple al terminar el contrato. Se trata como general en las cuentas intermedias y se mide en la
+     última (decisión de Oss 12/11). */
+  var CIERRE = /(entrega formal[^.]{0,160}(expedientes|documentos|archivos|informacion)|(hacer|realizar|efectuar) (la )?entrega[^.]{0,120}(expedientes|archivos|documentos)[^.]{0,200}(terminacion|finalizacion|liquidacion|cierre|termino del contrato|finalizar))/i;
+  function esCierre(t) { return CIERRE.test(sinTildes(t).toLowerCase()); }
 
   var ETIQUETA_RED = { cuant: 'Cuantifica', parcial: 'Parcial', desc: 'Solo describe', noreq: 'No requerida', sin: 'Sin actividad' };
   var PUNTOS_RED = { cuant: 100, parcial: 60, desc: 20 };
@@ -246,7 +251,7 @@
     var GEST = /^(document|visita|atencion|proceso|publicacion|informe|oficio|acta|reunion|capacitacion|base|datos|expediente|tramite|solicitud|peticion|pqr|derecho|tutela|requerimiento|resolucion|contrato|cuenta|cobro|factura|predio|contribuyente|usuario|ciudadan|beneficiari|registro|certificad|constancia|listado|relacion|formato|matriz|plataforma|sistema|aplicativo|archivo|carpeta|correo|comunicacion|notificacion|liquidacion|acuerdo|convenio|plan|programa|proyecto|actividad|evidencia|anexo|soporte|seguimiento|control|revision|verificacion|apoyo|asesoria|orientacion|jornada|mesa|comite|taller|campana|secretari|alcald|despacho|oficina|dependencia|hacienda|gobierno|planeacion|salud|concejo|personeria|contraloria|procuraduria|gobernacion|dian|sisben|secop|juzgado|fiscalia|policia|icbf|comisaria|inspeccion|tesoreria|contabilidad|almacen|juridic|municipi|flandes|tolima|entidad|comunidad|barrio|vereda|poblacion|junta|asociacion|fundacion|colegio|institucion|hospital|eps|ips|ese|caso|evento|reporte|consolidado|respuesta|minuta|estudio|poliza|cronograma|indicador|meta|encuesta|ficha|historia|paciente|productor|predial|impuesto|cartera|cobro|embargo|titulo|acto|expediente|radicado|consulta|contenido|pieza|video|boletin|noticia|red|redes)/;
     var CONTABLE = /^(document|visita|atencion|proceso|publicacion|informe|oficio|acta|reunion|capacitacion|expediente|tramite|solicitud|peticion|pqr|derecho|tutela|requerimiento|resolucion|contrato|cuenta|factura|predio|contribuyente|usuario|ciudadan|beneficiari|registro|certificad|constancia|listado|formato|archivo|correo|comunicacion|notificacion|liquidacion|acuerdo|convenio|actividad|evidencia|jornada|mesa|comite|taller|campana|caso|evento|reporte|respuesta|minuta|estudio|poliza|encuesta|ficha|paciente|productor|persona|familia|nino|nina|adulto|joven|estudiante|funcionari|servidor|contratista|asistente|participante|hora|dia|semana|mes|pieza|video|boletin|noticia|publicacion|post|contenido|cuna|mensaje|llamada|acto|auto|mandamiento|embargo|titulo|cobro|recibo|pago|radicado|consulta|vacuna|dosis|muestra|animal|bovino|ave|cerdo|perro|gato|arbol|hectarea|metro|kilometro|obra|punto|sede|institucion|colegio|barrio|vereda|grupo|equipo|modulo|vista|app|aplicacion|herramienta|indicador|meta|objetivo|item|matriz|base|tabla|grafica|hoja|plantilla|carpeta|folio|pagina)/;
     var LUGAR_O_GENTE = /^(secretari|alcald|despacho|oficina|dependencia|concejo|personeria|contraloria|procuraduria|gobernacion|dian|juzgado|fiscalia|policia|icbf|comisaria|inspeccion|tesoreria|contabilidad|almacen|hospital|eps|ips|ese|entidad|comunidad|barrio|vereda|poblacion|junta|asociacion|fundacion|colegio|institucion|escuela|contribuyente|ciudadan|usuari|beneficiari|personal|persona|familia|nino|nina|adulto|joven|estudiante|docente|funcionari|servidor|contratista|productor|campesin|victima|lider|madre|padre|paciente|espectador|participante|oyente|televidente|medico|enfermer|area|equipo|grupo|ministerio|superintendencia|registraduria|notaria|banco|empresa|operador|proveedor|supervisor|jefe|director|gerente|alcalde|alcaldesa|secretario|secretaria)/;
-    var RESULTADO_V = /^(entreg|elabor|public|radic|aprob|logr|expid|emit|proyect|present|remit|envi|firm|notific|gener|consolid|actualiz|carg|suscrib|adjudic|socializ|diseñ|disen|desarroll|implement|culmin|termin|finaliz|resolv|respond|tramit|archiv|digitaliz|organiz|realiz)(o|e|aron|amos|ado|ada|ados|adas|ido|ida|idos|idas|io|ieron)$/;
+    var RESULTADO_V = /^(entreg|elabor|public|radic|aprob|logr|expid|emit|proyect|present|remit|envi|firm|notific|gener|consolid|actualiz|carg|suscrib|adjudic|socializ|diseñ|disen|desarroll|implement|culmin|termin|finaliz|resolv|respond|tramit|archiv|digitaliz|organiz|realiz|cre|levant)(o|e|aron|amos|ado|ada|ados|adas|ido|ida|idos|idas|io|ieron)$/;
     /* 12/11 · palabras completas (antes «plan» encendía con «Planeación» y «resolución» con «resolución pacífica de conflictos»); los productos solo cuentan con algo que los produjo en su frase */
     var RESULTADO_N = /^(informes?|actas?|oficios?|listados?|resolucion(es)?|registros?|certificad[oa]s?|certificacion(es)?|constancias?|consolidados?|matriz|matrices|respuestas?|conceptos?|decretos?|circular(es)?|minutas?|cronogramas?|plan(es)?|programas?|protocolos?|manual(es)?|instructivos?|boletin(es)?|piezas?|videos?|fichas?|autos?|mandamientos?|entregables?|productos?|presentacion(es)?|dashboards?|tableros?|aplicacion(es)?|modulos?|expedientes?|documentos?|carpetas?|comunicados?|notificacion(es)?|liquidacion(es)?|formularios?|planillas?|diagnosticos?|estudios?|propuestas?|encuestas?|base)$/;
 
@@ -556,7 +561,46 @@
       }
       return f;
     }
-    function bResultado(k) {
+    /* 12/11 (tarde) · lo que aún no existe («servirán de base para la elaboración de…», «insumo para…») no es entregable */
+    var FUT = /^(servira|serviran|permitira|permitiran|elaborara|elaboraran|realizara|realizaran|entregara|entregaran|presentara|presentaran|proyectara|proyectaran|ira|iran|hara|haran|sera|seran)$/;
+    function futuroAntes(k, f0, j) {
+      for (var q = f0; q < j; q++) {
+        if (FUT.test(k[q].w)) return true;
+        if (/^(base|insumo|insumos)$/.test(k[q].w) && k[q + 1] && k[q + 1].w === 'para') return true;
+      }
+      return false;
+    }
+    /* 12/11 (tarde) · «Ver anexo 2: Informe 02 …» es el nombre del archivo que adjunta, no lo que quedó */
+    function etiquetaAnexo(t, i) { return !!t && /(anexo|adjunto)s?\s*(n[°o.]?\s*)?\d*\s*:?\s*$/.test(bajo(t.slice(Math.max(0, i - 30), i))); }
+    /* 12/11 (tarde) · EL HALLAZGO DE UNA REVISIÓN es su resultado, aunque sea negativo: «se identificó que no existe
+       acto administrativo…», «se verificó que no hay…». También la frase «No se evidencian / no se encontraron …»
+       cuando la actividad o la obligación es de revisar, verificar o analizar (caso JAIME URAZÁN, cuenta 2, obl. 10).
+       No cuenta cuando lo que «no hay» son actividades o asignaciones (eso es no ejecutada). */
+    var VERIF_W = /^(identific|verific|constat|evidenci|encontr|estableci|establec|determin|observ|detect|comprob|confirm|hall)/;
+    var REVISA = /\b(revis|verific|analiz|evalu|diagnostic|consult|busc|indag|identific|inspeccion|audit)\w*/;
+    function hallazgo(k, F, ctxRev) {
+      for (var i = 0; i < k.length; i++) {
+        var a = k[i], v = null;
+        if (a.w === 'se' && k[i + 1] && VERIF_W.test(k[i + 1].w) && /(o|aron)$/.test(k[i + 1].w)) v = i + 1;
+        else if (VERIF_W.test(a.w) && /[eé]$/.test(a.o) && /é$/.test(a.o)) v = i;
+        if (v === null) continue;
+        var fr = fraseDe(F, v);
+        for (var j = v + 1; j < fr[1] && j <= v + 4; j++) if (k[j].w === 'que') {
+          for (var q = j + 1; q < fr[1] && q <= j + 4; q++) if (/^(no|ningun|ninguna|ninguno|inexistencia)$/.test(k[q].w)) return { i: k[v].i, f: k[Math.min(fr[1] - 1, q + 7)].f, que: 'hallazgo' };
+        }
+      }
+      if (!ctxRev) return null;
+      for (var x = 0; x < F.length; x++) {
+        var f0 = F[x][0], w0 = k[f0] && k[f0].w, w1 = k[f0 + 1] && k[f0 + 1].w, w2 = k[f0 + 2] && k[f0 + 2].w;
+        var neg = (w0 === 'no' && w1 === 'se' && /^(evidenci|encontr|hall|ubic|registr|report|detect)/.test(w2 || '')) || (w0 === 'no' && /^(existe|existen|hay|reposa|reposan)$/.test(w1 || ''));
+        if (!neg) continue;
+        var sig = k[f0 + (w1 === 'se' ? 3 : 2)];
+        if (sig && /^(actividad|actividades|tareas|asignacion|asignaciones|requerimientos|solicitudes|novedades)$/.test(sig.w)) continue;
+        return { i: k[f0].i, f: k[Math.min(F[x][1] - 1, f0 + 9)].f, que: 'hallazgo' };
+      }
+      return null;
+    }
+    function bResultado(k, t, obl) {
       /* 03/11 · primero el ENTREGABLE (lo que quedó: «Plan de acción»); si no lo nombra, el verbo de resultado
          12/11 · el entregable cuenta si en su frase hay algo que lo PRODUJO (elaboró, entregó, proyectó, la
          elaboración de…) y la frase no está negada; no cuenta lo citado o revisado («según informes», «adoptado
@@ -569,7 +613,7 @@
         var fr = fraseDe(F, i);
         if (negada(k, fr[0], i)) continue;
         if (a.cita && !(a.cita === 'documento' && prodAntes(k, fr[0], i, 4))) continue;
-        if (citadoAntes(k, fr[0], i) || propositoAntes(k, fr[0], i)) continue;
+        if (citadoAntes(k, fr[0], i) || propositoAntes(k, fr[0], i) || futuroAntes(k, fr[0], i) || etiquetaAnexo(t, a.i)) continue;
         /* lo que lo produjo: un verbo o su nombre antes en la frase, un participio después («los informes y fotos
            radicados»), o el producto al empezar el renglón de una lista («1. Oficio para Planeación…») */
         var despues = false;
@@ -588,7 +632,7 @@
             (aux && /(ado|ada|ados|adas|ido|ida|idos|idas)$/.test(a.w)))) return { i: a.i, f: a.f, que: 'verbo' };
         if (/^(quedo|quedaron|quedando|logrando|obteniendo|dejando)$/.test(a.w)) return { i: a.i, f: a.f, que: 'verbo' };
       }
-      return null;
+      return hallazgo(k, F, REVISA.test(st(obl || '').toLowerCase()) || REVISA.test(bajo(t || '')));
     }
 
     function prodAntes(k, f0, j, n) { for (var q = Math.max(f0, j - n); q < j; q++) if (palabra(k[q]) && !k[q].cita && PROD.test(k[q].w)) return true; return false; }
@@ -715,7 +759,9 @@
     /* 12/11 · NO EJECUTADA: la frase principal está negada («no se realizó…», «no se elaboró…», «no se asignaron…»,
        «no fue posible…», «no fue necesario…») y no hay otra frase afirmativa que diga lo que SÍ hizo con su cifra.
        Queda gris (no requerida en el periodo). «No fue requerida… sin embargo se apoyó en 14 procesos» sí es actividad. */
-    var NO_EJEC2 = /^\s*(?:(?:durante|en|para) (?:el|este) (?:presente )?periodo[^.;\n]{0,110}?,\s*|a la fecha,?\s*|en este lapso,?\s*)?(?:\d+\.\s*)?(?:no se (?:realizo|realizaron|elaboro|elaboraron|presento|presentaron|recibio|recibieron|adelanto|adelantaron|ejecuto|ejecutaron|desarrollo|desarrollaron|atendio|atendieron|asigno|asignaron|requirio|requirieron|solicito|solicitaron|genero|generaron|registro|registraron|programo|programaron|efectuo|efectuaron)|no fue (?:posible|necesari[oa]|requerid[oa]|solicitad[oa])|no fueron (?:requerid|solicitad|asignad)|no hubo|no ha sido (?:requerid|solicitad)|no se han? (?:presentado|requerido|solicitado|asignado))/;
+    /* 12/11 (tarde) · también sin la coma («Durante el período reportado no se desarrolló todavía…»), «no se identifican
+       actividades adicionales asignadas», «no se convocaron», «en este momento no se está realizando…» */
+    var NO_EJEC2 = /^\s*(?:(?:durante|en|para) (?:el|este) (?:presente )?periodo(?:[^.;\n]{0,110}?,\s*|(?: reportado| actual| del informe| de (?:la|esta) cuenta| objeto de (?:este )?informe)?\s+)|a la fecha,?\s*|en este lapso,?\s*|en este momento,?\s*)?(?:\d+\.\s*)?(?:(?:aun|todavia) )?(?:no se (?:identifica|identifican|identifico|identificaron|convoco|convocaron|esta realizando|tiene|ha realizado|han realizado|ha ejecutado|han ejecutado|realizo|realizaron|elaboro|elaboraron|presento|presentaron|recibio|recibieron|adelanto|adelantaron|ejecuto|ejecutaron|desarrollo|desarrollaron|atendio|atendieron|asigno|asignaron|requirio|requirieron|solicito|solicitaron|genero|generaron|registro|registraron|programo|programaron|efectuo|efectuaron)|no fue (?:posible|necesari[oa]|requerid[oa]|solicitad[oa])|no fueron (?:requerid|solicitad|asignad)|no hubo|no ha sido (?:requerid|solicitad)|no se han? (?:presentado|requerido|solicitado|asignado))/;
     var AFIRMA = /\b(se\s+(?:apoy|realiz|atend|elabor|entreg|proyect|radic|brind|acompan|particip|asist|revis|gestion|organiz|digitaliz|tramit|carg|adelant|desarroll|ejecut|efectu|hic|hiz|llev|logr|public|present|actualiz|consolid|diligenci)\w*|(?:apoy|realic|atend|elabor|entregu|proyect|radiqu|brind|acompan|particip|asist|revis|gestion|organic|digitalic|tramit|cargu|adelant|desarroll|ejecut|efectu|hice|llev|logr|public|present|actualic|consolid|diligenci)[eé]\b)/;
     /* recuerdos acotados por texto (la misma cuenta se mide muchas veces mientras se escribe o se revisa) */
     function recuerdo(max) { var m = {}, n = 0; return { get: function (k) { return m[k]; }, set: function (k, v) { if (++n > max) { m = {}; n = 1; } m[k] = v; return v; } }; }
@@ -763,6 +809,64 @@
       return mejor;
     }
 
+    /* 12/11 (tarde) · «los profesionales María Angélica Landázuri, Camilo Rodríguez, Diana Díaz»: relaciona 3, uno por uno */
+    var NOMBRE_P = '[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\\s+(?:de\\s+|del\\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3}';
+    var LISTA_NOM = new RegExp(NOMBRE_P + '(?:\\s*,\\s*' + NOMBRE_P + ')+(?:\\s*,?\\s+y\\s+' + NOMBRE_P + ')?', 'g');
+    function listaUnoPorUno(t) {
+      var m, mejor = null;
+      LISTA_NOM.lastIndex = 0;
+      while ((m = LISTA_NOM.exec(t))) {
+        var n = m[0].split(/\s*,\s*|\s+y\s+/).filter(function (x) { return x.trim(); }).length;
+        if (n >= 3 && (!mejor || n > mejor.n)) mejor = { n: n, i: m.index, f: m.index + m[0].length, que: 'nombres' };
+      }
+      if (mejor) return mejor;
+      var cod = [], rx = /\b\d{2,4}\s*-\s*20\d\d\b/g;
+      while ((m = rx.exec(t))) if (cod.indexOf(m[0].replace(/\s+/g, '')) < 0) cod.push(m[0].replace(/\s+/g, '')), mejor = mejor || { i: m.index }, mejor.f = m.index + m[0].length;
+      return cod.length >= 3 ? { n: cod.length, i: mejor.i, f: mejor.f, que: 'contratos o procesos' } : null;
+    }
+    /* 12/11 (tarde) · UN producto con nombre que él produjo: «elaboré la estructura del estudio», «se elaboró el capítulo de…» */
+    var UNO_RX = /\b((?:elabor|disen|constru|estructur|redact|proyect|consolid|formul|levant|entreg|present|cre)[a-z]*(?:o|e|aron|amos|ieron))\s+(?:de\s+)?(la|el|un|una)\s+(estructura|capitulo|documento|informe|propuesta|diagnostico|matriz|plan|estudio|cronograma|borrador|acta|presentacion|agenda|ficha|formato|instrumento|herramienta|base de datos|oficio|concepto|minuta|manual|protocolo|guia|inventario|mapa|modelo|esquema|reglamento|proyecto|video|pieza|boletin|circular|resolucion|decreto)\b(\s+(?:de|del)\s+(?:la\s+|el\s+|los\s+|las\s+)?[a-zñ]+(?:\s+[a-zñ]{4,})?)?/;
+    function productoUno(t) {
+      var L = bajo(String(t || '')), ini = 0, partes = L.split(/(\.\s|\n|;)/);
+      for (var q = 0; q < partes.length; q++) {
+        var fr = partes[q], m;
+        if (fr && !/\b(no|ni)\s+(se\s+)?/.test(fr.slice(0, 40)) && (m = UNO_RX.exec(fr)) && !/\b(servira|serviran|permitira|permitiran|se ira|se iran)\b/.test(fr.slice(0, m.index))) {
+          var a = ini + m.index + m[1].length + 1; while (L[a] === ' ') a++;
+          return { i: a, f: ini + m.index + m[0].length };
+        }
+        ini += fr.length;
+      }
+      return null;
+    }
+    var PROD_KEY = /\b(?:elabor|cre|disen|constru|proyect|formul|levant|consolid|estructur|redact)[a-z]*\s+(?:(?:el|la|los|las|un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\(\d+\)|\d+)\s+)*([a-zñ]{4,})\s+(?:de|del)\s+(?:la\s+|el\s+|los\s+|las\s+)?([a-zñ]{4,})/g;
+    var PROD_GEN = /^(informe|actividad|apoyo|gestion|seguimiento|revision|acompanamiento|proceso|labor|tarea|accion|trabajo|organizacion|entrega|cuenta|reunion|sesion|mesa|parte|manera|forma|base)$/;
+    function sing(w) { return w.replace(/(es|s)$/, ''); }
+    function clavesProducto(t) {
+      var L = bajo(String(t || '').normalize('NFC')), m, out = [];
+      PROD_KEY.lastIndex = 0;
+      while ((m = PROD_KEY.exec(L))) {
+        var a = sing(m[1]);
+        if (PROD_GEN.test(a) || FUN[m[1]]) continue;
+        var a0 = m.index + m[0].length - m[2].length;
+        out.push({ k: a + ' ' + sing(m[2]), i: L.lastIndexOf(m[1], a0), f: m.index + m[0].length });
+      }
+      return out;
+    }
+    function mismoProducto(t, ctx) {
+      if (!ctx || !ctx.n || !ctx.hermanas) return null;
+      var mias = clavesProducto(t);
+      if (!mias.length) return null;
+      var hallado = null;
+      ctx.hermanas.forEach(function (h) {
+        if (hallado || !(Number(h.n) < Number(ctx.n)) || (h.obl && esGeneral(h.obl))) return;
+        var ht = String(h.texto || '').normalize('NFC').trim();
+        if (!ht || NO_EJEC.test(st(ht)) || noEjecutada(ht)) return;
+        var suyas = clavesProducto(ht).map(function (x) { return x.k; });
+        mias.some(function (x) { if (suyas.indexOf(x.k) >= 0) { hallado = { n: Number(h.n), i: x.i, f: x.f, k: x.k }; return true; } return false; });
+      });
+      return hallado;
+    }
+
     function analizar(texto, P, ctx) {
       ctx = ctx || {};
       /* 12/11 · tildes «sueltas» (copiado del celular o del Mac: «Firme» + tilde) y espacios duros: se normaliza */
@@ -773,9 +877,12 @@
       var t = t0.replace(/\[[^\[\]\n]{1,80}\]/g, function (m0, i0) { CORCH.push({ i: i0, f: i0 + m0.length, x: m0.slice(1, -1).trim() }); return new Array(m0.length + 1).join(' '); });
       var R = { pct: null, con: null, plantillas: 0, frases: 0, orden: false, ident: false, rep: [], cifraIgual: [], b: [], corchetes: CORCH };
       var vacio = !t.trim() || t === '-' || t.length < 3, noreq = !vacio && ((NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length) || NO_EJEC.test(st(t)) || noEjecutada(t, P.nC));
-      if (ctx.general || noreq) {
-        R.estado = ctx.general ? 'general' : 'noreq';
-        for (var g = 0; g < 6; g++) R.b.push({ k: g, e: 'gris', d: ctx.general ? 'Obligación general: no se mide.' : 'Actividad no requerida en el periodo.', r: [] });
+      var ultima = ctx.ultima === true || (Number(ctx.total) > 0 && Number(ctx.informe) >= Number(ctx.total));
+      var cierre = !ctx.general && P.obl && esCierre(P.obl) && !ultima;
+      if (ctx.general || cierre || noreq) {
+        R.estado = ctx.general || cierre ? 'general' : 'noreq';
+        if (cierre) R.cierre = true;
+        for (var g = 0; g < 6; g++) R.b.push({ k: g, e: 'gris', d: cierre ? 'Obligación de entrega al cierre del contrato: se mide en la última cuenta.' : ctx.general ? 'Obligación general: no se mide.' : 'Actividad no requerida en el periodo.', r: [] });
         return R;
       }
       if (vacio) { R.estado = 'vacia'; for (var v = 0; v < 6; v++) R.b.push({ k: v, e: 'rojo', d: 'Sin actividad escrita.', r: [] }); return R; }
@@ -840,13 +947,25 @@
          Se marca en la obligación de número mayor; cuenta también en la primera cuenta. */
       var gem = gemela(t, ctx);
       if (gem) { R.gemela = gem; repetida = true; hay = true; motivo = 'Es igual (' + gem.pct + ' %) a lo que escribiste en la obligación ' + gem.n + ' de esta cuenta. Cuenta qué hiciste para ESTA obligación.'; }
+      /* 12/11 (tarde) · el MISMO producto reportado con otras palabras en otra obligación de esta cuenta
+         («elaboré cuatro escenarios de estructura» en la 7 y «se crearon los escenarios de estructura» en la 9): aviso ámbar */
+      var mp = !gem ? mismoProducto(t, ctx) : null;
+      if (mp) R.mismoProducto = mp;
       R.estado = repetida ? 'repetida' : 'nueva';
       R.b.push({ k: 0, e: !hay ? 'gris' : (repetida ? 'rojo' : 'verde'), d: !hay ? 'Primera cuenta: no hay con qué comparar.' : motivo, r: gem ? [[0, t.length]] : (repetida ? (R.plantillas && R.pct < U_EST && !R.ident ? R.plR : R.rep) : []) });
+      if (mp && R.b[0].e !== 'rojo') { R.b[0].e = 'amarillo'; R.b[0].como = 'mismoProducto'; R.b[0].d = 'El producto «' + t0.slice(mp.i, mp.f) + '» ya lo reportaste en la obligación ' + mp.n + ' de esta cuenta. Cuenta qué hiciste con él para ESTA obligación.'; R.b[0].r = [[mp.i, mp.f]]; }
+      var rs = bResultado(k, t, P.obl);
       /* 2 · ¿cuántos? */
       /* 12/11 · una cifra cuyo «qué» es genérico («cuatro (4) actividades») no dice qué se hizo: ámbar */
       var Cesp = C.filter(function (c) { return !c.gen; });
       var numCita = R.citas.filter(function (c) { return c.tipo === 'documento' && /\d/.test(c.x); })[0];
+      /* 12/11 (tarde) · también cuentan: una lista que relaciona uno por uno (3 o más nombres o números de contrato)
+         y UN producto con nombre que él elaboró («elaboré la estructura del estudio técnico» = 1). Decisión de Oss 12/11. */
+      var lis = !Cesp.length ? listaUnoPorUno(t) : null;
+      var uno = !Cesp.length && !lis ? productoUno(t) : null;
       R.b.push(Cesp.length ? { k: 1, e: 'verde', d: 'Cifra con su qué: «' + t0.slice(Cesp[0].i, Cesp[0].f) + '»' + (Cesp.length > 1 ? ' y ' + (Cesp.length - 1) + ' más.' : '.'), r: Cesp.map(function (c) { return [c.i, c.f]; }) }
+        : lis ? { k: 1, e: 'verde', d: 'Relaciona ' + lis.n + ' ' + lis.que + ' uno por uno: «' + t0.slice(lis.i, lis.f) + '».', r: [[lis.i, lis.f]], como: 'lista' }
+        : uno ? { k: 1, e: 'verde', d: 'Un producto con nombre: «' + t0.slice(uno.i, uno.f) + '».', r: [[uno.i, uno.f]], como: 'uno' }
         : C.length ? { k: 1, e: 'amarillo', d: 'Dices «' + t0.slice(C[0].i, C[0].f) + '», pero no cuáles fueron. Nombra lo que hiciste y cuántos de cada uno (por ejemplo, «2 oficios y 2 visitas»).', r: C.map(function (c) { return [c.i, c.f]; }), como: 'generica' }
         : { k: 1, e: 'rojo', d: 'No hay una cifra acompañada de lo que se contó (visitas, documentos, atenciones…).', r: [],
             ayuda: numCita ? 'El número de «' + numCita.x + '» es del documento que citas, no una cantidad de lo que hiciste. ¿Cuántos documentos, visitas o personas atendiste?' : (/\b(varios|varias|diferentes|diversos|diversas|multiples|algunos|algunas|todos los|todas las)\b/.test(bajo(t)) ? 'Cambia «varios», «diferentes» o «todos los» por el número: «12 oficios», «18 visitas».' : '') });
@@ -860,11 +979,11 @@
         : { k: 2, e: 'rojo', d: 'No dice para quién o con quién (dependencia, comunidad, entidad…).', r: [],
             ayuda: nombraGrupo ? 'Nombras «' + t0.substr(nombraGrupo.index, nombraGrupo[0].length) + '», pero no dices para quién o con quién lo hiciste. Escríbelo así: «se atendió a 12 usuarios del Sisbén», «para la Secretaría de…», «en beneficio de la comunidad de…».' : '' });
       /* 4 · resultado o entregable */
-      var rs = bResultado(k);
       var nombraProd = !rs && /\b(expedientes?|documentos?|oficios?|pqrs?d?|base de datos|carpetas?|informes?|actas?|matriz|listados?|formatos?|planillas?|respuestas?|piezas?|publicaciones?)\b/.exec(bajo(t));
-      R.b.push(rs ? { k: 3, e: 'verde', d: (rs.que === 'verbo' ? 'Resultado: «' : 'Entregable: «') + t0.slice(rs.i, rs.f) + '».', r: [[rs.i, rs.f]] }
+      R.b.push(rs ? { k: 3, e: 'verde', d: (rs.que === 'hallazgo' ? 'Hallazgo de la revisión: «' : rs.que === 'verbo' ? 'Resultado: «' : 'Entregable: «') + t0.slice(rs.i, rs.f) + '».', r: [[rs.i, rs.f]], como: rs.que }
         : { k: 3, e: 'rojo', d: 'No dice qué quedó como resultado o entregable.', r: [],
-            ayuda: nombraProd ? 'Nombras «' + t0.substr(nombraProd.index, nombraProd[0].length) + '», pero no qué hiciste con ello ni si es algo que citas o revisaste. Escribe lo que quedó: «se entregaron 14 expedientes organizados», «se proyectó el oficio de respuesta».' : '' });
+            ayuda: nombraProd && /\brevis\w*/.test(bajo(t)) ? 'Revisaste «' + t0.substr(nombraProd.index, nombraProd[0].length) + '»: di el resultado de la revisión (aprobados, con observaciones, lo que encontraste o lo que no existe).'
+              : nombraProd ? 'Nombras «' + t0.substr(nombraProd.index, nombraProd[0].length) + '», pero no qué hiciste con ello ni si es algo que citas o revisaste. Escribe lo que quedó: «se entregaron 14 expedientes organizados», «se proyectó el oficio de respuesta».' : '' });
       /* 5 · cuándo (sin periodo todavía: no se juzga si cae dentro; se dice cuándo se sabrá) */
       var cu = bCuando(k, ctx.desde, ctx.hasta);
       var sinPer = !(ctx.desde && ctx.hasta);
@@ -872,7 +991,7 @@
       var notaCit = fCit.length ? ' La fecha que citas («' + fCit[0].x + '») es de ' + (fCit[0].tipo === 'programada' ? 'algo programado' : fCit[0].tipo === 'otro periodo' ? 'otro periodo' : fCit[0].tipo === 'hecho' ? 'un hecho que citas' : 'un documento') + ': no se juzga.' : '';
       var perTxt = ctx.desde && ctx.hasta ? ' (' + ctx.desde.slice(8, 10) + '/' + ctx.desde.slice(5, 7) + ' – ' + ctx.hasta.slice(8, 10) + '/' + ctx.hasta.slice(5, 7) + ')' : '';
       R.b.push(!cu || cu.nada ? { k: 4, e: 'rojo', d: 'No ubica la actividad en el tiempo (fechas, semanas, días).' + notaCit, r: [],
-            ayuda: /(durante|en) (el|este|todo el) (presente )?(periodo|mes)/.test(bajo(t)) ? 'Dices «durante el periodo»: escribe las fechas o la semana en que lo hiciste («el 15 de octubre», «la segunda semana del periodo»).' : '' }
+            ayuda: /(durante|en) (el|este|todo el) (presente )?(periodo|mes)\b(?!\s*\d)/.test(bajo(t)) ? 'Dices «durante el periodo»: escribe las fechas o la semana en que lo hiciste («el 15 de octubre», «la segunda semana del periodo»).' : '' }
         : cu.fuera.length ? { k: 4, e: 'amarillo', d: 'Lo hecho ' + (cu.fuera[0].mes ? 'en ' : 'el ') + '«' + t0.slice(cu.fuera[0].i, cu.fuera[0].f) + '» cae fuera del periodo de esta cuenta' + perTxt + '. Si es de otra cuenta, repórtalo allá; si es una fecha que citas, escríbela junto a su documento («Decreto 180 del 17 de diciembre de 2015»).', r: cu.fuera.map(function (z) { return [z.i, z.f]; }) }
         : { k: 4, e: 'verde', d: 'Ubicada en el tiempo: «' + t0.slice(cu.i, cu.f) + '».' + notaCit + (sinPer && ctx.avisarPeriodo ? ' Si cae dentro del periodo se determinará cuando ingreses el periodo a relacionar.' : ''), r: [[cu.i, cu.f]] });
       /* 6 · soporte: lo cargado manda; si no hay, se mira si dice DÓNDE verificarlo o que NO requiere adjunto,
@@ -894,7 +1013,7 @@
       return R;
     }
 
-    return { version: 'E2026.11.12', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete,
+    return { version: 'E2026.11.12b', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete,
              citas: citas, noEjecutada: noEjecutada, gemela: gemela, igualdad: igualdad, U: { N: N, MIN_ESQ: MIN_ESQ, U_EST: U_EST, MIN_FRASE: MIN_FRASE } };
 
   }());
@@ -935,17 +1054,19 @@
         /* 12/11 · las demás obligaciones de la MISMA cuenta: la misma actividad en dos obligaciones se marca */
         var herm = obl.map(function (o2, i2) { return { n: i2 + 1, texto: String((x.actividades || [])[i2] || ''), obl: o2.texto }; }).filter(function (h) { return h.n !== i + 1; });
         var es = ESTR.analizar(txt, ESTR.preparar(o.texto, previos, nC),
-          { general: gen[i], desde: x.desde, hasta: x.hasta, soporte: ev + adj + general, nContrato: nC, n: i + 1, hermanas: herm });
+          { general: gen[i], desde: x.desde, hasta: x.hasta, soporte: ev + adj + general, nContrato: nC, n: i + 1, hermanas: herm, informe: x.informe, total: x.total });
+        /* 12/11 (tarde) · entrega al cierre en una cuenta intermedia: cuenta como general (no puntúa) */
+        var genC = gen[i] || !!es.cierre;
         var medible = PUNTOS_RED[r.clase] !== undefined;
         var rep = medible && previos.length && es.pct !== null ? es.pct : null;
         if (txt && txt !== '-') previos.push({ informe: x.informe, texto: txt });
-        return { texto: txt, clase: r.clase, cifras: r.cifras, evid: ev, adj: adj, anexo: general, soporte: ev + adj + general, gen: gen[i],
+        return { texto: txt, clase: r.clase, cifras: r.cifras, evid: ev, adj: adj, anexo: general, soporte: ev + adj + general, gen: genC,
                  menciona: MENCIONA.test(sinTildes(txt)), rep: rep, repCon: rep !== null ? es.con : null, ident: rep !== null && es.ident, largo: txt.length,
                  /* 02/11 · estructura y bombillos */
                  repetida: rep !== null && es.estado === 'repetida', plantillas: rep !== null ? es.plantillas : 0, frases: es.frases || 0,
                  orden: rep !== null && es.orden, cifraIgual: rep !== null ? es.cifraIgual.length : 0,
-                 b: medible && !gen[i] ? es.b.map(function (q) { return q.e; }) : null,
-                 bd: medible && !gen[i] ? es.b.map(function (q) { return q.d; }) : null };
+                 b: medible && !genC ? es.b.map(function (q) { return q.e; }) : null,
+                 bd: medible && !genC ? es.b.map(function (q) { return q.d; }) : null };
       });
     });
 
@@ -1955,7 +2076,7 @@
     aGerencial: aGerencial, analizar: analizar, nivel: nivel, descuentosLegibles: descuentosLegibles,
     _redaccion: redaccion, _repetido: repetido, _cifrasGestion: cifrasGestion,
     /* 30/10 · kit/variacion.js marca y mide con estas mismas (una sola regla en todo el ecosistema) */
-    _palabras: palabras, _tejas: tejas, _esGeneral: esGeneral,
+    _palabras: palabras, _tejas: tejas, _esGeneral: esGeneral, _esCierre: esCierre,
     /* 02/11 · el motor de estructura y bombillos (uno solo para borrador, revisión, PDF y Excel) */
     _estr: ESTR, _bombillos: BOMBILLOS
   };
