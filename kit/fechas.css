@@ -160,3 +160,9 @@
 @media (prefers-reduced-motion: reduce) {
   .kit-rueda__hoja, .kit-rueda__velo, .kit-rueda__item { transition: none !important; }
 }
+
+/* 17/11 · días marcados en rojo (p. ej. fecha con muchas solicitudes): se ven, pero se pueden elegir */
+.kit-rueda__item--rojo { color: var(--k-malo, #c62828); font-weight: 700; }
+.kit-rueda__item--rojo.sel { color: var(--k-malo, #c62828); }
+.kit-rueda__nota { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 18px 8px; font: 500 12.5px/1.35 var(--k-fuente); color: var(--k-tinta-2, #555); }
+.kit-rueda__nota i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--k-malo, #c62828); }

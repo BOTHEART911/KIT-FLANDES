@@ -1175,6 +1175,42 @@ ${js}
       igual(await page.evaluate(() => KIT.piezas.fechas.montar()), 0);
     });
 
+    /* 17/11 · días en rojo y aviso de volumen (solicitudes a Comunicaciones) */
+    await prueba('data-rojas pinta el día en rojo y deja elegirlo', async () => {
+      const r = await page.evaluate(async () => {
+        const i = document.getElementById('f1'); i.dataset.rojas = '2026-09-21'; i.dataset.notaRojas = 'En rojo: muchas';
+        i.click(); await new Promise(x => setTimeout(x, 120));
+        const rojo = [...document.querySelectorAll('.kit-rueda__col[data-col="dia"] .kit-rueda__item--rojo')].map(e => e.textContent);
+        const nota = !!document.querySelector('.kit-rueda__nota');
+        document.querySelector('.kit-rueda__ok').click(); await new Promise(x => setTimeout(x, 250));
+        delete i.dataset.rojas; delete i.dataset.notaRojas;
+        return [rojo, nota, i.value];
+      });
+      igual(r, [['21'], true, '2026-09-21']);
+    });
+    await prueba('vigilarVolumen: NO deja la fecha; SÍ reabre con la fecha en rojo; no repregunta', async () => {
+      const r = await page.evaluate(async () => {
+        const F = KIT.piezas.fechas, i = document.getElementById('f2'), resp = [];
+        let contesta = false;
+        KIT.piezas.confirmar = { abrir: o => { resp.push(o.texto); return Promise.resolve(contesta); } };
+        F.vigilarVolumen(i, { llenas: { '2026-10-05': 5, '2026-10-06': 4 }, tope: 5 });
+        const elegir = async iso => { i.value = iso; i.dispatchEvent(new Event('change')); await new Promise(x => setTimeout(x, 350)); };
+        await elegir('2026-10-06');                 /* 4: no pregunta */
+        await elegir('2026-10-05');                 /* 5: pregunta, NO */
+        const tras_no = [i.value, !!document.querySelector('.kit-rueda'), i.dataset.rojas || ''];
+        contesta = true; await elegir('2026-10-05'); /* ya avisada: no repregunta */
+        const n1 = resp.length;
+        const j = document.getElementById('f1'); F.vigilarVolumen(j, { llenas: { '2026-10-07': 9 } });
+        j.value = '2026-10-07'; j.dispatchEvent(new Event('change')); await new Promise(x => setTimeout(x, 450));
+        const abierta = !!document.querySelector('.kit-rueda--on');
+        const rojo = [...document.querySelectorAll('.kit-rueda__col[data-col="dia"] .kit-rueda__item--rojo')].map(e => e.textContent);
+        F.cerrar(); await new Promise(x => setTimeout(x, 250));
+        const rj = j.dataset.rojas, f2v = ''; j.value = '2026-09-21'; delete j.dataset.rojas; delete j.dataset.notaRojas; i.value = f2v;
+        return [tras_no, n1, resp.length, abierta, rojo, rj, resp[0] === F.VOLUMEN_TXT];
+      });
+      igual(r, [['2026-10-05', false, ''], 1, 2, true, ['07'], '2026-10-07', true]);
+    });
+
     await prueba('el campo deja de ser type=date (no sale el calendario nativo)', async () => {
       igual(await page.getAttribute('#f1', 'type'), 'text');
     });
@@ -5107,7 +5143,28 @@ ${js}
     });
     await prueba('motor y calidad llevan la versión nueva', async () => {
       const r = await page.evaluate(() => [KIT.piezas.informeCuentas._estr.version, KIT.piezas.calidad.MOTOR]);
-      igual(r, ['E2026.11.12b', 'C2026.11.12d']);
+      igual(r, ['E2026.11.17', 'C2026.11.12d']);
+    });
+    /* 17/11 · solo los marcadores del asistente frenan; los corchetes propios (normas, siglas) no */
+    await prueba('esMarcador: los del asistente sí; normas, siglas y [sic] no', async () => {
+      const r = await page.evaluate(() => { const E = KIT.piezas.informeCuentas._estr;
+        return ['número', 'dependencia o usuarios', 'Pendiente: subir el adjunto de evidencia', 'Nombre de la institución', 'fecha',
+                'NUMERO', 'Ley 80 de 1993', 'Decreto 1082 de 2015', 'SECOP II', 'PQRS', 'sic', '…', 'Art. 5'].map(E.esMarcador); });
+      igual(r, [true, true, true, true, true, true, false, false, false, false, false, false, false]);
+    });
+    await prueba('marcadores(): obligación con dos actividades dice en cuál está cada uno, y acepta < >', async () => {
+      const r = await page.evaluate(() => KIT.piezas.informeCuentas._estr.marcadores(
+        'Se atendieron 12 solicitudes según la [Ley 1755 de 2015].\n\nSe capacitó a [número] funcionarios de la <dependencia> en el [SECOP II].'));
+      igual(r.map(x => x.actividad + ':' + x.m), ['2:[número]', '2:<dependencia>']);
+    });
+    await prueba('un corchete propio (norma) no deja el bombillo en rojo ni se mide en blanco', async () => {
+      const r = await page.evaluate(() => { const R = B('El 20 de septiembre se revisaron 14 expedientes conforme al [Decreto 1082 de 2015] para la Secretaría de Hacienda.');
+        const R2 = B('El 20 de septiembre se revisaron [número] expedientes para la Secretaría de Hacienda.');
+        return [R.corchetes.length, R.b.some(b => b.corchete), R2.corchetes.length, R2.b[1].e]; });
+      igual(r, [0, false, 1, 'rojo']);
+    });
+    await prueba('teayudo.corchetesSinLlenar ya usa la misma regla', async () => {
+      igual(await page.evaluate(() => KIT.piezas.teayudo.corchetesSinLlenar('Con [número] personas según la [Ley 80 de 1993] y [PQRS].')), ['[número]']);
     });
     await prueba('rendimiento: menos de 5 ms por actividad larga', async () => {
       const ms = await page.evaluate(() => {

@@ -745,6 +745,35 @@
      * -> {estado, pct, con, plantillas, orden, ident, b:[6 bombillos], cifraIgual:[], rep:[[i,f]]}
      * bombillo: {k, e:'verde'|'rojo'|'gris'|'amarillo', d (qué detectó), r:[[i,f]]}
      */
+    /* 17/11 · ¿Es un marcador que dejó el asistente («Te ayudo», «Redactemos juntos», Gemini)?
+       Sí: empieza en minúscula ([número], [dependencia o usuarios], <fecha>), es «Pendiente: …», o nombra
+       un dato por llenar ([Nombre de la institución]). No: lleva cifras ([Ley 80 de 1993], [Decreto 1082]),
+       es una sigla en mayúsculas ([SECOP II], [PQRS]) o es una marca editorial ([sic], […]).
+       La MISMA regla vive en el CORE (Marcadores1117.gs · FC1117_esMarcador_): si cambia aquí, cambia allá. */
+    var MARCA_RE = /\[([^\[\]\n]{1,80})\]|<([^<>\n]{1,80})>/g;
+    var MARCA_DATO = /^(n[uú]mero|cantidad|cu[aá]nt|fecha|d[ií]a|mes|hora|nombre|instituci[oó]n|dependencia|entidad|lugar|sitio|sector|vereda|barrio|comunidad|grupo|poblaci[oó]n|beneficiari|participante|destinatari|qui[eé]n|d[oó]nde|cu[aá]ndo|dato|resultado|producto|entregable|evidencia|soporte|listado|registro|acta|informe|documento|tema|objetivo|actividad|completar|llenar|escribir|indicar|describir)/i;
+    function esMarcador(x) {
+      var w = String(x || '').replace(/\s+/g, ' ').trim();
+      if (w.length < 2) return false;
+      if (/^pendiente\s*:/i.test(w)) return true;
+      if (/\d/.test(w)) return false;
+      if (/^(sic|…|\.\.\.|etc\.?)$/i.test(w)) return false;
+      var letras = w.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '');
+      if (!letras) return false;
+      if (letras.length > 1 && letras === letras.toUpperCase()) return MARCA_DATO.test(w);   /* [NUMERO] sí; [SECOP II] no */
+      if (/^[a-záéíóúüñ]/.test(w)) return true;
+      return MARCA_DATO.test(w);
+    }
+    /** Los marcadores del asistente de un texto, con su actividad (párrafo separado por renglón en blanco). */
+    function marcadores(texto) {
+      var out = [], par = String(texto || '').normalize('NFC').replace(/\r/g, '').split(/\n\s*\n/).filter(function (p) { return p.trim(); });
+      par.forEach(function (p, j) {
+        var m; MARCA_RE.lastIndex = 0;
+        while ((m = MARCA_RE.exec(p))) { var x = (m[1] !== undefined ? m[1] : m[2]).trim(); if (esMarcador(x)) out.push({ actividad: j + 1, m: m[0], x: x }); }
+      });
+      return out;
+    }
+
     /** A qué bombillo pertenece un [dato por llenar]. */
     function kDeCorchete(x) {
       var w = st(x).toLowerCase();
@@ -874,8 +903,10 @@
       var t0 = String(texto || '').normalize('NFC').replace(/\u00a0/g, ' ').trim();
       /* 02/11 · «Te ayudo»: lo que está entre [corchetes] es un dato que el contratista aún debe llenar.
          Se mide en blanco (no enciende nada) y deja en rojo el bombillo al que pertenece. */
+      /* 17/11 · solo los MARCADORES DEL ASISTENTE ([número], <fecha>, [Pendiente: …]); lo que el contratista
+         escribe entre corchetes por su cuenta (normas, siglas: [Ley 80 de 1993], [SECOP II]) se mide como texto. */
       var CORCH = [];
-      var t = t0.replace(/\[[^\[\]\n]{1,80}\]/g, function (m0, i0) { CORCH.push({ i: i0, f: i0 + m0.length, x: m0.slice(1, -1).trim() }); return new Array(m0.length + 1).join(' '); });
+      var t = t0.replace(MARCA_RE, function (m0, a, b, i0) { var x = (a !== undefined ? a : b).trim(); if (!esMarcador(x)) return m0; CORCH.push({ i: i0, f: i0 + m0.length, x: x }); return new Array(m0.length + 1).join(' '); });
       var R = { pct: null, con: null, plantillas: 0, frases: 0, orden: false, ident: false, rep: [], cifraIgual: [], b: [], corchetes: CORCH };
       var vacio = !t.trim() || t === '-' || t.length < 3, noreq = !vacio && ((NO_REQ.test(st(t)) && !cifrasCon(t, P.L, P.nC).length) || NO_EJEC.test(st(t)) || noEjecutada(t, P.nC));
       var ultima = ctx.ultima === true || (Number(ctx.total) > 0 && Number(ctx.informe) >= Number(ctx.total));
@@ -1014,7 +1045,7 @@
       return R;
     }
 
-    return { version: 'E2026.11.12b', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete,
+    return { version: 'E2026.11.17', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete, esMarcador: esMarcador, marcadores: marcadores,
              citas: citas, noEjecutada: noEjecutada, gemela: gemela, igualdad: igualdad, U: { N: N, MIN_ESQ: MIN_ESQ, U_EST: U_EST, MIN_FRASE: MIN_FRASE } };
 
   }());

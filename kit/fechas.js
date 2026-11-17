@@ -93,7 +93,7 @@
   function construir(col, items, inicial, alQuedar) {
     col.innerHTML = '<div class="kit-rueda__hueco"></div>' +
       items.map(function (it, i) {
-        return '<div class="kit-rueda__item" data-i="' + i + '">' + K.esc(it.txt) + '</div>';
+        return '<div class="kit-rueda__item' + (it.rojo ? ' kit-rueda__item--rojo' : '') + '" data-i="' + i + '">' + K.esc(it.txt) + '</div>';
       }).join('') +
       '<div class="kit-rueda__hueco"></div>';
     col.__items = items;
@@ -161,8 +161,12 @@
     return out;
   }
   function dias(o, y, m) {
-    var out = [], d, tot = diasDelMes(y, m);
-    for (d = 1; d <= tot; d++) if (dentro(o, y, m, d)) out.push({ v: d, txt: pad(d) });
+    var out = [], d, tot = diasDelMes(y, m), rojas = o.rojas || [];
+    for (d = 1; d <= tot; d++) if (dentro(o, y, m, d)) {
+      var it = { v: d, txt: pad(d) };
+      if (rojas.length && rojas.indexOf(aISO({ y: y, m: m, d: d })) >= 0) it.rojo = true;   /* 17/11 · marcada, no bloqueada */
+      out.push(it);
+    }
     return out;
   }
   function indiceDe(items, valor, pordefecto) {
@@ -225,6 +229,7 @@
       (o.soloAnio ? '' : colHTML('dia') + colHTML('mes')) +
       (conAnio ? colHTML('anio') : '') +
       '    </div>' +
+      (o.notaRojas && (o.rojas || []).length ? '    <p class="kit-rueda__nota"><i aria-hidden="true"></i>' + K.esc(o.notaRojas) + '</p>' : '') +
       '    <footer class="kit-rueda__pie">' +
       '      <button type="button" class="kit-btn kit-rueda__cancelar">Cancelar</button>' +
       '      <button type="button" class="kit-btn kit-btn--marca kit-rueda__ok">Listo</button>' +
@@ -323,6 +328,9 @@
     if (mn) { o.min = mn; if (mn.y > o.anioDesde) o.anioDesde = mn.y; }
     if (mx) { o.max = mx; if (mx.y < o.anioHasta) o.anioHasta = mx.y; }
     if (o.anioHasta < o.anioDesde) o.anioHasta = o.anioDesde;
+    /* 17/11 · data-rojas="aaaa-mm-dd,…": días que se pintan en rojo (se pueden elegir igual) */
+    if (ds.rojas) o.rojas = ds.rojas.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (ds.notaRojas) o.notaRojas = ds.notaRojas;
     return o;
   }
 
@@ -385,6 +393,7 @@
       abrir(o);
     }
 
+    inp.__kitAbrir = abrirla;
     inp.addEventListener('click', abrirla);
     inp.addEventListener('focus', function () { inp.blur(); abrirla(); });
     inp.addEventListener('keydown', function (e) {
@@ -403,8 +412,43 @@
     return n;
   }
 
+  /** 17/11 · vuelve a abrir la rueda de un campo ya montado (p. ej. tras un aviso), en la fecha que tiene. */
+  function reabrir(inp) { if (inp && inp.__kitAbrir) { setTimeout(inp.__kitAbrir, 200); return true; } return false; }
+
+  /**
+   * 17/11 · Aviso de volumen (solicitudes a Comunicaciones). Si el día elegido ya tiene `tope` o más
+   * solicitudes (o.llenas = {aaaa-mm-dd: n}), pregunta si quiere otra fecha:
+   *   NO → se queda la elegida.   SÍ → vuelve a abrir la rueda con ese día en rojo (sin bloquearlo).
+   * Un día que ya se avisó no se vuelve a preguntar.
+   */
+  var VOLUMEN_TXT = 'Para esta fecha ya tenemos un volumen considerable de solicitudes ¿Nos ayudas seleccionando una fecha posterior?';
+  function vigilarVolumen(inp, o) {
+    if (!inp || inp.__kitVolumen) return;
+    inp.__kitVolumen = true;
+    o = o || {};
+    var tope = o.tope || 5, avisadas = {};
+    inp.addEventListener('change', function () {
+      var iso = inp.value, llenas = (typeof o.llenas === 'function' ? o.llenas() : o.llenas) || {};
+      if (!iso || avisadas[iso] || !(Number(llenas[iso]) >= tope)) return;
+      avisadas[iso] = true;
+      var C = K.piezas.confirmar;
+      var pide = C ? C.abrir({ titulo: 'Fecha con muchas solicitudes', texto: o.texto || VOLUMEN_TXT, si: 'Sí', no: 'No' })
+                   : Promise.resolve(window.confirm(o.texto || VOLUMEN_TXT));
+      pide.then(function (si) {
+        if (o.alResponder) try { o.alResponder(si, iso); } catch (e) {}
+        if (!si) return;
+        var r = (inp.dataset.rojas || '').split(',').filter(Boolean);
+        if (r.indexOf(iso) < 0) r.push(iso);
+        inp.dataset.rojas = r.join(',');
+        inp.dataset.notaRojas = 'En rojo: la fecha que tiene muchas solicitudes. Puedes elegirla igual.';
+        reabrir(inp);
+      });
+    });
+  }
+
   K.piezas.fechas = {
-    abrir: abrir, cerrar: cerrar, montar: montar, preparar: preparar,
+    vigilarVolumen: vigilarVolumen, VOLUMEN_TXT: VOLUMEN_TXT,
+    abrir: abrir, cerrar: cerrar, montar: montar, preparar: preparar, reabrir: reabrir,
     aISO: aISO, aTexto: aTexto, deISO: deISO, deTexto: deTexto, meses: MESES
   };
 }());

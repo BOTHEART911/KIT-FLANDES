@@ -371,7 +371,12 @@
     var m = /\[[^\[\]\n]{1,80}\]/.exec(area.value);
     try { area.focus(); if (m) area.setSelectionRange(m.index, m.index + m[0].length); } catch (e) {}
   }
-  function corchetesSinLlenar(texto) { return (String(texto || '').match(/\[[^\[\]\n]{1,80}\]/g) || []); }
+  /* 17/11 · solo los marcadores del asistente (la regla vive en el motor: informeCuentas._estr.marcadores) */
+  function corchetesSinLlenar(texto) {
+    var I = K.piezas.informeCuentas, f = I && I._estr && I._estr.marcadores;
+    if (f) return f(texto).map(function (x) { return x.m; });
+    return (String(texto || '').match(/\[[^\[\]\n]{1,80}\]/g) || []);
+  }
 
   /* ══════════════ 5 · 05/11 · EL BOMBILLO ROJO EN LA REVISIÓN ══════════════
      Supervisión y Contratación tocan un bombillo en rojo (o en ámbar) y ven:
