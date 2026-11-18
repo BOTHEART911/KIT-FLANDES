@@ -77,6 +77,11 @@ Reglas:
 - Sin rebotes, sin respiraciones de sombra, sin brillos que cruzan.
 - Puntos que laten solo para estados en vivo de verdad: sin conexión,
   red lenta, «pensando» o «escribiendo» del asistente.
+- **El cielo (aurora y globos, `kit/cielo.js`) va en la tarjeta verde de la
+  tarea principal del inicio de cada app** (decisión de Oscar, 18/11/2026),
+  con 4 globos. Es la misma animación de la portada de instalación: lenta,
+  solo `transform` y `opacity`, y se detiene con `prefers-reduced-motion`.
+  No se pone en listas, formularios ni barras con menús.
 - Todo respeta `prefers-reduced-motion`.
 
 ## 7. Patrones de pantalla
@@ -84,7 +89,7 @@ Reglas:
 **Inicio de cada rol (patrón aprobado el 18/11/2026):**
 1. Saludo y datos del contrato o del rol, en una línea.
 2. Tarjeta grande en marca con **la tarea en curso**: qué es, en qué
-   paso va, cuánto falta y el botón para seguir.
+   paso va, cuánto falta y el botón para seguir. Lleva el cielo animado.
 3. El resultado reciente más útil (por ejemplo, la última cuenta pagada).
 4. Cuatro accesos rápidos en rejilla 2×2 (4×1 en PC).
 5. Avisos que piden acción (franja de atención con texto claro).
