@@ -4960,6 +4960,205 @@ ${js}
     await ctx.close();
   }
 
+  /* 18/11 · DICTADO Y UNA SOLICITUD A LA VEZ: el modal se edita si hay una pendiente de respuesta. */
+  grupo('soporte1118');
+  {
+    const { page, ctx } = await pagina(browser, ['soporte', 'adjuntos', 'imagenes', 'esqueletos', 'personas', 'voz']);
+    /* reconocimiento de voz falso: entrega frases y "se corta" como en el teléfono tras cada pausa */
+    await page.evaluate(() => {
+      window.__frases = [];
+      window.__vivos = 0;
+      window.SpeechRecognition = window.webkitSpeechRecognition = function () {
+        const r = this; window.__vivos++;
+        r.start = function () {
+          setTimeout(() => {
+            const f = window.__frases.shift();
+            if (f && r.onresult) r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: f }], { isFinal: true })] });
+            setTimeout(() => { if (r.onend) r.onend(); }, 30);   /* la pausa: el navegador termina solo */
+          }, 30);
+        };
+        r.stop = function () { setTimeout(() => { if (r.onend) r.onend(); }, 10); };
+      };
+    });
+    const limpiar = () => page.evaluate(() => {
+      document.querySelectorAll('.kit-capa').forEach(x => x.remove());
+      document.querySelectorAll('.kit-aviso').forEach(x => x.remove());
+      KIT.piezas.voz.parar();
+      KIT.piezas.soporte.pendientes({ pendientes: [], abierto: null });
+      window.__frases = [];
+    });
+    const CASO = { id: 'SOP0075', app: 'CONTRATISTA', estado: 'PENDIENTE', fecha: '17/11/2026 15:41:56', solicitud: 'Que debo hacer ?', fotos: 1 };
+
+    await prueba('dictado: no se corta con las pausas, escribe en el campo y no envía nada', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        const P = []; KIT.pedir = (a, d) => { P.push(a); return Promise.resolve({ id: 'SOP0099' }); };
+        KIT.piezas.soporte.abrir({});
+        const mic = document.querySelector('.kit-sop__mic');
+        const visible = !mic.hidden;
+        window.__frases = ['no me deja subir la cuenta', 'sale un error de cufe', 'en el paso de la factura'];
+        mic.click();
+        await new Promise(r => setTimeout(r, 900));        /* tres pausas: se reencendió solo */
+        const t = document.querySelector('.kit-sop textarea').value;
+        const sigue = mic.classList.contains('kit-sop__mic--on');
+        mic.click();
+        await new Promise(r => setTimeout(r, 200));
+        return [visible, t, sigue, P.length, mic.classList.contains('kit-sop__mic--on'), window.__vivos >= 3];
+      });
+      igual(r, [true, 'No me deja subir la cuenta sale un error de cufe en el paso de la factura', true, 0, false, true]);
+    });
+
+    await prueba('Enviar mientras dicta: cierra el dictado y envía UNA vez con todo el texto', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        const P = []; KIT.pedir = (a, d) => { P.push([a, d.mensaje]); return Promise.resolve({ id: 'SOP0099' }); };
+        KIT.piezas.soporte.abrir({});
+        const ta = document.querySelector('.kit-sop textarea');
+        ta.value = 'Estaba radicando la cuenta 4';
+        window.__frases = ['y me pide el cufe'];
+        document.querySelector('.kit-sop__mic').click();
+        await new Promise(r => setTimeout(r, 120));
+        const si = document.querySelector('.kit-sop__si');
+        si.click(); si.click(); si.click();
+        await new Promise(r => setTimeout(r, 400));
+        return P;
+      });
+      igual(r, [['soporte', 'Estaba radicando la cuenta 4. Y me pide el cufe']]);
+    });
+
+    await prueba('tras enviar, Soporte abre en EDITAR esa misma (sin viaje al servidor)', async () => {
+      const r = await page.evaluate(async () => {
+        let n = 0; KIT.pedir = () => { n++; return new Promise(() => {}); };
+        KIT.piezas.soporte.abrir({});
+        const h = document.querySelector('.kit-sop--editar');
+        return [!!h, h && h.querySelector('.kit-capa__h').textContent.trim(), h && h.querySelector('textarea').value, n, KIT.piezas.soporte.abierto().id];
+      });
+      igual(r, [true, 'Editar tu solicitud SOP0099', 'Estaba radicando la cuenta 4. Y me pide el cufe', 0, 'SOP0099']);
+    });
+
+    await prueba('con _soporte.abierto del arranque: abre editar, dice por qué y respeta el cupo de fotos', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        KIT.piezas.soporte.pendientes({ pendientes: [], abierto: caso });
+        KIT.piezas.soporte.abrir({});
+        const h = document.querySelector('.kit-sop--editar');
+        return [/sigue esperando respuesta/.test(h.textContent) && /no puedes enviar otra/.test(h.textContent),
+                h.querySelector('textarea').value, h.querySelector('.kit-sop__fotos .kit-sop__et').textContent,
+                !!h.querySelector('.kit-sop__mic'), document.querySelectorAll('.kit-sop').length];
+      }, CASO);
+      igual(r, [true, 'Que debo hacer ?', 'Ya tiene 1 foto. Puedes agregar hasta 2', true, 1]);
+    });
+
+    await prueba('editar: manda soporteEditar con el id y el texto nuevo, y queda la versión nueva', async () => {
+      const r = await page.evaluate(async () => {
+        const P = []; KIT.pedir = (a, d) => { P.push([a, d.id, d.mensaje, d.fotos.length]); return Promise.resolve({ cambio: true, avisado: true, caso: { id: d.id, app: 'CONTRATISTA', estado: 'PENDIENTE', solicitud: d.mensaje, fotos: 1 } }); };
+        const ta = document.querySelector('.kit-sop--editar textarea');
+        ta.value = 'Me piden el CUFE al radicar la cuenta 4 y no manejo factura electrónica. ¿Qué pongo?';
+        const si = document.querySelector('.kit-sop--editar .kit-sop__si');
+        si.click(); si.click();
+        await new Promise(r => setTimeout(r, 200));
+        return [P, !document.querySelector('.kit-sop--editar'), KIT.piezas.soporte.abierto().solicitud.indexOf('CUFE') > 0,
+                !!document.querySelector('.kit-aviso') && /actualizamos tu solicitud SOP0075/.test(document.body.textContent)];
+      });
+      igual(r, [[['soporteEditar', 'SOP0075', 'Me piden el CUFE al radicar la cuenta 4 y no manejo factura electrónica. ¿Qué pongo?', 0]], true, true, true]);
+    });
+
+    await prueba('editar sin cambios no viaja al servidor', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        let n = 0; KIT.pedir = () => { n++; return Promise.resolve({}); };
+        KIT.piezas.soporte.editar(caso);
+        document.querySelector('.kit-sop--editar .kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 100));
+        return [n, !document.querySelector('.kit-sop--editar')];
+      }, CASO);
+      igual(r, [0, true]);
+    });
+
+    await prueba('el CORE dice SOPORTE_ABIERTO al crear: pasa a editar esa con lo nuevo al final', async () => {
+      await limpiar();
+      const r = await page.evaluate(async (caso) => {
+        KIT.pedir = (a) => { if (a !== 'soporte') return Promise.resolve({}); const e = new Error('abierta'); e.codigo = 'SOPORTE_ABIERTO'; e.datos = { caso: caso }; return Promise.reject(e); };
+        KIT.piezas.soporte.abrir({});
+        document.querySelector('.kit-sop textarea').value = 'Además no me deja subir la planilla';
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const h = document.querySelector('.kit-sop--editar');
+        return [!!h, h && h.querySelector('textarea').value, h && /agregamos aquí lo que acabas de escribir/.test(h.textContent), document.querySelectorAll('.kit-sop').length];
+      }, CASO);
+      igual(r, [true, 'Que debo hacer ?\n\nAdemás no me deja subir la planilla', true, 1]);
+    });
+
+    await prueba('ya respondida (SOPORTE_NO_EDITABLE): se ofrece «Enviar como nueva» con el texto', async () => {
+      const r = await page.evaluate(async () => {
+        const P = [];
+        KIT.pedir = (a, d) => { P.push(a); if (a === 'soporteEditar') { const e = new Error('Ya tiene respuesta'); e.codigo = 'SOPORTE_NO_EDITABLE'; return Promise.reject(e); } return Promise.resolve({ id: 'SOP0101' }); };
+        document.querySelector('.kit-sop--editar .kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        const b = [...document.querySelectorAll('.kit-sop--editar .kit-btn')].find(x => /Enviar como nueva/.test(x.textContent));
+        const ab = KIT.piezas.soporte.abierto();
+        b.click();
+        const nuevo = document.querySelector('.kit-sop:not(.kit-sop--editar) textarea');
+        const txt = nuevo && nuevo.value;
+        document.querySelector('.kit-sop__si').click();
+        await new Promise(r => setTimeout(r, 150));
+        return [!!b, ab, txt, P];
+      });
+      igual(r, [true, null, 'Que debo hacer ?\n\nAdemás no me deja subir la planilla', ['soporteEditar', 'soporte']]);
+    });
+
+    await prueba('Mis solicitudes: botón Editar en la pendiente y la lista actualiza el estado local', async () => {
+      await limpiar();
+      const r = await page.evaluate(async () => {
+        KIT.pedir = () => Promise.resolve({ lista: [
+          { id: 'SOP0080', app: 'CONTRATISTA', estado: 'PENDIENTE', fecha: '18/11/2026 07:00:00', solicitud: 'No carga el inicio de la app', fotos: 2, editable: true },
+          { id: 'SOP0070', app: 'CONTRATISTA', estado: 'CERRADO', fecha: '10/11/2026', solicitud: 'Otra', estrellas: 5 }], total: 2 });
+        KIT.piezas.soporte.mias();
+        await new Promise(r => setTimeout(r, 300));
+        const bs = [...document.querySelectorAll('.kit-mias__c')].map(c => !![...c.querySelectorAll('button')].find(b => /Editar/.test(b.textContent)));
+        const ab = KIT.piezas.soporte.abierto() && KIT.piezas.soporte.abierto().id;
+        [...document.querySelectorAll('.kit-mias__c button')].find(b => /Editar/.test(b.textContent)).click();
+        const h = document.querySelector('.kit-sop--editar');
+        return [bs, ab, h && h.querySelector('textarea').value, h && h.querySelector('.kit-sop__fotos .kit-sop__et').textContent];
+      });
+      igual(r, [[true, false], 'SOP0080', 'No carga el inicio de la app', 'Ya tiene 2 fotos. Puedes agregar 1 más']);
+    });
+
+    await prueba('el arranque dice abierto:null (ya respondieron): vuelve el formulario normal', async () => {
+      await limpiar();
+      const r = await page.evaluate((caso) => {
+        KIT.piezas.soporte.pendientes({ pendientes: [], abierto: caso });
+        KIT.piezas.soporte.pendientes({ pendientes: [], abierto: null });
+        KIT.piezas.soporte.abrir({});
+        return [!!document.querySelector('.kit-sop--editar'), document.querySelector('.kit-sop .kit-capa__h').textContent.trim()];
+      }, CASO);
+      igual(r, [false, 'Contar un problema']);
+    });
+
+    await prueba('sin reconocimiento de voz: no aparece el micrófono y no falla', async () => {
+      await limpiar();
+      const r = await page.evaluate(() => {
+        const V = window.webkitSpeechRecognition; window.webkitSpeechRecognition = undefined; window.SpeechRecognition = undefined;
+        KIT.piezas.soporte.abrir({});
+        const out = document.querySelector('.kit-sop__mic').hidden;
+        window.SpeechRecognition = window.webkitSpeechRecognition = V;
+        return out;
+      });
+      igual(r, true);
+    });
+
+    await prueba('el texto de la pendiente entra como texto, no como HTML', async () => {
+      await limpiar();
+      const r = await page.evaluate(() => {
+        KIT.piezas.soporte.editar({ id: '<b>X</b>', app: 'CONTRATISTA', estado: 'PENDIENTE', solicitud: '<img src=x onerror="window.__xss3=1">', fotos: 0 });
+        return [!!window.__xss3, !document.querySelector('.kit-sop--editar img'), !document.querySelector('.kit-sop--editar .kit-capa__h b')];
+      });
+      igual(r, [false, true, true]);
+    });
+
+    await ctx.close();
+  }
+
   /* 12/11 · LECTURA DEL MOTOR: citas, no ejecutadas, cifras que no son cantidades, misma actividad en dos
      obligaciones, tildes sueltas. Fragmentos tomados de cuentas reales del libro (sin nombres). */
   grupo('lectura1112');

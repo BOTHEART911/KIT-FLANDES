@@ -49,6 +49,22 @@
        otro: si sigue abierto, "Agregar a SOP…" (lo nuevo y las fotos van a
        ese caso, ruta soporteInsistir); si está resuelto, "Calificar".
 
+   18/11 · DICTADO Y UNA SOLICITUD A LA VEZ (todas las apps menos ADMIN)
+     · DICTADO: junto a «¿Qué pasó?» hay un micrófono (kit/voz.js, el mismo
+       de «Redactemos»). Escucha de corrido: las pausas no lo cortan; lo que
+       dice se va escribiendo en el campo y NADA se envía hasta tocar Enviar
+       (si sigue dictando al tocarlo, primero se cierra el dictado). Sin
+       reconocimiento de voz en el navegador, no aparece.
+     · UNA A LA VEZ: el CORE pega a 'inicio' `_soporte.abierto` (la solicitud
+       propia que sigue esperando respuesta, o null). Si hay una, el modal abre
+       en modo EDITAR esa misma (texto, dictado y fotos hasta completar 3) y no
+       deja enviar otra. Cuando soporte responde, vuelve el formulario normal.
+       El CORE también lo valida: SOPORTE_ABIERTO al crear (el modal pasa a
+       editar, con lo nuevo agregado al final) y SOPORTE_NO_EDITABLE al editar
+       una que ya respondieron (se ofrece enviarla como nueva).
+
+       KIT.piezas.soporte.editar(caso);  KIT.piezas.soporte.abierto();
+
    Pareja: kit/soporte.css
    ============================================================ */
 (function () {
@@ -74,8 +90,86 @@
     return d;
   }
 
+  /* 18/11 · la solicitud propia pendiente de respuesta: undefined = no se sabe
+     (el CORE no la mandó), null = no hay, objeto = {id, solicitud, fotos, ...} */
+  var ABIERTO;
+  var MAX_TEXTO = 3000;
+  /* en el teléfono no se abre el teclado solo (tapa el modal); en el computador sí se enfoca */
+  function tactil() { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
+
+  /**
+   * 18/11 · DICTADO en el campo de la solicitud. Usa K.piezas.voz.dictar
+   * (escucha de corrido, se reenciende tras las pausas). Escribe en el campo;
+   * nunca envía. terminar() cierra el dictado y espera el último texto.
+   */
+  function montarDictado(hoja, area) {
+    var V = K.piezas.voz;
+    var nada = { terminar: function () { return Promise.resolve(); }, activo: function () { return false; }, cerrar: function () {} };
+    var b = hoja.querySelector('.kit-sop__mic'), nota = hoja.querySelector('.kit-sop__nota');
+    if (!b || !V || !V.hay || !V.hay()) { if (b) b.hidden = true; return nada; }
+    b.hidden = false;
+    var dict = null, alTerminar = [];
+    function decir(t) { nota.textContent = t || ''; nota.hidden = !t; }
+    function apagado() {
+      b.classList.remove('kit-sop__mic--on');
+      b.setAttribute('aria-pressed', 'false');
+      b.querySelector('span').textContent = 'Dictar';
+    }
+    function limpio(t) { return String(t || '').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').trim(); }
+    b.addEventListener('click', function () {
+      if (dict) { dict.parar(); return; }
+      var base = String(area.value || '').replace(/\s+$/, '');
+      var sep = base ? (/[.!?:]$/.test(base) ? ' ' : '. ') : '';
+      b.classList.add('kit-sop__mic--on');
+      b.setAttribute('aria-pressed', 'true');
+      b.querySelector('span').textContent = 'Detener';
+      decir('Te escucho. Puedes hacer pausas: nada se envía hasta que toques Enviar.');
+      K.vibrar && K.vibrar(8);
+      dict = V.dictar({
+        alTexto: function (t) {
+          var txt = t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+          area.value = limpio(base + sep + txt).slice(0, MAX_TEXTO);
+          area.scrollTop = area.scrollHeight;
+        },
+        alFin: function (t, err) {
+          dict = null; apagado();
+          if (err === 'BLOQUEADO') { b.hidden = true; decir('El micrófono está bloqueado en este navegador. Escribe tu solicitud.'); }
+          else if (err === 'SIN_VOZ') { b.hidden = true; decir(''); }
+          else if (!t) decir('No te escuché. Toca Dictar otra vez o escríbelo.');
+          else decir('Revisa el texto y corrígelo si hace falta. Para seguir dictando, toca Dictar.');
+          var l = alTerminar; alTerminar = [];
+          l.forEach(function (f) { try { f(); } catch (e) {} });
+        }
+      });
+    });
+    return {
+      activo: function () { return !!dict; },
+      terminar: function () {
+        if (!dict) return Promise.resolve();
+        return new Promise(function (ok) {
+          alTerminar.push(ok);
+          dict.parar();
+          setTimeout(ok, 2500);   /* el navegador no avisó: se sigue con lo que ya está escrito */
+        });
+      },
+      cerrar: function () { if (dict) { alTerminar = []; dict.parar(); } }
+    };
+  }
+
+  /** El campo de texto con su micrófono (mismo marcado en nuevo y en editar). */
+  function campoHtml(titulo, placeholder) {
+    return '<div class="kit-sop__campo">' +
+      '  <div class="kit-sop__cab"><label for="kitSopTxt">' + K.esc(titulo) + '</label>' +
+      '    <button type="button" class="kit-sop__mic" aria-pressed="false" hidden>' + K.icono('microfono', 16) + '<span>Dictar</span></button></div>' +
+      '  <textarea id="kitSopTxt" rows="4" maxlength="' + MAX_TEXTO + '" placeholder="' + K.esc(placeholder) + '"></textarea>' +
+      '  <p class="kit-sop__nota" aria-live="polite" hidden></p>' +
+      '</div>';
+  }
+
   function abrir(opciones) {
     opciones = opciones || {};
+    /* 18/11 · con una solicitud pendiente de respuesta no se abre otra: se edita esa */
+    if (ABIERTO && !opciones.nueva) return editar(ABIERTO, { agregar: opciones.texto });
     var ctx = contexto(opciones);
     var adj = null;
 
@@ -86,10 +180,7 @@
       '    <header class="kit-capa__h">Contar un problema<button type="button" class="kit-capa__x">' + K.icono('cerrar', 18) + '</button></header>' +
       '    <div class="kit-capa__cuerpo kit-sop__cuerpo">' +
       '      <button type="button" class="kit-sop__mias">' + K.icono('reloj', 16) + '<span>Ver mis solicitudes y su respuesta</span>' + K.icono('adelante', 14) + '</button>' +
-      '      <label class="kit-sop__campo">' +
-      '        <span>¿Qué pasó?</span>' +
-      '        <textarea rows="4" placeholder="Qué estabas haciendo y qué salió mal. Entre más concreto, más rápido se arregla."></textarea>' +
-      '      </label>' +
+      campoHtml('¿Qué pasó?', 'Qué estabas haciendo, qué tocaste y qué salió mal. Cuéntalo todo en esta solicitud: mientras no te respondan, no se puede enviar otra.') +
       '      <div class="kit-sop__fotos">' +
       '        <span class="kit-sop__et">Fotos o capturas (hasta ' + MAX_FOTOS + ')</span>' +
       '        <div class="kit-sop__zona"></div>' +
@@ -128,13 +219,14 @@
 
     var texto = hoja.querySelector('textarea');
     /* 24/10 · el asistente abre el soporte con la pregunta ya escrita */
-    if (opciones.texto) texto.value = String(opciones.texto).slice(0, 600);
+    if (opciones.texto) texto.value = String(opciones.texto).slice(0, MAX_TEXTO);
+    var dic = montarDictado(hoja, texto);
     var err = hoja.querySelector('.kit-sop__error');
     function marcar(t) {
       err.textContent = t || '';
       err.classList.toggle('kit-sop__error--on', !!t);
     }
-    function fuera() { if (adj) adj.desmontar(); hoja.remove(); }
+    function fuera() { dic.cerrar(); if (adj) adj.desmontar(); hoja.remove(); }
 
     hoja.querySelector('.kit-capa__x').addEventListener('click', fuera);
     hoja.querySelector('.kit-sop__no').addEventListener('click', fuera);
@@ -143,28 +235,44 @@
 
     hoja.querySelector('.kit-sop__si').addEventListener('click', function () {
       var b = this;
-      var msj = String(texto.value || '').trim();
-      if (msj.length < 10) return marcar('Cuéntame un poco más: con diez letras no se puede buscar el problema.');
-
-      marcar('');
+      if (b.disabled) return;
+      /* escudo desde el primer toque; si sigue dictando, primero se cierra el dictado */
       b.disabled = true;
       b.classList.add('kit-ocupado');
+      dic.terminar().then(function () {
+      var msj = String(texto.value || '').trim();
+      if (msj.length < 10) {
+        b.disabled = false; b.classList.remove('kit-ocupado');
+        return marcar('Cuéntame un poco más: con diez letras no se puede buscar el problema.');
+      }
+      marcar('');
 
       fotosListas(adj)
         .then(function (fotos) {
           return K.pedir('soporte', { mensaje: msj, contexto: ctx, fotos: fotos }, { ms: 90000 });
         })
         .then(function (r) {
+          var nf = adj && adj.archivos ? adj.archivos().length : 0;
           fuera();
+          /* 18/11 · queda como la pendiente: hasta que respondan, Soporte abre en editar */
+          if (r && r.id && K.app !== 'ADMIN') ABIERTO = { id: r.id, app: K.app, estado: 'PENDIENTE', fecha: ctx.cuando, solicitud: msj, fotos: Math.min(nf, MAX_FOTOS) };
           /* 5.1.1: el CORE guarda en la hoja SOPORTE y avisa al grupo de
              desarrollo. Se le da a la persona el número para que pueda
              preguntar por él. */
           var n = r && r.id ? ' Tu número es ' + r.id + '.' : '';
-          K.aviso('Tu solicitud quedó registrada y llegó a soporte.' + n, 'ok', 7000);
+          K.aviso('Tu solicitud quedó registrada y llegó a soporte.' + n + (K.app !== 'ADMIN' ? ' Si quieres agregar algo mientras te responden, edítala desde Soporte.' : ''), 'ok', 8000);
         })
         .catch(function (e) {
           b.disabled = false;
           b.classList.remove('kit-ocupado');
+          /* 18/11 · ya tiene una pendiente de respuesta: se pasa a editar esa, con lo nuevo al final */
+          if (e && e.codigo === 'SOPORTE_ABIERTO' && e.datos && e.datos.caso) {
+            ABIERTO = e.datos.caso;
+            var previas = adj && adj.archivos ? adj.archivos().slice() : [];
+            fuera();
+            editar(e.datos.caso, { agregar: msj, archivos: previas, aviso: true });
+            return;
+          }
           /* 05/11 · ya tiene ese mismo caso abierto: se le muestra, no se crea otro */
           if (e && e.codigo === 'SOPORTE_REPETIDO' && e.datos && e.datos.caso) {
             repetido(hoja, e.datos.caso, msj, adj, fuera);
@@ -175,9 +283,131 @@
           marcar('No se pudo enviar por la aplicación. Puedes mandarlo por WhatsApp.');
           porWhatsapp(msj, ctx, hoja);
         });
+      });
     });
 
-    setTimeout(function () { texto.focus(); }, 80);
+    setTimeout(function () { if (!tactil()) texto.focus(); }, 80);
+    return { cerrar: fuera };
+  }
+
+  /**
+   * 18/11 · EDITAR la solicitud que sigue pendiente de respuesta.
+   * o = { agregar: texto nuevo que se suma al final, archivos: [File] que ya
+   *       había escogido (van si caben), aviso: true si llegó por SOPORTE_ABIERTO }
+   */
+  function editar(caso, o) {
+    o = o || {};
+    caso = caso || {};
+    var libres = Math.max(0, MAX_FOTOS - (Number(caso.fotos) || 0));
+    var previas = (o.archivos || []).slice(0, libres);
+    var adj = null;
+    var hoja = K.nodo(
+      '<div class="kit-capa kit-sop kit-sop--editar kit-capa--on" role="dialog" aria-modal="true">' +
+      '  <div class="kit-capa__velo"></div>' +
+      '  <section class="kit-capa__hoja kit-sop__hoja">' +
+      '    <header class="kit-capa__h"><span></span><button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></header>' +
+      '    <div class="kit-capa__cuerpo kit-sop__cuerpo">' +
+      '      <div class="kit-sop-ed__aviso">' + K.icono('reloj', 18) + '<p></p></div>' +
+      '      <p class="kit-sop-ed__meta"></p>' +
+      campoHtml('Tu solicitud', 'Cuenta qué estabas haciendo, qué tocaste y qué salió mal.') +
+      '      <div class="kit-sop__fotos">' +
+      '        <span class="kit-sop__et"></span>' +
+      '        <div class="kit-sop__zona"></div>' +
+      '      </div>' +
+      '      <button type="button" class="kit-sop__mias">' + K.icono('reloj', 16) + '<span>Ver mis solicitudes y su respuesta</span>' + K.icono('adelante', 14) + '</button>' +
+      '      <p class="kit-sop__error" role="alert"></p>' +
+      '    </div>' +
+      '    <footer class="kit-capa__pie">' +
+      '      <button type="button" class="kit-btn kit-sop__no">Cancelar</button>' +
+      '      <button type="button" class="kit-btn kit-btn--marca kit-sop__si">' + K.icono('lapiz', 16) + ' Guardar cambios</button>' +
+      '    </footer>' +
+      '  </section>' +
+      '</div>');
+    hoja.querySelector('.kit-capa__h span').textContent = 'Editar tu solicitud ' + dato(caso.id);
+    hoja.querySelector('.kit-sop-ed__aviso p').textContent = (o.aviso
+      ? 'Ya tienes la solicitud ' + dato(caso.id) + ' esperando respuesta. Para que soporte la atienda completa, agregamos aquí lo que acabas de escribir: revísala y guarda los cambios.'
+      : 'Tu solicitud ' + dato(caso.id) + ' sigue esperando respuesta. Mientras soporte no la responda no puedes enviar otra: si quieres contar algo más o corregirla, edítala aquí y guarda los cambios.');
+    hoja.querySelector('.kit-sop-ed__meta').textContent = [APP_T[caso.app] || caso.app, caso.fecha ? 'enviada ' + caso.fecha : '', caso.estado === 'REABIERTO' ? 'la volviste a abrir' : 'pendiente de respuesta'].filter(Boolean).join(' · ');
+    var texto = hoja.querySelector('textarea');
+    var original = dato(caso.solicitud);
+    var extra = String(o.agregar || '').trim();
+    texto.value = (original + (extra && original.indexOf(extra) < 0 ? '\n\n' + extra : '')).slice(0, MAX_TEXTO);
+    var dic = montarDictado(hoja, texto);
+    var err = hoja.querySelector('.kit-sop__error');
+    function marcar(t) { err.textContent = t || ''; err.classList.toggle('kit-sop__error--on', !!t); }
+
+    var et = hoja.querySelector('.kit-sop__fotos .kit-sop__et');
+    var cupo = libres - previas.length;      /* las que ya había escogido ocupan su lugar */
+    var yaTiene = Number(caso.fotos) || 0;
+    if (!cupo || !K.piezas.adjuntos) {
+      et.textContent = yaTiene ? 'Ya tiene ' + yaTiene + (yaTiene === 1 ? ' foto' : ' fotos') + (cupo ? '' : ': no caben más.') : '';
+      hoja.querySelector('.kit-sop__zona').remove();
+      if (!yaTiene && !previas.length) hoja.querySelector('.kit-sop__fotos').classList.add('kit-oculto');
+    } else {
+      et.textContent = (yaTiene ? 'Ya tiene ' + yaTiene + (yaTiene === 1 ? ' foto' : ' fotos') + '. ' : '') + 'Puedes agregar ' + (cupo === 1 ? '1 más' : 'hasta ' + cupo);
+      adj = K.piezas.adjuntos.montar(hoja.querySelector('.kit-sop__zona'), { acepta: 'image/*', varios: cupo > 1, maximo: cupo, maximoMB: 6 });
+    }
+    if (previas.length) hoja.querySelector('.kit-sop__fotos').appendChild(K.nodo('<p class="kit-sop-rep__nota">Se agregan también ' + (previas.length === 1 ? 'la captura' : 'las ' + previas.length + ' capturas') + ' que habías escogido.</p>'));
+    if ((o.archivos || []).length > libres) hoja.querySelector('.kit-sop__fotos').appendChild(K.nodo('<p class="kit-sop-rep__nota">Algunas capturas no caben: son máximo ' + MAX_FOTOS + ' por solicitud.</p>'));
+
+    /* el arranque trae el texto recortado si es muy largo: se trae completo antes de editar */
+    var listo = Promise.resolve();
+    if (caso.largo && caso.largo > original.length) {
+      texto.disabled = true;
+      listo = K.pedir('soporteAbierta', {}, { ms: 30000 }).then(function (r) {
+        if (r && r.caso && r.caso.id === caso.id) {
+          original = r.caso.solicitud; caso = r.caso; ABIERTO = r.caso;
+          texto.value = (original + (extra && original.indexOf(extra) < 0 ? '\n\n' + extra : '')).slice(0, MAX_TEXTO);
+        }
+      }, function () {}).then(function () { texto.disabled = false; });
+    }
+
+    var cerrado = false;
+    function fuera() { if (cerrado) return; cerrado = true; document.removeEventListener('keydown', tecla); dic.cerrar(); if (adj) adj.desmontar(); hoja.remove(); }
+    function tecla(e) { if (e.key === 'Escape') fuera(); }
+    document.addEventListener('keydown', tecla);
+    hoja.querySelector('.kit-capa__x').addEventListener('click', fuera);
+    hoja.querySelector('.kit-sop__no').addEventListener('click', fuera);
+    hoja.querySelector('.kit-capa__velo').addEventListener('click', fuera);
+    hoja.querySelector('.kit-sop__mias').addEventListener('click', function () { fuera(); mias(); });
+
+    var si = hoja.querySelector('.kit-sop__si');
+    si.addEventListener('click', function () {
+      if (si.disabled) return;
+      si.disabled = true;
+      si.classList.add('kit-ocupado');
+      function soltar() { si.disabled = false; si.classList.remove('kit-ocupado'); }
+      Promise.all([dic.terminar(), listo]).then(function () {
+        var msj = String(texto.value || '').trim();
+        var nFotos = (adj && adj.archivos ? adj.archivos().length : 0) + previas.length;
+        if (msj.length < 10) { soltar(); return marcar('Cuéntame un poco más: con diez letras no se puede buscar el problema.'); }
+        if (msj === original.trim() && !nFotos) { soltar(); fuera(); K.aviso('No cambiaste nada: tu solicitud ' + caso.id + ' sigue igual.', 'info', 4500); return; }
+        marcar('');
+        fotosListas(adj, previas)
+          .then(function (fotos) { return K.pedir('soporteEditar', { id: caso.id, mensaje: msj, fotos: fotos }, { ms: 90000 }); })
+          .then(function (r) {
+            fuera();
+            if (r && r.caso) ABIERTO = r.caso;
+            K.aviso('Listo: actualizamos tu solicitud ' + caso.id + (r && (r.avisado || r.yaAvisado) ? ' y soporte ya tiene lo nuevo.' : '.'), 'ok', 6500);
+          }, function (e) {
+            soltar();
+            if (e && e.codigo === 'SOPORTE_NO_EDITABLE') {
+              ABIERTO = null;
+              marcar((e && e.message) || 'Soporte ya respondió esa solicitud.');
+              var pie = hoja.querySelector('.kit-capa__pie');
+              si.remove();
+              var nueva = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('mas', 16) + ' Enviar como nueva</button>');
+              nueva.addEventListener('click', function () { fuera(); abrir({ texto: msj, nueva: true }); });
+              pie.appendChild(nueva);
+              return;
+            }
+            marcar((e && e.message) || 'No se pudo guardar. Intenta otra vez.');
+          });
+      });
+    });
+
+    document.body.appendChild(hoja);
+    setTimeout(function () { if (!tactil()) { texto.focus(); try { texto.setSelectionRange(texto.value.length, texto.value.length); } catch (e) {} } }, 80);
     return { cerrar: fuera };
   }
 
@@ -187,11 +417,21 @@
    * de imágenes está cargada, cada foto se pasa a JPEG de 1.600 px antes de
    * salir (la misma regla de las evidencias); si no, va tal cual.
    */
-  function fotosListas(adj) {
-    if (!adj) return Promise.resolve([]);
+  function fotosListas(adj, sueltas) {
     var I = K.piezas.imagenes;
-    var lista = adj.archivos ? adj.archivos() : [];
-    if (!I || !I.preparar || !lista.length) return adj.aBase64();
+    var lista = (adj && adj.archivos ? adj.archivos() : []).concat(sueltas || []);
+    if (!lista.length) return Promise.resolve([]);
+    if (!I || !I.preparar) {
+      if (adj && !(sueltas && sueltas.length)) return adj.aBase64();
+      return Promise.all(lista.map(function (f, i) {
+        return new Promise(function (ok, no) {
+          var lr = new FileReader();
+          lr.onload = function () { var u = String(lr.result); ok({ nombre: f.name || ('captura-' + (i + 1)), tipo: f.type || 'image/jpeg', datos: u.slice(u.indexOf(',') + 1) }); };
+          lr.onerror = function () { no(new Error('No se pudo leer la foto ' + (i + 1) + '.')); };
+          lr.readAsDataURL(f);
+        });
+      }));
+    }
     return Promise.all(lista.map(function (f, i) {
       return I.preparar(f).then(function (r) {
         return { nombre: 'captura-' + (i + 1) + '.jpg', tipo: 'image/jpeg', datos: String(r.dataUrl).slice(String(r.dataUrl).indexOf(',') + 1) };
@@ -314,6 +554,8 @@
     d = d || {};
     ['reabreHasta', 'comentarioHasta', 'vistasInsistir', 'minutosInsistir'].forEach(function (k) { if (Number(d[k]) > 0) CFG[k] = Number(d[k]); });
     if (d.pendientes) PEND = (d.pendientes || []).filter(function (c) { return c && c.id; });
+    /* 18/11 · la pendiente de respuesta viaja siempre con el arranque (null = no hay) */
+    if (Object.prototype.hasOwnProperty.call(d, 'abierto')) ABIERTO = d.abierto || null;
     PEND.forEach(function (c) {
       if (VISTOS[c.id]) return;
       VISTOS[c.id] = 1;
@@ -609,6 +851,12 @@
         lista.appendChild(K.nodo('<div class="kit-mias__vacio">' + K.icono('comentario', 30) + '<p>Todavía no has pedido soporte. Cuando lo hagas, aquí ves en qué va y la respuesta.</p></div>'));
         return;
       }
+      /* 18/11 · la lista es lo más fresco: de aquí sale también la pendiente */
+      if (K.app !== 'ADMIN') {
+        var ed = null;
+        l.forEach(function (x) { if (x.editable && !ed) ed = x; });
+        ABIERTO = ed ? { id: ed.id, app: ed.app, estado: ed.estado, fecha: ed.fecha, solicitud: ed.solicitud, fotos: Number(ed.fotos) || 0 } : null;
+      }
       if (r.total > l.length) lista.appendChild(K.nodo('<p class="kit-mias__nota">Se muestran las ' + l.length + ' más recientes de ' + r.total + '.</p>'));
       l.forEach(function (x) {
         var t = K.nodo(
@@ -637,6 +885,11 @@
           pie.appendChild(document.createTextNode(' ' + (x.comentario ? '“' + x.comentario + '”' : ETIQUETAS[x.estrellas])));
         }
         t.appendChild(pie);
+        if (x.editable) {
+          var be = K.nodo('<button type="button" class="kit-btn kit-btn--marca kit-mias__cal">' + K.icono('lapiz', 16) + ' Editar</button>');
+          be.addEventListener('click', function () { fuera(); editar({ id: x.id, app: x.app, estado: x.estado, fecha: x.fecha, solicitud: x.solicitud, fotos: Number(x.fotos) || 0 }); });
+          t.appendChild(be);
+        }
         if (x.porCalificar) {
           var b = K.nodo('<button type="button" class="kit-btn kit-btn--marca kit-mias__cal">' + K.icono('estrella', 16) + ' Calificar</button>');
           b.addEventListener('click', function () {
@@ -658,7 +911,7 @@
   }
   document.addEventListener('visibilitychange', alVolver);
 
-  K.piezas.soporte = { abrir: abrir, contexto: contexto, calificar: calificar, pendientes: pendientes, mias: mias,
+  K.piezas.soporte = { abrir: abrir, editar: editar, abierto: function () { return ABIERTO; }, contexto: contexto, calificar: calificar, pendientes: pendientes, mias: mias,
                        _cola: function () { return COLA.slice(); }, _vistos: function () { return VISTOS; },
                        _pend: function () { return PEND.slice(); }, _ins: function () { return INS; }, _cfg: function () { return CFG; } };
 }());
