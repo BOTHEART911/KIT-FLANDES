@@ -62,10 +62,10 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
   /* texto */
   --k-tinta:        #0f1f16;
   --k-tinta-2:      #3d5248;
-  --k-apagado:      #6b7c74;
+  --k-apagado:      #4b5c54;   /* 18/11 · 4,5:1 también sobre el fondo */
 
   /* estados */
-  --k-ok:           #16a34a;
+  --k-ok:           #15803d;   /* 18/11 · antes #16a34a (3,3:1); así pasa 4,5:1 como texto y con letra blanca */
   --k-ok-fondo:     #dcfce7;
   --k-aviso:        #b45309;
   --k-aviso-fondo:  #ffedd5;
@@ -78,9 +78,9 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
   --k-r-lg: 20px;
   --k-r-pill: 999px;
 
-  --k-sombra-1: 0 1px 2px rgba(6, 64, 43, .08), 0 2px 10px rgba(6, 64, 43, .06);
-  --k-sombra-2: 0 12px 34px rgba(6, 64, 43, .16);
-  --k-sombra-marca: 0 8px 24px rgba(6, 64, 43, .28);
+  --k-sombra-1: 0 1px 2px rgba(15, 23, 20, .08), 0 2px 10px rgba(15, 23, 20, .06);   /* 18/11 · sombras neutras */
+  --k-sombra-2: 0 12px 34px rgba(15, 23, 20, .16);
+  --k-sombra-marca: 0 8px 22px rgba(15, 31, 22, .18);   /* 18/11 · sin resplandor verde */
 
   /* medidas que varias piezas comparten */
   --k-banner-alto: 58px;
@@ -276,7 +276,6 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
   background: var(--k-papel);
   color: var(--k-tinta);
   border: 1px solid var(--k-linea);
-  border-left: 4px solid var(--k-marca);
   border-radius: var(--k-r-md);
   box-shadow: var(--k-sombra-2);
   padding: 11px 16px;
@@ -287,9 +286,10 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
   max-width: 100%;
 }
 .kit-aviso--on { opacity: 1; transform: translateY(0); }
-.kit-aviso--ok    { border-left-color: var(--k-ok); }
-.kit-aviso--aviso { border-left-color: var(--k-aviso); }
-.kit-aviso--malo  { border-left-color: var(--k-malo); }
+/* 18/11 · sin franja lateral: el estado se dice con el fondo y el borde */
+.kit-aviso--ok    { background: var(--k-ok-fondo);    border-color: color-mix(in srgb, var(--k-ok) 40%, transparent); }
+.kit-aviso--aviso { background: var(--k-aviso-fondo); border-color: color-mix(in srgb, var(--k-aviso) 40%, transparent); }
+.kit-aviso--malo  { background: var(--k-malo-fondo);  border-color: color-mix(in srgb, var(--k-malo) 40%, transparent); }
 
 /* ══════════════ CAPAS Y MODALES (base común de las piezas) ══════════════ */
 

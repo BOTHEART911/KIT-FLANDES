@@ -692,7 +692,7 @@
           var marca = String(fnDe(b.marca || '')(f) || '');
           var sub = String(fnDe(b.sub || '')(f) || '');
           var campos = camposDeFicha(f, cols, op);
-          return '<article style="border-left-color:' + tono + '"><header><b>' + K.esc(tituloDe(f)) + '</b>' +
+          return '<article><header><b>' + K.esc(tituloDe(f)) + '</b>' +
             (marca ? '<i style="background:' + tono + '">' + K.esc(marca) + '</i>' : '') + '</header>' +
             (sub ? '<p class="s">' + K.esc(sub) + '</p>' : '') + '<dl>' +
             campos.map(function (c) { return '<div' + (c.largo ? ' class="l"' : '') + '><dt>' + K.esc(c.e) + '</dt><dd>' + K.esc(c.v) + '</dd></div>'; }).join('') +
@@ -706,7 +706,7 @@
       '.rs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 12px}.r{background:#f0f6f3;border:1px solid #d6e4dc;border-radius:8px;padding:6px 8px}' +
       '.r b{display:block;font-size:15px;color:#06402B}.r span{font-size:9px;text-transform:uppercase;color:#50605a}' +
       'h2{font-size:11px;background:#e8f1ec;color:#06402B;border-radius:6px;padding:4px 8px;text-transform:uppercase}h2 small{float:right}' +
-      'article{border:1px solid #d6e0da;border-left:5px solid;border-radius:8px;padding:8px 10px;margin:0 0 8px;break-inside:avoid}' +
+      'article{border:1px solid #d6e0da;border-radius:8px;padding:8px 10px;margin:0 0 8px;break-inside:avoid}' +
       'header{display:flex;justify-content:space-between;gap:8px}header i{font-style:normal;color:#fff;border-radius:9px;padding:1px 8px;font-size:9px;font-weight:700;align-self:flex-start}' +
       '.s{margin:1px 0 5px;color:#50605a;font-size:10px}dl{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:0}' +
       'dl .l{grid-column:1/-1}dt{font-size:8.5px;font-weight:700;color:#6e7d76;text-transform:uppercase}dd{margin:0;white-space:pre-wrap}' +

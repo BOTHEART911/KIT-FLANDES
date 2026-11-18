@@ -132,7 +132,7 @@
 @keyframes kit-guard-despega {
   to { transform: translate(150px, -120px) scale(.7); opacity: 0; }
 }
-.kit-guard--listo .kit-guard__ok { display: flex; animation: kit-guard-sello .38s cubic-bezier(.2, 1.4, .4, 1) both; }
+.kit-guard--listo .kit-guard__ok { display: flex; animation: kit-guard-sello .38s cubic-bezier(.2, .8, .2, 1) both; }
 .kit-guard--listo .kit-guard__bar { background: var(--k-ok); }
 
 @keyframes kit-guard-sello {

@@ -28,6 +28,11 @@
 .kit-ins__fab:hover { transform: scale(1.06); }
 .kit-ins__fab:active { transform: scale(.94); }
 .kit-ins__fab[hidden] { display: none; }
+/* 18/11 · mientras la persona desliza, el robot se achica y se aclara para
+   no tapar lo que lee; vuelve al quedarse quieta la pantalla */
+.kit-ins__fab { transition: transform .18s ease, opacity .18s ease; }
+.kit-ins__fab--mini:not(.kit-ins__fab--mueve) { transform: scale(.72); opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .kit-ins__fab { transition: opacity .1s linear; } .kit-ins__fab--mini:not(.kit-ins__fab--mueve) { transform: none; } }
 /* 4.9 · la vista tiene un boton fijo abajo (Siguiente, Guardar): el robot
    sube para no taparlo. Si la persona ya lo movio, manda donde lo dejo. */
 .kit-ins__fab--alto:not(.kit-ins__fab--puesto) { bottom: calc(92px + env(safe-area-inset-bottom, 0)); }
@@ -138,7 +143,6 @@
 .kit-ins__respuesta {
   margin: 0;
   background: rgba(var(--k-marca-rgb), .07);
-  border-left: 3px solid var(--k-marca);
   border-radius: var(--k-r-sm);
   padding: 13px 15px;
   font: 400 14px/1.6 var(--k-fuente);

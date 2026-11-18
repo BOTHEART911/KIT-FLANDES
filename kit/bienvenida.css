@@ -247,7 +247,7 @@
 }
 .kit-bien--instalada .kit-bien__sello {
   display: flex;
-  animation: kit-bien-sello .5s cubic-bezier(.2, 1.5, .4, 1) both;
+  animation: kit-bien-sello .5s cubic-bezier(.2, .8, .2, 1) both;
 }
 @keyframes kit-bien-sello {
   from { transform: scale(.2) rotate(-25deg); opacity: 0; }
@@ -271,7 +271,8 @@
 /* el botón que respira y despega */
 .kit-bien .kit-bien__instalar {
   position: relative; overflow: hidden;
-  animation: kit-bien-respira-boton 3.4s ease-in-out .9s infinite;
+  /* 18/11 · sin respiración verde: el botón ya es lo más claro de la pantalla */
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .28);
 }
 @keyframes kit-bien-respira-boton {
   0%, 100% { box-shadow: 0 8px 22px rgba(0, 0, 0, .28); }
@@ -294,7 +295,7 @@
 .kit-bien .kit-bien__instalar--yendo {
   animation: none;
   transform: translateY(-6px) scale(.98);
-  transition: transform .25s cubic-bezier(.3, 1.6, .5, 1);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1);
 }
 .kit-bien .kit-bien__instalar--yendo svg { animation: kit-bien-despega .6s ease-in forwards; }
 @keyframes kit-bien-despega {

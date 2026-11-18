@@ -15,11 +15,12 @@
 /* el bloque del detalle de la cuenta */
 .cal-det {
   margin: 12px 0; padding: 12px 14px; border-radius: var(--k-r-md, 14px);
-  background: var(--k-papel); border: 1px solid var(--k-linea); border-left: 5px solid var(--k-linea);
+  background: var(--k-papel); border: 1px solid var(--k-linea);
 }
-.cal-det--alta { border-left-color: var(--k-ok); }
-.cal-det--media { border-left-color: var(--k-aviso); }
-.cal-det--baja { border-left-color: var(--k-malo); }
+/* 18/11 · sin franja lateral: el nivel se dice con fondo y borde */
+.cal-det--alta { background: var(--k-ok-fondo); border-color: color-mix(in srgb, var(--k-ok) 35%, transparent); }
+.cal-det--media { background: var(--k-aviso-fondo); border-color: color-mix(in srgb, var(--k-aviso) 35%, transparent); }
+.cal-det--baja { background: var(--k-malo-fondo); border-color: color-mix(in srgb, var(--k-malo) 35%, transparent); }
 .cal-det__cab { display: flex; gap: 12px; align-items: center; }
 .cal-det__pct { font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--k-tinta); min-width: 70px; }
 .cal-det--alta .cal-det__pct { color: var(--k-ok); }

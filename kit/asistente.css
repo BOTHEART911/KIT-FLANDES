@@ -158,7 +158,7 @@
   opacity: 0;
   transform: translateX(-18px) scale(.6);
   transform-origin: left center;
-  transition: opacity .32s ease, transform .42s cubic-bezier(.2, 1.4, .4, 1);
+  transition: opacity .32s ease, transform .42s cubic-bezier(.2, .8, .2, 1);
 }
 .kit-as-llama--izq { transform: translateX(18px) scale(.6); transform-origin: right center; }
 .kit-as-llama--on { opacity: 1; transform: none; }

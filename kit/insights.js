@@ -74,6 +74,7 @@
       document.body.appendChild(fab);
       colocar();
       gestos();
+      achicarAlDeslizar();
     }
     fab.hidden = false;
     fab.classList.toggle('kit-ins__fab--alto', !!cfg.alto);
@@ -90,6 +91,18 @@
     vozDisponible(true);   /* 29/09 · de fondo: no compite con los datos de la vista */
     if (abierto) abierto.cerrar();
     return fab;
+  }
+
+  /* 18/11 · al deslizar, el robot se achica para no tapar el contenido.
+     Un solo oyente pasivo; no lee el DOM ni pide nada al servidor. */
+  function achicarAlDeslizar() {
+    var t = 0;
+    window.addEventListener('scroll', function () {
+      if (!fab || fab.hidden) return;
+      if (!t) fab.classList.add('kit-ins__fab--mini');
+      clearTimeout(t);
+      t = setTimeout(function () { t = 0; if (fab) fab.classList.remove('kit-ins__fab--mini'); }, 650);
+    }, { passive: true });
   }
 
   function colocar() {

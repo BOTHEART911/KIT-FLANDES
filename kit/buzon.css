@@ -38,8 +38,9 @@
 }
 
 .kit-buz-tar--nuevo {
-  border-left: 4px solid var(--k-marca);
-  padding-left: 13px;
+  /* 18/11 · sin franja lateral: lo nuevo se nota por el fondo */
+  background: rgba(var(--k-marca-rgb), .06);
+  border-color: rgba(var(--k-marca-rgb), .35);
 }
 
 .kit-buz-flag {

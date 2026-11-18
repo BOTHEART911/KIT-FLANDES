@@ -62,7 +62,7 @@
   width: 68px; height: 68px; border-radius: 50%;
   display: grid; place-items: center;
   color: #fff; background: #1f9d55;
-  animation: kit-inst-sello .5s cubic-bezier(.2, 1.5, .4, 1) both;
+  animation: kit-inst-sello .5s cubic-bezier(.2, .8, .2, 1) both;
 }
 .kit-inst__listo-halo {
   position: absolute; inset: 0; border-radius: 50%;

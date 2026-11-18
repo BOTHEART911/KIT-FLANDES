@@ -16,6 +16,7 @@
 mark.ta-hueco { background: var(--k-malo-fondo); color: var(--k-malo); font-weight: 700; border-radius: 3px; padding: 0 2px; }
 .ta__nota { margin: 0; font-size: .82rem; color: var(--k-apagado); }
 .ta__cargando { margin: 0; display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--k-apagado); }
+/* impeccable-disable pulsing-dot: indicador real de espera mientras responde Gemini */
 .ta__punto { width: 10px; height: 10px; border-radius: 50%; background: var(--k-marca); animation: ta-late 1s ease-in-out infinite; }
 @keyframes ta-late { 0%, 100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .ta__punto { animation: none; } }

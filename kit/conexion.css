@@ -23,6 +23,7 @@
 .kit-conex--lenta { background: #b45309; }
 .kit-conex__b[hidden] { display: none; }
 
+/* impeccable-disable pulsing-dot: estado real en vivo (sin conexión / red lenta) */
 .kit-conex__punto {
   width: 9px; height: 9px;
   border-radius: 50%;

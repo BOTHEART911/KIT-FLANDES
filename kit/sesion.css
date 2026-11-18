@@ -310,7 +310,7 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--k-papel) 75%, transparent);
   border: 1px solid color-mix(in srgb, var(--k-marca) 22%, transparent);
-  box-shadow: 0 14px 30px -12px rgba(var(--k-marca-rgb), .55);
+  box-shadow: 0 12px 26px -14px rgba(15, 31, 22, .35);   /* 18/11 · sombra neutra */
   animation: kit-sesion-escudo .7s cubic-bezier(.22, 1, .36, 1) both .08s;
 }
 @keyframes kit-sesion-escudo {
@@ -321,17 +321,9 @@
 .kit-sesion__t {
   font-size: 23px;
   letter-spacing: .4px;
-  background: linear-gradient(135deg, var(--k-marca-clara), var(--k-marca-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--k-marca);   /* 18/11 · color sólido, sin texto en degradado */
 }
-:root[data-tema="oscuro"] .kit-sesion__t {
-  background: linear-gradient(135deg, #7ee0b0, var(--k-marca-clara));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+:root[data-tema="oscuro"] .kit-sesion__t { color: #7ee0b0; }
 
 .kit-sesion__campo input {
   border-radius: 14px;
@@ -339,7 +331,7 @@
   background: color-mix(in srgb, var(--k-papel-2) 90%, transparent);
 }
 .kit-sesion__campo input:focus {
-  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb), .18), 0 8px 20px -10px rgba(var(--k-marca-rgb), .6);
+  box-shadow: 0 0 0 3px rgba(var(--k-marca-rgb), .18);
 }
 
 /* El botón de entrar: degradado, no plano, y con un brillo que lo cruza
@@ -349,8 +341,9 @@
   overflow: hidden;
   padding: 15px 18px;
   border-radius: var(--k-r-pill);
-  background: linear-gradient(135deg, var(--k-marca-clara) 0%, var(--k-marca) 55%, var(--k-marca-2) 100%);
-  box-shadow: 0 16px 34px -14px rgba(var(--k-marca-rgb), .85);
+  /* 18/11 · botón sólido, sin degradado ni resplandor de color */
+  background: var(--k-marca);
+  box-shadow: 0 10px 22px -12px rgba(15, 31, 22, .45);
   transition: transform .14s ease, box-shadow .2s ease;
 }
 .kit-sesion__form .kit-btn--marca::after {
@@ -362,7 +355,8 @@
   transform: skewX(-18deg);
   transition: left .55s ease;
 }
-.kit-sesion__form .kit-btn--marca:hover::after { left: 115%; }
+.kit-sesion__form .kit-btn--marca::after { display: none; }   /* 18/11 · sin brillo que cruza */
+.kit-sesion__form .kit-btn--marca:hover { background: var(--k-marca-clara); }
 .kit-sesion__form .kit-btn--marca:active { transform: translateY(1px) scale(.99); }
 
 @media (prefers-reduced-motion: reduce) {
