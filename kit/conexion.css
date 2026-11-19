@@ -16,9 +16,11 @@
   color: #fff;
   font: 500 13px/1.3 var(--k-fuente);
   transform: translateY(100%);
-  transition: transform .24s cubic-bezier(.2, .9, .3, 1);
+  /* 19/11 · oculta de verdad cuando hay red: fuera del árbol de accesibilidad y del texto de la página */
+  visibility: hidden;
+  transition: transform .24s cubic-bezier(.2, .9, .3, 1), visibility 0s linear .24s;
 }
-.kit-conex--on { transform: none; }
+.kit-conex--on { transform: none; visibility: visible; transition: transform .24s cubic-bezier(.2, .9, .3, 1); }
 /* 21/10 · red lenta: ámbar, sin botón (se sigue intentando solo) */
 .kit-conex--lenta { background: #b45309; }
 .kit-conex__b[hidden] { display: none; }

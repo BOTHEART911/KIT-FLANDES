@@ -214,6 +214,8 @@ body { font-family: var(--k-fuente); -webkit-text-size-adjust: 100%; }
 }
 .kit-pastillas::-webkit-scrollbar { display: none; }
 .kit-pastillas--envuelve { flex-wrap: wrap; overflow: visible; }
+/* 19/11 (2) · la cuenta que se radica el último día del periodo (fecha de radicación = mañana) */
+.kit-ultimo-dia { color: #9a3412; font-weight: 600; }
 /* 19/11 · en el PC la fila que se sale se arrastra con el mouse (kit/pastillas.js) */
 @media (pointer: fine) {
   .kit-arrastrable { cursor: grab; }

@@ -244,5 +244,34 @@
     for (var i = 0; i < filas.length; i++) (esPrioritario(filas[i]) ? si : no).push(filas[i]);
     return si.length ? si.concat(no) : filas;
   }
-  K.piezas.prioridad = { primero: primero, es: esPrioritario };
+  /* 19/11 (2) · «hace N días» de la tarjeta, sin negativos. La fecha de
+     radicación es el día SIGUIENTE al fin del periodo, así que quien radica
+     el último día del periodo queda con fecha de mañana: para él se dice
+     «hoy · último día del periodo». A la cuenta prioritaria no se le aplica
+     esa norma: dice «hoy». 0 días = «hoy». Devuelve ' <small>· …</small>'. */
+  function diasDe(s) {
+    var t = String(s || ''), m, d;
+    if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t))) d = new Date(+m[3], +m[2] - 1, +m[1]);
+    else if ((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t))) d = new Date(+m[1], +m[2] - 1, +m[3]);
+    else return null;
+    var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    return Math.round((hoy - d) / 864e5);
+  }
+  function dosDig(n) { return (n < 10 ? '0' : '') + n; }
+  function hace(c, fecha, opc) {
+    opc = opc || {};
+    var d = diasDe(fecha);
+    if (d === null) return '';
+    var x;
+    if (d === 0) x = 'hoy';
+    else if (d > 0) x = 'hace ' + d + (d === 1 ? ' día' : ' días');
+    else if (opc.sinPeriodo || esPrioritario(c)) x = 'hoy';
+    else if (d === -1) x = 'hoy · último día del periodo';
+    else {
+      var f = new Date(); f.setHours(0, 0, 0, 0); f.setDate(f.getDate() - d - 1);
+      x = 'último día del periodo: ' + dosDig(f.getDate()) + '/' + dosDig(f.getMonth() + 1);
+    }
+    return ' <small' + (d < 0 && x !== 'hoy' ? ' class="kit-ultimo-dia"' : '') + '>· ' + x + '</small>';
+  }
+  K.piezas.prioridad = { primero: primero, es: esPrioritario, hace: hace, dias: diasDe };
 }());
