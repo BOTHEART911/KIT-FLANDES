@@ -157,5 +157,92 @@
     return api;
   }
 
-  K.piezas.pastillas = { montar: montar };
+  /* ══════════ 19/11 · ARRASTRAR CON EL MOUSE LAS FILAS QUE SE SALEN ══════════
+     En el PC, una fila de pastillas (secretarías, supervisores…) que no cabe
+     se desplaza con clic sostenido y arrastre, como con el dedo en el
+     celular. Vale para TODA fila horizontal con desplazamiento (flex sin
+     envolver), sea del kit o propia de la app: un solo escucha delegado en
+     el documento, nada por fila. Si se arrastró, el clic que suelta no
+     marca la pastilla. En el táctil no hace nada: el navegador ya desliza. */
+  var UMBRAL = 6;
+  function filaArrastrable(el) {
+    for (var n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
+      if (n.scrollWidth - n.clientWidth < 2) continue;
+      var cs = getComputedStyle(n);
+      if (!/(auto|scroll)/.test(cs.overflowX)) continue;
+      if (!/flex/.test(cs.display) || /column/.test(cs.flexDirection) || cs.flexWrap === 'wrap') continue;
+      return n;
+    }
+    return null;
+  }
+  var A = null, comerClic = false;
+  document.addEventListener('pointerdown', function (ev) {
+    if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+    if (ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    var fila = filaArrastrable(ev.target);
+    if (!fila) return;
+    A = { fila: fila, x: ev.clientX, izq: fila.scrollLeft, mov: false, id: ev.pointerId };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!A || ev.pointerId !== A.id) return;
+    var dx = ev.clientX - A.x;
+    if (!A.mov) {
+      if (Math.abs(dx) < UMBRAL) return;
+      A.mov = true;
+      A.fila.classList.add('kit-arrastrando');
+      try { A.fila.setPointerCapture(ev.pointerId); } catch (e) {}
+    }
+    A.fila.scrollLeft = A.izq - dx;
+    ev.preventDefault();
+  }, true);
+  function soltar(ev) {
+    if (!A || (ev && ev.pointerId !== A.id)) return;
+    if (A.mov) {
+      comerClic = true;
+      setTimeout(function () { comerClic = false; }, 0);
+      A.fila.classList.remove('kit-arrastrando');
+      try { A.fila.releasePointerCapture(A.id); } catch (e) {}
+    }
+    A = null;
+  }
+  document.addEventListener('pointerup', soltar, true);
+  document.addEventListener('pointercancel', soltar, true);
+  document.addEventListener('click', function (ev) {
+    if (!comerClic) return;
+    comerClic = false;
+    ev.preventDefault(); ev.stopPropagation();
+  }, true);
+  /* la mano abierta solo donde de verdad hay algo que arrastrar */
+  document.addEventListener('mouseover', function (ev) {
+    var fila = filaArrastrable(ev.target);
+    if (fila && !fila.classList.contains('kit-arrastrable')) fila.classList.add('kit-arrastrable');
+  }, { passive: true });
+  /* que el arrastre no seleccione texto ni arrastre imágenes */
+  document.addEventListener('dragstart', function (ev) { if (A) ev.preventDefault(); }, true);
+
+  K.piezas.pastillas = { montar: montar, filaArrastrable: filaArrastrable };
+
+  /* ══════════ 19/11 · CUENTA PRIORITARIA ══════════
+     Las cuentas de OSCAR MAURICIO POLANIA GUERRA salen SIEMPRE como primera
+     tarjeta (revisión y plan de pagos en Supervisión, revisión en
+     Contratación, órdenes de pago en Contabilidad, egresos pendientes y
+     emitidos en Tesorería), sin importar la fecha ni el orden del resto.
+     Partición estable en el dispositivo: el resto conserva su orden y no
+     hay viajes. Vive aquí porque las 7 apps ya cargan esta pieza. */
+  var PRIORITARIOS = [['OSCAR', 'MAURICIO', 'POLANIA', 'GUERRA']];
+  function normal(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase(); }
+  function esPrioritario(c) {
+    if (!c) return false;
+    var n = normal(c.nombre || c.contratista || c.beneficiario || c.tercero || '');
+    if (!n) return false;
+    var pal = n.split(/[^A-Z]+/);
+    return PRIORITARIOS.some(function (p) { return p.every(function (x) { return pal.indexOf(x) >= 0; }); });
+  }
+  function primero(filas) {
+    if (!filas || filas.length < 2) return filas;
+    var si = [], no = [];
+    for (var i = 0; i < filas.length; i++) (esPrioritario(filas[i]) ? si : no).push(filas[i]);
+    return si.length ? si.concat(no) : filas;
+  }
+  K.piezas.prioridad = { primero: primero, es: esPrioritario };
 }());
