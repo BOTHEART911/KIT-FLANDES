@@ -616,6 +616,8 @@
       decir({ quien: 'as', clase: 'guia', texto: guia, titulo: cfgVista.vista || '', medidas: medidasDe(cfgVista) });
     } else if (!CHAT.length) {
       decir({ quien: 'as', clase: 'guia', texto: entrada ? 'Hola. Te ayudo a entrar a la app: olvidé mi contraseña, no tengo acceso o cómo instalarla.' : '¿En qué te puedo ayudar?' });
+      /* 22/11 · en la entrada, el video de cómo entrar va de una (si la app lo tiene) */
+      if (entrada) ofrecerVideo(null, '');
     }
 
     /* ---- preguntas frecuentes de ESTA vista ---- */
@@ -702,12 +704,14 @@
 
     function dudas(r, t, modo) {
       var id = nuevoId();
-      var b = (r.candidatos || []).filter(function (c) { return c.puntaje >= 0.18; }).map(function (c) { return { texto: c.tema.titulo, tema: c.tema }; });
+      /* 22/11 · el tema «Hablar con soporte» no se repite: ya va el botón de abajo */
+      var b = (r.candidatos || []).filter(function (c) { return c.puntaje >= 0.18 && K.norm(c.tema.titulo) !== 'HABLAR CON SOPORTE'; }).map(function (c) { return { texto: c.tema.titulo, tema: c.tema }; });
       var txt = r.tipo === 'fuera' && !b.length
         ? 'Solo te puedo ayudar con la app. Pregúntame por tu cuenta, tus documentos, tus pagos o tus trámites.'
         : (r.tipo === 'fuera' ? 'Solo te puedo ayudar con la app. ¿Quisiste decir…?' : '¿Quisiste decir…?');
       b.push({ texto: 'Hablar con soporte', icono: 'salvavidas', soporte: true, hacer: function () { soporte(t); }, lleva: true });
       decir({ quien: 'as', texto: txt, botones: b, pregunta: t, idPregunta: id, voto: true });
+      ofrecerVideo(null, t);
       encolar({ id: id, app: CFG.app, vista: vista, fecha: new Date().toISOString(), pregunta: t.slice(0, 200), resolucion: 'SIN RESPUESTA', tema: '', voto: '' });
       if (modo === 'voz' && !silencio()) hablar(txt.replace('¿Quisiste decir…?', '¿Quisiste decir alguno de estos temas?'));
     }
@@ -720,10 +724,24 @@
       if (bs.extra) txt = (txt ? txt + '\n\n' : '') + llenar(bs.extra);
       var id = nuevoId();
       decir({ quien: 'as', texto: txt, botones: bs.botones, tema: tema.id, idPregunta: id, voto: true, pregunta: pregunta, resolucion: modo === 'boton' ? 'LOCAL' : (resolucion || 'LOCAL') });
+      ofrecerVideo(tema, pregunta);
       if (modo !== 'boton') {
         encolar({ id: id, app: CFG.app, vista: vista, fecha: new Date().toISOString(), pregunta: String(pregunta).slice(0, 200), resolucion: resolucion || 'LOCAL', tema: tema.id, voto: '' });
       }
       if (modo === 'voz' && !silencio()) hablar(txt);
+    }
+
+    /* 22/11 · si la app tiene un tutorial en video para lo que se preguntó,
+       lo ofrece: «¿Quieres ver el video?». Con Sí lleva al video dentro de
+       TUTORIALES; con No se quita la pregunta. Lo decide el adaptador
+       (video(tema, pregunta) -> null | {titulo, detalle, img, ir}). */
+    function ofrecerVideo(tema, pregunta) {
+      var v = null;
+      try { v = ad().video ? ad().video(tema, pregunta) : null; } catch (e) { v = null; }
+      if (!v || !v.ir) return;
+      decir({ quien: 'as', clase: 'video', texto: '¿Quieres ver el video?', video: v,
+        botones: [{ texto: 'Sí, ver el video', icono: 'play', lleva: true, hacer: v.ir },
+                  { texto: 'No, gracias', plano: true, quita: true, hacer: function () {} }] });
     }
 
     function soporte(pregunta) {
@@ -748,7 +766,20 @@
         el = K.nodo('<div class="kit-as__m kit-as__m--as' + (m.clase ? ' kit-as__m--' + m.clase : '') + '">' +
           (m.clase === 'urgente' ? '<span class="kit-as__marca">' + K.icono('aviso', 15) + ' Lo más urgente</span>' : '') +
           (m.clase === 'guia' && m.titulo ? '<span class="kit-as__marca">' + K.icono('bombilla', 15) + ' ' + K.esc(m.titulo) + '</span>' : '') +
-          '<p>' + rico(m.texto) + '</p></div>');
+          (m.video ? '' : '<p>' + rico(m.texto) + '</p>') + '</div>');
+        if (m.video) {
+          var vd = K.nodo('<div class="kit-as__video"><span class="kit-as__video-img"></span>' +
+            '<span class="kit-as__video-txt"><b></b><small></small></span></div>');
+          vd.querySelector('b').textContent = m.texto;
+          vd.querySelector('small').textContent = [m.video.titulo, m.video.detalle].filter(Boolean).join(' · ');
+          if (m.video.img) {
+            var vi = K.nodo('<img alt="" loading="lazy" width="42" height="74">');
+            vi.addEventListener('error', function () { vi.remove(); });
+            vi.src = m.video.img;
+            vd.querySelector('.kit-as__video-img').appendChild(vi);
+          } else vd.querySelector('.kit-as__video-img').innerHTML = K.icono('play', 20);
+          el.appendChild(vd);
+        }
         if (m.medidas && m.medidas.length) {
           var md = K.nodo('<div class="kit-as__medidas"></div>');
           m.medidas.forEach(function (x) { md.appendChild(K.nodo('<span><b>' + K.esc(x.v) + '</b>' + K.esc(x.t) + '</span>')); });
@@ -757,12 +788,13 @@
         if ((m.botones || []).length) {
           var bs = K.nodo('<div class="kit-as__acc"></div>');
           m.botones.forEach(function (b) {
-            var bt = K.nodo('<button type="button" class="kit-btn ' + (b.tema ? 'kit-as__op' : (b.soporte ? 'kit-as__sop' : 'kit-btn--marca kit-as__ir')) + '">' +
+            var bt = K.nodo('<button type="button" class="kit-btn ' + (b.tema ? 'kit-as__op' : (b.soporte ? 'kit-as__sop' : (b.plano ? 'kit-btn--plano kit-as__no' : 'kit-btn--marca kit-as__ir'))) + '">' +
               (b.icono ? K.icono(b.icono, 16) : '') + '<span></span></button>');
             bt.querySelector('span').textContent = b.texto;
             bt.addEventListener('click', function () {
               K.vibrar(8);
               if (b.tema) { responderTema(b.tema, b.texto, 'boton'); return; }
+              if (b.quita) { m.botones = []; bs.remove(); return; }
               if (b.lleva) cerrar();
               try { b.hacer(); } catch (e) { K.aviso('No pude llevarte ahí. Búscalo en el inicio.', 'aviso', 4000); }
             });
