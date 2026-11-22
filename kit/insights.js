@@ -78,6 +78,7 @@
     }
     fab.hidden = false;
     fab.classList.toggle('kit-ins__fab--alto', !!cfg.alto);
+    setTimeout(revisar, 900); setTimeout(revisar, 2600);
     /* 24/10 · ASISTENTE: con la base cargada, el robot es el asistente de
        ayuda (kit/asistente.js). Llama la atención UNA vez por día. */
     var As = K.piezas.asistente;
@@ -94,15 +95,47 @@
   }
 
   /* 18/11 · al deslizar, el robot se achica para no tapar el contenido.
-     Un solo oyente pasivo; no lee el DOM ni pide nada al servidor. */
+     22/11 · y quieto tampoco tapa: si quedó encima de una tarjeta, un texto
+     o un botón, se queda pequeño y claro (vuelve entero al pasarle el dedo
+     o el ratón, o sobre espacio vacío). Además cada vista deja al final el
+     margen del robot (clase kit-con-robot en <html>), así lo último de la
+     lista nunca queda debajo. Se revisa UNA vez al quedarse quieta la
+     pantalla: unas pocas lecturas de posición, nada al servidor. */
+  var CONTENIDO = 'a,button,input,select,textarea,label,img,video,iframe,p,li,h1,h2,h3,h4,b,strong,small,.kit-tarjeta,.kit-pastilla';
+  function tapa() {
+    if (!fab || fab.hidden || !document.elementsFromPoint) return false;
+    var r = fab.getBoundingClientRect();
+    if (!r.width) return false;
+    var pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 6, r.top + 6], [r.right - 6, r.top + 6], [r.left + 6, r.bottom - 6], [r.right - 6, r.bottom - 6]];
+    for (var i = 0; i < pts.length; i++) {
+      var l = document.elementsFromPoint(pts[i][0], pts[i][1]);
+      for (var j = 0; j < l.length; j++) {
+        var e = l[j];
+        if (e === fab || fab.contains(e) || e === document.body || e === document.documentElement) continue;
+        if (e.closest && (e.closest('.kit-as-llama') || e.closest('.kit-capa'))) continue;
+        if (e.matches && e.matches(CONTENIDO)) return true;
+        if (e.closest && e.closest('.kit-tarjeta')) return true;
+      }
+    }
+    return false;
+  }
+  function revisar() {
+    if (!fab) return;
+    document.documentElement.classList.toggle('kit-con-robot', !fab.hidden);
+    fab.classList.toggle('kit-ins__fab--sobre', !fab.classList.contains('kit-ins__fab--mueve') && tapa());
+  }
   function achicarAlDeslizar() {
     var t = 0;
     window.addEventListener('scroll', function () {
       if (!fab || fab.hidden) return;
       if (!t) fab.classList.add('kit-ins__fab--mini');
       clearTimeout(t);
-      t = setTimeout(function () { t = 0; if (fab) fab.classList.remove('kit-ins__fab--mini'); }, 650);
+      t = setTimeout(function () { t = 0; if (fab) { fab.classList.remove('kit-ins__fab--mini'); revisar(); } }, 650);
     }, { passive: true });
+    var tr = 0;
+    window.addEventListener('resize', function () { clearTimeout(tr); tr = setTimeout(revisar, 300); }, { passive: true });
+    /* la vista nueva pinta después del cambio de ruta: se mira cuando ya está */
+    window.addEventListener('hashchange', function () { setTimeout(revisar, 900); setTimeout(revisar, 2600); });
   }
 
   function colocar() {

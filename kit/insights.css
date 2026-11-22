@@ -32,6 +32,10 @@
    no tapar lo que lee; vuelve al quedarse quieta la pantalla */
 .kit-ins__fab { transition: transform .18s ease, opacity .18s ease; }
 .kit-ins__fab--mini:not(.kit-ins__fab--mueve) { transform: scale(.72); opacity: .45; }
+/* 22/11 · quieto encima de contenido: pequeño y claro; entero al acercarse */
+.kit-ins__fab--sobre:not(.kit-ins__fab--mueve):not(:hover):not(:focus-visible) { transform: scale(.78); opacity: .55; }
+/* 22/11 · el final de cada vista deja el sitio del robot: lo último nunca queda debajo */
+.kit-con-robot .vista { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0)); }
 @media (prefers-reduced-motion: reduce) { .kit-ins__fab { transition: opacity .1s linear; } .kit-ins__fab--mini:not(.kit-ins__fab--mueve) { transform: none; } }
 /* 4.9 · la vista tiene un boton fijo abajo (Siguiente, Guardar): el robot
    sube para no taparlo. Si la persona ya lo movio, manda donde lo dejo. */
