@@ -5342,7 +5342,20 @@ ${js}
     });
     await prueba('motor y calidad llevan la versión nueva', async () => {
       const r = await page.evaluate(() => [KIT.piezas.informeCuentas._estr.version, KIT.piezas.calidad.MOTOR]);
-      igual(r, ['E2026.11.17', 'C2026.11.12d']);
+      igual(r, ['E2026.11.23', 'C2026.11.12d']);
+    });
+    /* 23/11 · caso SHARITZA 249 cuenta 3: «se adjunta … en el Drive» sin nada cargado = rojo «súbelo aquí», no naranja «dónde» */
+    await prueba('dice que adjunta sin nada cargado: rojo «súbelo aquí»; con el adjunto, verde', async () => {
+      const r = await page.evaluate(() => {
+        const I = KIT.piezas.informeCuentas, V = KIT.piezas.variacion;
+        const OB = 'Revisar y verificar el cargue de las cuentas de cobro y planes de pago en la plataforma SECOP II.';
+        const T = 'Durante los días 21 de octubre y 20 de noviembre, llevé a cabo la revisión de 18 cuentas de cobro cargadas, junto con sus planes de pago, en la plataforma SECOP II para los contratistas de la Secretaría de Hacienda. Para su revisión se adjunta el informe en el Drive de la Secretaria de Hacienda CONTRATO 249 – CUENTA 3 - 1.1. INFORMES SUPERVISION - OBLIGACION1.xlsx';
+        const P = V.preparar(I, OB, [], '249');
+        const b = s => V.medir(I, T, P, { obl: OB, soporte: s, nContrato: '249' }).b[5];
+        const donde = V.medir(I, 'Revisé 18 cuentas de cobro el 3 de noviembre; reposan en la carpeta física de la Secretaría.', P, { obl: OB, soporte: 0, nContrato: '249' }).b[5];
+        return [b(0).e, b(0).como, b(0).d, b(1).e, donde.como];
+      });
+      igual(r, ['rojo', 'diceAdjunta', 'Dices que adjuntas un soporte, pero no está cargado: súbelo aquí.', 'verde', 'donde']);
     });
     /* 17/11 · solo los marcadores del asistente frenan; los corchetes propios (normas, siglas) no */
     await prueba('esMarcador: los del asistente sí; normas, siglas y [sic] no', async () => {

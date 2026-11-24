@@ -728,12 +728,14 @@
         if (pr) return { e: 'amarillo', d: 'Escribiste que no requiere adjunto, pero mencionas «' + pr.x + '», que elaboraste o entregaste. Si existe, súbelo: «no requiere adjunto» es para lo que no deja documento.', r: [[pr.i, pr.f], [m.index, m.index + m[0].length]], como: 'noRequiereProducto', x: pr.x };
         return { e: 'verde', d: 'Indicaste que no requiere adjunto. Tu supervisor puede pedirte el soporte si lo necesita.', r: [[m.index, m.index + m[0].length]], como: 'noRequiere' };
       }
+      /* 23/11 · «se adjunta…» sin nada cargado manda sobre «dice dónde» (caso SHARITZA 249, cuenta 3: «se adjunta el informe en
+         el Drive…» salía naranja y le pedía escribir «no requiere adjunto»). Lo pedagógico es decirle que lo suba aquí. */
+      if ((m = DICE_ADJ.exec(t))) return { e: 'rojo', d: 'Dices que adjuntas un soporte, pero no está cargado: súbelo aquí.', r: [[m.index, m.index + m[0].length]], como: 'diceAdjunta' };
       if ((m = DONDE.exec(t))) {
         var fin = texto.slice(m.index).search(/\.(\s|$)|[;\n]/), hasta = m.index + (fin < 0 ? texto.length - m.index : fin);
         if (hasta - m.index > 90) hasta = m.index + 90;
         return { e: 'amarillo', d: 'Dices dónde se puede verificar: «' + texto.slice(m.index, hasta).trim() + '». Para el verde: sube el soporte o, si esta obligación no lo requiere, escribe «no requiere adjunto».', r: [[m.index, hasta]], como: 'donde' };
       }
-      if ((m = DICE_ADJ.exec(t))) return { e: 'rojo', d: 'Tu texto dice que adjunta un soporte, pero esta obligación no tiene nada cargado: súbelo aquí.', r: [[m.index, m.index + m[0].length]], como: 'diceAdjunta' };
       if (!OBL_PRODUCTO.test(st(obl || '').toLowerCase() + ' ')) return { e: 'amarillo', d: 'Esta obligación puede no requerir adjunto. Si es así, escríbelo («no requiere adjunto»); si no, sube la evidencia o di dónde la puede verificar tu supervisor.', como: 'oblSinProducto' };
       return { e: 'rojo', d: 'Esta obligación pide un producto y no tiene evidencias ni adjuntos cargados.', como: 'nada' };
     }
@@ -1045,7 +1047,7 @@
       return R;
     }
 
-    return { version: 'E2026.11.17', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete, esMarcador: esMarcador, marcadores: marcadores,
+    return { version: 'E2026.11.23', st: st, tokens: tokens, clasificar: clasificar, lexico: lexico, esqueleto: esqueleto, marcas: marcas, preparar: preparar, analizar: analizar, cifrasCon: cifrasCon, kDeCorchete: kDeCorchete, esMarcador: esMarcador, marcadores: marcadores,
              citas: citas, noEjecutada: noEjecutada, gemela: gemela, igualdad: igualdad, U: { N: N, MIN_ESQ: MIN_ESQ, U_EST: U_EST, MIN_FRASE: MIN_FRASE } };
 
   }());
